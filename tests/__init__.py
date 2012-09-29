@@ -136,7 +136,7 @@ class FieldTestCase(ValidationTestCase):
         self.assertValid(OptionalTagsSchema({}), {'tags': []})
 
 
-    # TODO: Test Email, Embedded, Choices, MongoReference, more Schema tests.
+    # TODO: Test Embedded, Choices, MongoReference, more Schema tests.
 
 if __name__ == '__main__':
     unittest.main()

@@ -106,7 +106,6 @@ class Embedded(Field):
 
     def clean(self, value):
         value = super(Embedded, self).clean(value)
-
         return self.schema_class(value).full_clean()
 
     def is_valid(self):
@@ -135,6 +134,15 @@ class Choices(Field):
         return value
 
 # TODO move to separate module
+class MongoEmbedded(Embedded):
+    def __init__(self, document_class=None, *args, **kwargs):
+        self.document_class = document_class
+        super(MongoEmbedded, self).__init__(*args, **kwargs)
+
+    def clean(self, value):
+        value = super(MongoEmbedded, self).clean(value)
+        return self.document_class(**value)
+
 class MongoReference(Field):
     base_type = basestring
 
