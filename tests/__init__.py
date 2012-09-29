@@ -41,6 +41,66 @@ class FieldTestCase(ValidationTestCase):
         self.assertValid(OptionalFlagSchema({}), {'flag': False})
         self.assertInvalid(OptionalFlagSchema({'flag': ''}), {'errors': ['flag']})
 
+    def test_regex(self):
+        class RegexSchema(Schema):
+            letter = Regex('^[a-z]$')
+        class RegexOptionsSchema(Schema):
+            letter = Regex('^[a-z]$', re.IGNORECASE)
+        class RegexMessageSchema(Schema):
+            letter = Regex('^[a-z]$', regex_message=u'Not a lowercase letter.')
+        class OptionalRegexMessageSchema(Schema):
+            letter = Regex('^[a-z]$', regex_message=u'Not a lowercase letter.', required=False)
+
+        self.assertValid(RegexSchema({'letter': 'a'}), {'letter': 'a'})
+        self.assertInvalid(RegexSchema({'letter': 'A'}), {'errors': ['letter']})
+        self.assertInvalid(RegexSchema({'letter': ''}), {'errors': ['letter']})
+        self.assertInvalid(RegexSchema({'letter': 'aa'}), {'errors': ['letter']})
+
+        self.assertValid(RegexOptionsSchema({'letter': 'a'}), {'letter': 'a'})
+        self.assertValid(RegexOptionsSchema({'letter': 'A'}), {'letter': 'A'})
+        self.assertInvalid(RegexOptionsSchema({'letter': ''}), {'errors': ['letter']})
+        self.assertInvalid(RegexOptionsSchema({'letter': 'aa'}), {'errors': ['letter']})
+
+        self.assertValid(RegexMessageSchema({'letter': 'a'}), {'letter': 'a'})
+
+        schema = RegexMessageSchema({'letter': ''})
+        self.assertInvalid(schema, {'errors': ['letter']})
+        self.assertEqual(schema.errors['letter'], u'This field is required.')
+
+        schema = RegexMessageSchema({'letter': 'aa'})
+        self.assertInvalid(schema, {'errors': ['letter']})
+        self.assertEqual(schema.errors['letter'], u'Not a lowercase letter.')
+
+        self.assertValid(OptionalRegexMessageSchema({'letter': 'a'}), {'letter': 'a'})
+        self.assertValid(OptionalRegexMessageSchema({'letter': ''}), {'letter': ''})
+
+        schema = OptionalRegexMessageSchema({'letter': 'aa'})
+        self.assertInvalid(schema, {'errors': ['letter']})
+        self.assertEqual(schema.errors['letter'], u'Not a lowercase letter.')
+
+    def test_email(self):
+        class EmailSchema(Schema):
+            email = Email(required=True)
+
+        class OptionalEmailSchema(Schema):
+            email = Email(required=False)
+
+        self.assertValid(EmailSchema({'email': 'test@example.com'}), {'email': 'test@example.com'})
+        schema = EmailSchema({'email': 'test@example'})
+        self.assertInvalid(schema, {'errors': ['email']})
+        self.assertEqual(schema.errors['email'], u'Invalid email address.')
+        self.assertInvalid(EmailSchema({'email': 'test.example.com'}), {'errors': ['email']})
+        self.assertInvalid(EmailSchema({'email': None}), {'errors': ['email']})
+        self.assertInvalid(EmailSchema({}), {'errors': ['email']})
+        self.assertInvalid(EmailSchema({'email': ''}), {'errors': ['email']})
+
+        self.assertValid(OptionalEmailSchema({'email': 'test@example.com'}), {'email': 'test@example.com'})
+        self.assertValid(OptionalEmailSchema({'email': ''}), {'email': ''})
+        self.assertValid(OptionalEmailSchema({'email': None}), {'email': ''})
+        self.assertValid(OptionalEmailSchema({}), {'email': ''})
+        self.assertInvalid(OptionalEmailSchema({'email': 'test@example'}), {'errors': ['email']})
+        self.assertInvalid(OptionalEmailSchema({'email': 'test.example.com'}), {'errors': ['email']})
+
     def test_integer(self):
         class AgeSchema(Schema):
             age = Integer()

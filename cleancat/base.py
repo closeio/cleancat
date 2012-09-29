@@ -44,19 +44,34 @@ class Bool(Field):
     blank_value = False
 
 class Regex(String):
+    regex = None
+    regex_flags = 0
+    regex_message = u'Invalid input.'
+
+    def __init__(self, regex=None, regex_flags=None, regex_message=None, **kwargs):
+        super(Regex, self).__init__(**kwargs)
+        if regex != None:
+            self.regex = regex
+        if regex_flags != None:
+            self.regex_flags = regex_flags
+        if regex_message != None:
+            self.regex_message = regex_message
+
     def get_regex(self):
-        return re.compile(self.regex)
+        return re.compile(self.regex, self.regex_flags)
 
     def clean(self, value):
         value = super(Regex, self).clean(value)
 
         if not self.get_regex().match(value):
-            raise ValidationError(u'Does not match regex')
+            raise ValidationError(self.regex_message)
 
         return value
 
 class Email(Regex):
-    regex = '^.*@.*$' # TODO
+    regex = r'^.+@[^.].*\.[a-z]{2,10}$'
+    regex_flags = re.IGNORECASE
+    regex_message = u'Invalid email address.'
 
 class Integer(Field):
     base_type = int
