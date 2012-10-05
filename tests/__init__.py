@@ -1,4 +1,5 @@
 import unittest
+import datetime
 from cleancat import *
 from cleancat.utils import ValidationTestCase
 
@@ -77,6 +78,14 @@ class FieldTestCase(ValidationTestCase):
         schema = OptionalRegexMessageSchema({'letter': 'aa'})
         self.assertInvalid(schema, {'errors': ['letter']})
         self.assertEqual(schema.errors['letter'], u'Not a lowercase letter.')
+
+    def test_datetime(self):
+        class DateTimeSchema(Schema):
+            dt = DateTime()
+
+        self.assertValid(DateTimeSchema({'dt': '2012-10-09'}), {'dt': datetime.date(2012,10,9)})
+        self.assertValid(DateTimeSchema({'dt': '2012-10-09 13:10:04'}), {'dt': datetime.datetime(2012,10,9, 13,10,04)})
+        self.assertInvalid(DateTimeSchema({'dt': '2012a'}), {'errors': ['dt']})
 
     def test_email(self):
         class EmailSchema(Schema):
