@@ -86,6 +86,13 @@ class FieldTestCase(ValidationTestCase):
         self.assertValid(DateTimeSchema({'dt': '2012-10-09'}), {'dt': datetime.date(2012,10,9)})
         self.assertValid(DateTimeSchema({'dt': '2012-10-09 13:10:04'}), {'dt': datetime.datetime(2012,10,9, 13,10,04)})
         self.assertInvalid(DateTimeSchema({'dt': '2012a'}), {'errors': ['dt']})
+        self.assertInvalid(DateTimeSchema({'dt': ''}), {'errors': ['dt']})
+        self.assertInvalid(DateTimeSchema({'dt': None}), {'errors': ['dt']})
+
+        class OptionalDateTimeSchema(Schema):
+            dt = DateTime(required=False)
+
+        self.assertValid(OptionalDateTimeSchema({'dt': ''}), {'dt': None})
 
     def test_email(self):
         class EmailSchema(Schema):
