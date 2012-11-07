@@ -93,6 +93,19 @@ class Email(Regex):
     regex_flags = re.IGNORECASE
     regex_message = u'Invalid email address.'
 
+class URL(Regex):
+    blank_value = None
+
+    def __init__(self, require_tld=True, **kwargs):
+        tld_part = (require_tld and r'\.[a-z]{2,10}' or '')
+        regex = r'^[a-z]+://([^/:]+%s|([0-9]{1,3}\.){3}[0-9]{1,3})(:[0-9]+)?(\/.*)?$' % tld_part
+        super(URL, self).__init__(regex=regex, regex_flags=re.IGNORECASE, regex_message='Invalid URL.', **kwargs)
+
+    def clean(self, value):
+        if value == self.blank_value:
+            return value 
+        return super(URL, self).clean(value)
+
 class Integer(Field):
     base_type = int
 
@@ -114,15 +127,16 @@ class List(Field):
 
         return [self.field_instance.clean(item) for item in value]
 
-class Embedded(Field):
+class Dict(Field):
     base_type = dict
-
-    def __init__(self, schema_class, **kwargs):
-        super(Embedded, self).__init__(**kwargs)
-        self.schema_class = schema_class
 
     def has_value(self, value):
         return bool(value)
+
+class Embedded(Dict):
+    def __init__(self, schema_class, **kwargs):
+        super(Embedded, self).__init__(**kwargs)
+        self.schema_class = schema_class
 
     def clean(self, value):
         value = super(Embedded, self).clean(value)
