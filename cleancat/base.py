@@ -169,6 +169,10 @@ class Choices(Field):
 
 # TODO move to separate module
 class MongoEmbedded(Embedded):
+    """
+    Represents an embedded document. Expects the document contents as input.
+    Example document: EmbeddedDocumentField(Doc)
+    """
     def __init__(self, document_class=None, *args, **kwargs):
         self.document_class = document_class
         super(MongoEmbedded, self).__init__(*args, **kwargs)
@@ -177,7 +181,61 @@ class MongoEmbedded(Embedded):
         value = super(MongoEmbedded, self).clean(value)
         return self.document_class(**value)
 
+class MongoEmbeddedReference(MongoEmbedded):
+    """
+    Represents a reference. Expects the document contents as input.
+    Example document: ReferenceField(Doc)
+
+    The primary key of the related reference can be specified using pk_field.
+    By default, `id` is the pk_field. If the passed document contains the
+    pk_field, it is validated whether a document with that ID exists. If the
+    document does not contain the pk_field, it is assumed that a new document
+    will be created.
+
+    Examples:
+    {'id': 'existing_id', 'foo': 'bar'} -> valid
+    {'id': 'non-existing_id', 'foo': 'bar'} -> invalid
+    {'foo': 'bar'} -> valid
+    """
+    def __init__(self, *args, **kwargs):
+        self.pk_field = kwargs.pop('pk_field', 'id')
+        super(MongoEmbeddedReference, self).__init__(*args, **kwargs)
+
+
+    def clean(self, value):
+        value = super(Embedded, self).clean(value)
+        return self.schema_class(value).full_clean()
+
+    def clean(self, value):
+        from mongoengine import ValidationError as MongoValidationError
+        if value and self.pk_field in value:
+            try:
+                document = self.document_class.objects.get(pk=value[self.pk_field])
+            except self.document_class.DoesNotExist:
+                raise ValidationError(u'Object does not exist.')
+            except MongoValidationError as e:
+                raise ValidationError(unicode(e))
+            else:
+                value = Dict.clean(self, value)
+                document_data = document._data.copy()
+                if None in document_data:
+                    del document_data[None]
+                value = self.schema_class(value, document_data).full_clean()
+                for field_name, field_value in value.iteritems():
+                    if field_name != self.pk_field:
+                        setattr(document, field_name, field_value)
+                return document
+        else:
+            value = Dict.clean(self, value)
+            value = self.schema_class(value).full_clean()
+            return self.document_class(**value)
+
 class MongoReference(Field):
+    """
+    Represents a reference. Expects the ID as input.
+    Example document: ReferenceField(Doc)
+    """
+
     base_type = basestring
 
     def __init__(self, document_class=None, **kwargs):
