@@ -13,9 +13,10 @@ class Field(object):
     base_type = None
     blank_value = None
 
-    def __init__(self, required=True, default=None):
+    def __init__(self, required=True, default=None, field_name=None):
         self.required = required
         self.default = default
+        self.field_name = field_name
 
     def has_value(self, value):
         return value is not None
@@ -251,6 +252,13 @@ class MongoReference(Field):
 
 class Schema(object):
     def __init__(self, raw_data=None, data=None):
+        conflicting_fields = set([
+            'raw_data', 'orig_data', 'data', 'errors', 'non_field_errors', 'fields'
+        ]).intersection(dir(self))
+        if conflicting_fields:
+            raise Exception('The following field names are reserved and need to be renamed: %s. '
+                'Please use the field_name keyword to use them.' % list(conflicting_fields))
+
         self.raw_data = raw_data or {}
         self.orig_data = data or None
         self.data = data and data.copy() or {}
@@ -258,9 +266,11 @@ class Schema(object):
         self.non_field_errors = []
         self.fields = {}
 
-        for field in dir(self):
-            if isinstance(getattr(self, field), Field):
-                self.fields[field] = getattr(self, field)
+        for field_name in dir(self):
+            if isinstance(getattr(self, field_name), Field):
+                field = getattr(self, field_name)
+                field_name = field.field_name or field_name
+                self.fields[field_name] = field
 
     def clean(self):
         pass
