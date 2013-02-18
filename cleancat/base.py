@@ -13,9 +13,10 @@ class Field(object):
     base_type = None
     blank_value = None
 
-    def __init__(self, required=True, default=None, field_name=None):
+    def __init__(self, required=True, default=None, field_name=None, mutable=True):
         self.required = required
         self.default = default
+        self.mutable = mutable
         self.field_name = field_name
 
     def has_value(self, value):
@@ -280,7 +281,10 @@ class Schema(object):
             try:
                 # Treat non-existing fields like None.
                 if field_name in self.raw_data or field_name not in self.data:
-                    self.data[field_name] = field.clean(self.raw_data.get(field_name))
+                    value = field.clean(self.raw_data.get(field_name))
+                    if not field.mutable and self.orig_data and value in self.orig_data and value != self.orig_data[value]:
+                        raise ValidationError('Value cannot be changed.')
+                    self.data[field_name] = value
 
             except ValidationError, e:
                 self.errors[field_name] = e.message
