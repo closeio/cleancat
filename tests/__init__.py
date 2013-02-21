@@ -151,8 +151,25 @@ class FieldTestCase(ValidationTestCase):
         self.assertValid(OptionalTagsSchema({'tags': None}), {'tags': []})
         self.assertValid(OptionalTagsSchema({}), {'tags': []})
 
+    def test_choice(self):
+        class ChoiceSchema(Schema):
+            choice = Choices(choices=['Hello', 'world'])
 
-    # TODO: Test Embedded, Choices, MongoReference, more Schema tests.
+        self.assertValid(ChoiceSchema({'choice': 'Hello'}), {'choice': 'Hello'})
+        self.assertInvalid(ChoiceSchema({'choice': 'World'}), {'errors': ['choice']})
+        self.assertInvalid(ChoiceSchema({'choice': 'invalid'}), {'errors': ['choice']})
+
+        class CaseInsensitiveChoiceSchema(Schema):
+            choice = Choices(choices=['Hello', 'world'], case_insensitive=True)
+
+        self.assertValid(CaseInsensitiveChoiceSchema({'choice': 'Hello'}), {'choice': 'Hello'})
+        self.assertValid(CaseInsensitiveChoiceSchema({'choice': 'hello'}), {'choice': 'Hello'})
+        self.assertValid(CaseInsensitiveChoiceSchema({'choice': 'wOrLd'}), {'choice': 'world'})
+        self.assertInvalid(CaseInsensitiveChoiceSchema({'choice': 'world '}), {'errors': ['choice']})
+        self.assertInvalid(CaseInsensitiveChoiceSchema({'choice': 'invalid'}), {'errors': ['choice']})
+
+
+    # TODO: Test Embedded, MongoReference, more Schema tests.
 
 if __name__ == '__main__':
     unittest.main()

@@ -153,9 +153,10 @@ class Embedded(Dict):
             return True
 
 class Choices(Field):
-    def __init__(self, choices, **kwargs):
+    def __init__(self, choices, case_insensitive=False, **kwargs):
         super(Choices, self).__init__(**kwargs)
         self.choices = choices
+        self.case_insensitive = case_insensitive
 
     def get_choices(self):
         return self.choices
@@ -164,6 +165,15 @@ class Choices(Field):
         value = super(Choices, self).clean(value)
 
         choices = self.get_choices()
+
+        if self.case_insensitive:
+            choices = {choice.lower(): choice for choice in choices}
+
+            if value.lower() not in choices:
+                raise ValidationError(u'Not a valid choice.')
+
+            return choices[value.lower()]
+
         if value not in choices:
             raise ValidationError(u'Not a valid choice.')
 
