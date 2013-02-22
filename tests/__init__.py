@@ -168,6 +168,24 @@ class FieldTestCase(ValidationTestCase):
         self.assertInvalid(CaseInsensitiveChoiceSchema({'choice': 'world '}), {'errors': ['choice']})
         self.assertInvalid(CaseInsensitiveChoiceSchema({'choice': 'invalid'}), {'errors': ['choice']})
 
+    def test_url(self):
+        class URLSchema(Schema):
+            url = URL()
+
+        self.assertValid(URLSchema({'url': 'http://example.com/a?b=c'}), {'url': 'http://example.com/a?b=c'})
+        self.assertValid(URLSchema({'url': 'ftp://ftp.example.com'}), {'url': 'ftp://ftp.example.com'})
+        self.assertInvalid(URLSchema({'url': 'www.example.com'}), {'errors': ['url']})
+        self.assertInvalid(URLSchema({'url': 'invalid'}), {'errors': ['url']})
+
+        class DefaultURLSchema(Schema):
+            url = URL(default_scheme='http://')
+
+        self.assertValid(DefaultURLSchema({'url': 'http://example.com/a?b=c'}), {'url': 'http://example.com/a?b=c'})
+        self.assertValid(DefaultURLSchema({'url': 'ftp://ftp.example.com'}), {'url': 'ftp://ftp.example.com'})
+        self.assertValid(DefaultURLSchema({'url': 'www.example.com'}), {'url': 'http://www.example.com'})
+        self.assertInvalid(DefaultURLSchema({'url': 'invalid'}), {'errors': ['url']})
+        self.assertInvalid(DefaultURLSchema({'url': True}), {'errors': ['url']})
+
 
     # TODO: Test Embedded, MongoReference, more Schema tests.
 

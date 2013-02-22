@@ -98,15 +98,23 @@ class Email(Regex):
 class URL(Regex):
     blank_value = None
 
-    def __init__(self, require_tld=True, **kwargs):
+    def __init__(self, require_tld=True, default_scheme=None, **kwargs):
         tld_part = (require_tld and r'\.[a-z]{2,10}' or '')
-        regex = r'^[a-z]+://([^/:]+%s|([0-9]{1,3}\.){3}[0-9]{1,3})(:[0-9]+)?(\/.*)?$' % tld_part
+        scheme_part = '[a-z]+://'
+        self.default_scheme = default_scheme
+        self.scheme_regex = re.compile('^'+scheme_part, re.IGNORECASE)
+        if default_scheme:
+            scheme_part = '(%s)?' % scheme_part
+        regex = r'^%s([^/:]+%s|([0-9]{1,3}\.){3}[0-9]{1,3})(:[0-9]+)?(\/.*)?$' % (scheme_part, tld_part)
         super(URL, self).__init__(regex=regex, regex_flags=re.IGNORECASE, regex_message='Invalid URL.', **kwargs)
 
     def clean(self, value):
         if value == self.blank_value:
             return value 
-        return super(URL, self).clean(value)
+        value = super(URL, self).clean(value)
+        if not self.scheme_regex.match(value):
+            value = self.default_scheme + value
+        return value
 
 class Integer(Field):
     base_type = int
