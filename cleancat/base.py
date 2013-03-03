@@ -300,7 +300,7 @@ class Schema(object):
                 # Treat non-existing fields like None.
                 if field_name in self.raw_data or field_name not in self.data:
                     value = field.clean(self.raw_data.get(field_name))
-                    if not field.mutable and self.orig_data and value in self.orig_data and value != self.orig_data[value]:
+                    if not field.mutable and self.orig_data and field_name in self.orig_data and value != self.orig_data[field_name]:
                         raise ValidationError('Value cannot be changed.')
                     self.data[field_name] = value
 
