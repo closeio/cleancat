@@ -24,7 +24,7 @@ class Field(object):
 
     def clean(self, value):
         if self.base_type is not None and value is not None and not isinstance(value, self.base_type):
-            raise ValidationError('Value must be of %s type.' % self.base_type)
+            raise ValidationError('Value must be of %s type.' % self.base_type.__name__)
 
         if not self.has_value(value):
             if self.default != None:
@@ -84,7 +84,13 @@ class DateTime(Regex):
         match = self.get_regex().match(value)
         if not match:
             raise ValidationError(self.regex_message)
-        dt = parser.parse(value)  
+        try:
+            dt = parser.parse(value)
+        except Exception, e:
+            if hasattr(e, 'message'):
+                raise ValidationError('Could not parse date: %s' % e.message)
+            else:
+                raise ValidationError('Could not parse date.')
         time_group = match.groups()[11]
         if time_group and len(time_group) > 1:
             return dt
@@ -135,7 +141,22 @@ class List(Field):
         if self.required and not len(value):
             raise ValidationError('List must not be empty.')
 
-        return [self.field_instance.clean(item) for item in value]
+        errors = {}
+        data = []
+        for n, item in enumerate(value):
+            try:
+                cleaned_data = self.field_instance.clean(item)
+            except ValidationError, e:
+                errors[n] = e.message
+            else:
+                data.append(cleaned_data)
+
+        if errors:
+            raise ValidationError({
+                'errors': errors
+            })
+
+        return data
 
 class Dict(Field):
     base_type = dict
@@ -150,7 +171,12 @@ class Embedded(Dict):
 
     def clean(self, value):
         value = super(Embedded, self).clean(value)
-        return self.schema_class(value).full_clean()
+        try:
+            cleaned_value = self.schema_class(value).full_clean()
+        except ValidationError, e:
+            raise e
+        else:
+            return cleaned_value
 
     def is_valid(self):
         try:
@@ -272,7 +298,7 @@ class MongoReference(Field):
 class Schema(object):
     def __init__(self, raw_data=None, data=None):
         conflicting_fields = set([
-            'raw_data', 'orig_data', 'data', 'errors', 'non_field_errors', 'fields'
+            'raw_data', 'orig_data', 'data', 'errors', 'field_errors', 'fields'
         ]).intersection(dir(self))
         if conflicting_fields:
             raise Exception('The following field names are reserved and need to be renamed: %s. '
@@ -281,8 +307,8 @@ class Schema(object):
         self.raw_data = raw_data or {}
         self.orig_data = data or None
         self.data = data and data.copy() or {}
-        self.errors = {}
-        self.non_field_errors = []
+        self.field_errors = {}
+        self.errors = []
         self.fields = {}
 
         for field_name in dir(self):
@@ -305,19 +331,19 @@ class Schema(object):
                     self.data[field_name] = value
 
             except ValidationError, e:
-                self.errors[field_name] = e.message
+                self.field_errors[field_name] = e.message
             except StopValidation, e:
                 self.data[field_name] = e.message
 
         try:
             self.clean()
         except ValidationError, e:
-            self.non_field_errors = [e.message]
+            self.errors = [e.message]
 
-        if self.errors or self.non_field_errors:
+        if self.field_errors or self.errors:
             raise ValidationError({
+                'field-errors': self.field_errors,
                 'errors': self.errors,
-                'non-field-errors': self.non_field_errors,
             })
         else:
             return self.data
@@ -326,6 +352,6 @@ class Schema(object):
         try:
             self.data.update(cls(self.raw_data, self.data).full_clean())
         except ValidationError, e:
-            self.errors.update(e.message['errors'])
-            self.non_field_errors += e.message['non-field-errors']
+            self.field_errors.update(e.message['field-errors'])
+            self.errors += e.message['errors']
             raise

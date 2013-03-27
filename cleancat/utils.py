@@ -26,7 +26,10 @@ class ValidationTestCase(unittest.TestCase):
         compare_req_resp(data, schema.full_clean())
         #self.assertEqual(schema.full_clean(), data)
 
-    def assertInvalid(self, schema, error_keys=None):
+    def assertInvalid(self, schema, error_keys=None, error_obj=None):
         self.assertRaises(ValidationError, schema.full_clean)
         if error_keys:
-            compare_dict_keys({'errors': schema.errors, 'non-field-errors': schema.non_field_errors}, error_keys)
+            compare_dict_keys({'errors': schema.errors, 'field-errors': schema.field_errors}, error_keys)
+        if error_obj:
+            self.assertEqual(schema.field_errors, error_obj.get('field-errors', []))
+            self.assertEqual(schema.errors, error_obj.get('errors', []))
