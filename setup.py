@@ -8,7 +8,7 @@ except:
 
 setup(
     name='cleancat',
-    version='0.1',
+    version='0.2',
     url='http://github.com/elasticsales/cleancat',
     license='BSD',
     author='Thomas Steinacher',
