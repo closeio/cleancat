@@ -263,7 +263,10 @@ class MongoEmbeddedReference(MongoEmbedded):
                 raise ValidationError(unicode(e))
             else:
                 value = Dict.clean(self, value)
-                document_data = document._data.copy()
+                if hasattr(document, 'to_dict'): # support mongomallard
+                    document_data = document.to_dict()
+                else:
+                    document_data = document._data.copy()
                 if None in document_data:
                     del document_data[None]
                 value = self.schema_class(value, document_data).full_clean()
