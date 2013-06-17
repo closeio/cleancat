@@ -224,6 +224,20 @@ class FieldTestCase(ValidationTestCase):
             }
         })
 
+    def test_mutable(self):
+        class UnmutableSchema(Schema):
+            text = String(mutable=False)
+
+        self.assertValid(UnmutableSchema({'text': 'hello'}), {'text': 'hello'})
+        self.assertInvalid(UnmutableSchema({'text': 'hello'}, {'text': 'existing'}), {'field-errors': ['text']})
+        self.assertInvalid(UnmutableSchema({'text': 'hello'}, {'text': ''}), {'field-errors': ['text']})
+        self.assertInvalid(UnmutableSchema({'text': 'hello'}, {'text': None}), {'field-errors': ['text']})
+        self.assertInvalid(UnmutableSchema({'text': ''}, {'text': 'existing'}), {'field-errors': ['text']})
+        self.assertInvalid(UnmutableSchema({'text': None}, {'text': 'existing'}), {'field-errors': ['text']})
+        self.assertValid(UnmutableSchema({'text': 'existing'}, {'text': 'existing'}), {'text': 'existing'})
+        self.assertValid(UnmutableSchema({}, {'text': 'hello'}), {'text': 'hello'})
+        self.assertValid(UnmutableSchema({'text': 'hello'}, {}), {'text': 'hello'})
+
     # TODO: Test MongoEmbedded, MongoReference, more Schema tests.
 
 if __name__ == '__main__':
