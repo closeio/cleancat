@@ -5,6 +5,11 @@ try:
     import multiprocessing
 except:
    pass
+   
+test_requirements = [
+    'nose',
+    'coverage',
+]
 
 setup(
     name='cleancat',
@@ -23,11 +28,11 @@ setup(
     test_suite='nose.collector',
     zip_safe=False,
     platforms='any',
-    setup_requires=[
-        'nose',
-        'coverage',
+    install_requires=[
         'python-dateutil',
     ],
+    tests_require=test_requirements,
+    extras_require={'test': test_requirements},
     classifiers=[
         'Development Status :: 4 - Beta',
         'Environment :: Web Environment',
