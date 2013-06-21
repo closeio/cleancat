@@ -30,7 +30,6 @@ setup(
     platforms='any',
     install_requires=[
         'python-dateutil',
-        'pkg_resources'
     ],
     tests_require=test_requirements,
     extras_require={'test': test_requirements},
