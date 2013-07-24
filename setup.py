@@ -13,7 +13,7 @@ test_requirements = [
 
 setup(
     name='cleancat',
-    version='0.2',
+    version='0.3',
     url='http://github.com/elasticsales/cleancat',
     license='BSD',
     author='Thomas Steinacher',
