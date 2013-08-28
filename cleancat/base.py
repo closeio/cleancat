@@ -116,7 +116,7 @@ class URL(Regex):
 
     def clean(self, value):
         if value == self.blank_value:
-            return value 
+            return value
         value = super(URL, self).clean(value)
         if not self.scheme_regex.match(value):
             value = self.default_scheme + value
@@ -202,6 +202,9 @@ class Choices(Field):
 
         if self.case_insensitive:
             choices = {choice.lower(): choice for choice in choices}
+
+            if not isinstance(value, basestring):
+                raise ValidationError(u'Value needs to be a string.')
 
             if value.lower() not in choices:
                 raise ValidationError(u'Not a valid choice.')
