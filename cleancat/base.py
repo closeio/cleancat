@@ -122,6 +122,14 @@ class URL(Regex):
             value = self.default_scheme + value
         return value
 
+class RelaxedURL(URL):
+    """Like URL but will just ignore values like "http://" and treat them as blank"""
+    def clean(self, value):
+        if not self.required and value == self.default_scheme:
+            return None
+        value = super(RelaxedURL, self).clean(value)
+        return value
+
 class Integer(Field):
     base_type = int
 

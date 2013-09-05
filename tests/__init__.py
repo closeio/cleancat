@@ -190,6 +190,28 @@ class FieldTestCase(ValidationTestCase):
         self.assertInvalid(DefaultURLSchema({'url': 'invalid'}), {'field-errors': ['url']})
         self.assertInvalid(DefaultURLSchema({'url': True}), {'field-errors': ['url']})
 
+        class RelaxedURLSchema(Schema):
+            url = RelaxedURL(default_scheme='http://')
+
+        self.assertValid(RelaxedURLSchema({'url': 'http://example.com/a?b=c'}), {'url': 'http://example.com/a?b=c'})
+        self.assertValid(RelaxedURLSchema({'url': 'ftp://ftp.example.com'}), {'url': 'ftp://ftp.example.com'})
+        self.assertValid(RelaxedURLSchema({'url': 'www.example.com'}), {'url': 'http://www.example.com'})
+        self.assertInvalid(RelaxedURLSchema({'url': 'http://'}), {'field-errors': ['url']})
+        self.assertInvalid(RelaxedURLSchema({'url': 'invalid'}), {'field-errors': ['url']})
+        self.assertInvalid(RelaxedURLSchema({'url': True}), {'field-errors': ['url']})
+
+        class OptionalRelaxedURLSchema(Schema):
+            url = RelaxedURL(required=False, default_scheme='http://')
+
+        self.assertValid(OptionalRelaxedURLSchema({'url': 'http://example.com/a?b=c'}), {'url': 'http://example.com/a?b=c'})
+        self.assertValid(OptionalRelaxedURLSchema({'url': 'ftp://ftp.example.com'}), {'url': 'ftp://ftp.example.com'})
+        self.assertValid(OptionalRelaxedURLSchema({'url': 'www.example.com'}), {'url': 'http://www.example.com'})
+        self.assertValid(OptionalRelaxedURLSchema({'url': 'http://'}), {'url': None})
+        self.assertInvalid(OptionalRelaxedURLSchema({'url': 'invalid'}), {'field-errors': ['url']})
+        self.assertInvalid(OptionalRelaxedURLSchema({'url': True}), {'field-errors': ['url']})
+
+
+
     def test_embedded(self):
         class UserSchema(Schema):
             email = Email()
