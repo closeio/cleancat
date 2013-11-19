@@ -23,6 +23,29 @@ class FieldTestCase(ValidationTestCase):
         self.assertValid(OptionalTextSchema({'text': None}), {'text': ''})
         self.assertValid(OptionalTextSchema({}), {'text': ''})
 
+    def test_trimmed_string(self):
+        class TextSchema(Schema):
+            text = TrimmedString() # required by default
+
+        class OptionalTextSchema(Schema):
+            text = TrimmedString(required=False)
+
+
+        self.assertValid(TextSchema({'text': 'hello  world'}), {'text': 'hello  world'})
+        self.assertValid(TextSchema({'text': '\rhello\tworld \n'}), {'text': 'hello\tworld'})
+        self.assertInvalid(TextSchema({'text': ' \t\n\r'}), {'field-errors': ['text']})
+        self.assertInvalid(TextSchema({'text': ''}), {'field-errors': ['text']})
+        self.assertInvalid(TextSchema({'text': None}), {'field-errors': ['text']})
+        self.assertInvalid(TextSchema({}), {'field-errors': ['text']})
+        self.assertInvalid(TextSchema({'text': True}), {'field-errors': ['text']})
+
+        self.assertValid(OptionalTextSchema({'text': 'hello  world'}), {'text': 'hello  world'})
+        self.assertValid(OptionalTextSchema({'text': '\rhello\tworld \n'}), {'text': 'hello\tworld'})
+        self.assertValid(OptionalTextSchema({'text': ' \t\n\r'}), {'text': ''})
+        self.assertValid(OptionalTextSchema({'text': ''}), {'text': ''})
+        self.assertValid(OptionalTextSchema({'text': None}), {'text': ''})
+        self.assertValid(OptionalTextSchema({}), {'text': ''})
+
     def test_bool(self):
         class FlagSchema(Schema):
             flag = Bool()

@@ -44,6 +44,17 @@ class String(Field):
     def has_value(self, value):
         return bool(value)
 
+class TrimmedString(Field):
+    base_type = basestring
+    blank_value = ''
+
+    def clean(self, value):
+        value = super(TrimmedString, self).clean(value)
+        return value and value.strip()
+
+    def has_value(self, value):
+        return bool(value and value.strip())
+
 class Bool(Field):
     base_type = bool
     blank_value = False
