@@ -1,5 +1,4 @@
 import re
-import datetime
 from dateutil import parser
 
 
@@ -90,6 +89,10 @@ class DateTime(Regex):
     regex_message = 'Invalid ISO 8601 datetime.'
     blank_value = None
 
+    def __init__(self, *args, **kwargs):
+        self.min_date = kwargs.pop('min_date', None)
+        super(DateTime, self).__init__(*args, **kwargs)
+
     def clean(self, value):
         value = super(Regex, self).clean(value)
         match = self.get_regex().match(value)
@@ -102,6 +105,8 @@ class DateTime(Regex):
                 raise ValidationError('Could not parse date: %s' % e.message)
             else:
                 raise ValidationError('Could not parse date.')
+        if self.min_date and dt < self.min_date:
+            raise ValidationError('Date cannot be earlier than %s.' % self.min_date.strftime('%Y-%m-%d'))
         time_group = match.groups()[11]
         if time_group and len(time_group) > 1:
             return dt
