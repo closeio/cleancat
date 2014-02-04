@@ -1,3 +1,4 @@
+import pytz
 import re
 from dateutil import parser
 
@@ -105,8 +106,11 @@ class DateTime(Regex):
                 raise ValidationError('Could not parse date: %s' % e.message)
             else:
                 raise ValidationError('Could not parse date.')
-        if self.min_date and dt < self.min_date:
-            raise ValidationError('Date cannot be earlier than %s.' % self.min_date.strftime('%Y-%m-%d'))
+        if self.min_date:
+            if dt.tzinfo is not None and self.min_date.tzinfo is None:
+                self.min_date = self.min_date.replace(tzinfo=pytz.utc)
+            if dt < self.min_date:
+                raise ValidationError('Date cannot be earlier than %s.' % self.min_date.strftime('%Y-%m-%d'))
         time_group = match.groups()[11]
         if time_group and len(time_group) > 1:
             return dt
