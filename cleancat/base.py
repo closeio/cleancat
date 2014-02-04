@@ -108,8 +108,10 @@ class DateTime(Regex):
                 raise ValidationError('Could not parse date.')
         if self.min_date:
             if dt.tzinfo is not None and self.min_date.tzinfo is None:
-                self.min_date = self.min_date.replace(tzinfo=pytz.utc)
-            if dt < self.min_date:
+                min_date = self.min_date.replace(tzinfo=pytz.utc)
+            else:
+                min_date = self.min_date
+            if dt < min_date:
                 raise ValidationError('Date cannot be earlier than %s.' % self.min_date.strftime('%Y-%m-%d'))
         time_group = match.groups()[11]
         if time_group and len(time_group) > 1:
