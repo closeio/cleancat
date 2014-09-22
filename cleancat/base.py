@@ -41,16 +41,36 @@ class String(Field):
     base_type = basestring
     blank_value = ''
 
+    def __init__(self, min_length=None, max_length=None, **kwargs):
+        self.max_length = max_length
+        self.min_length = min_length
+        super(String, self).__init__(**kwargs)
+
+    def _check_length(self, value):
+        if self.max_length is not None and len(value) > self.max_length:
+            raise ValidationError('The value must be no longer than %s characters.' % self.max_length)
+
+        if self.min_length is not None and len(value) < self.min_length:
+            raise ValidationError('The value must be at least %s characters long.' % self.min_length)
+
+    def clean(self, value):
+        value = super(String, self).clean(value)
+        self._check_length(value)
+        return value
+
     def has_value(self, value):
         return bool(value)
 
-class TrimmedString(Field):
+class TrimmedString(String):
     base_type = basestring
     blank_value = ''
 
     def clean(self, value):
-        value = super(TrimmedString, self).clean(value)
-        return value and value.strip()
+        value = super(String, self).clean(value)
+        if value:
+            value = value.strip()
+        self._check_length(value)
+        return value
 
     def has_value(self, value):
         return bool(value and value.strip())
