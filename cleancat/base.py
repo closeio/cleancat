@@ -237,10 +237,11 @@ class Embedded(Dict):
             return True
 
 class Choices(Field):
-    def __init__(self, choices, case_insensitive=False, **kwargs):
+    def __init__(self, choices, case_insensitive=False, error_invalid_choice=None, **kwargs):
         super(Choices, self).__init__(**kwargs)
         self.choices = choices
         self.case_insensitive = case_insensitive
+        self.error_invalid_choice = error_invalid_choice or u'Not a valid choice.'
 
     def get_choices(self):
         return self.choices
@@ -257,12 +258,12 @@ class Choices(Field):
                 raise ValidationError(u'Value needs to be a string.')
 
             if value.lower() not in choices:
-                raise ValidationError(u'Not a valid choice.')
+                raise ValidationError(self.error_invalid_choice.format(value=value))
 
             return choices[value.lower()]
 
         if value not in choices:
-            raise ValidationError(u'Not a valid choice.')
+            raise ValidationError(self.error_invalid_choice.format(value=value))
 
         return value
 
