@@ -13,11 +13,19 @@ class Field(object):
     base_type = None
     blank_value = None
 
-    def __init__(self, required=True, default=None, field_name=None, mutable=True):
+    def __init__(self, required=True, default=None, field_name=None, raw_field_name=None, mutable=True):
+        """
+        By default, the field name is derived from the schema model, but in
+        certain cases it can be overridden. Specifying field_name overrides
+        both the name of the field in the raw (unclean) data, as well as in the
+        clean data model. If the raw data has a different field name than the
+        clean data, raw_field_name can be overridden.
+        """
         self.required = required
         self.default = default
         self.mutable = mutable
         self.field_name = field_name
+        self.raw_field_name = raw_field_name or field_name
 
     def has_value(self, value):
         return value is not None
@@ -372,6 +380,7 @@ class Schema(object):
             if isinstance(getattr(self, field_name), Field):
                 field = getattr(self, field_name)
                 field_name = field.field_name or field_name
+                raw_field_name = field.raw_field_name or field_name
                 self.fields[field_name] = field
 
     def clean(self):
@@ -379,16 +388,17 @@ class Schema(object):
 
     def full_clean(self):
         for field_name, field in self.fields.iteritems():
+            raw_field_name = field.raw_field_name or field_name
             try:
                 # Treat non-existing fields like None.
-                if field_name in self.raw_data or field_name not in self.data:
-                    value = field.clean(self.raw_data.get(field_name))
+                if raw_field_name in self.raw_data or field_name not in self.data:
+                    value = field.clean(self.raw_data.get(raw_field_name))
                     if not field.mutable and self.orig_data and field_name in self.orig_data and value != self.orig_data[field_name]:
                         raise ValidationError('Value cannot be changed.')
                     self.data[field_name] = value
 
             except ValidationError, e:
-                self.field_errors[field_name] = e.message
+                self.field_errors[raw_field_name] = e.message
             except StopValidation, e:
                 self.data[field_name] = e.message
 
