@@ -183,6 +183,23 @@ class RelaxedURL(URL):
 class Integer(Field):
     base_type = int
 
+    def __init__(self, min_value=None, max_value=None, **kwargs):
+        self.max_value = max_value
+        self.min_value = min_value
+        super(Integer, self).__init__(**kwargs)
+
+    def _check_value(self, value):
+        if self.max_value is not None and value > self.max_value:
+            raise ValidationError('The value must not be larger than %d.' % self.max_value)
+
+        if self.min_value is not None and value < self.min_value:
+            raise ValidationError('The value must be at least %d.' % self.min_value)
+
+    def clean(self, value):
+        value = super(Integer, self).clean(value)
+        self._check_value(value)
+        return value
+
 class List(Field):
     base_type = list
     blank_value = []

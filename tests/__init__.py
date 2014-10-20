@@ -183,6 +183,11 @@ class FieldTestCase(ValidationTestCase):
         class OptionalAgeSchema(Schema):
             age = Integer(required=False)
 
+        class AgeValueSchema(Schema):
+            age_min_max = Integer(min_value=18, max_value=60, required=False)
+            age_max = Integer(max_value=60, required=False)
+            age_min = Integer(min_value=18, required=False)
+
         self.assertValid(AgeSchema({'age': 0}), {'age': 0})
         self.assertValid(AgeSchema({'age': 100}), {'age': 100})
         self.assertInvalid(AgeSchema({'age': None}), {'field-errors': ['age']})
@@ -192,6 +197,18 @@ class FieldTestCase(ValidationTestCase):
         self.assertValid(OptionalAgeSchema({'age': 0}), {'age': 0})
         self.assertInvalid(OptionalAgeSchema({'age': ''}), {'field-errors': ['age']})
         self.assertInvalid(OptionalAgeSchema({'age': 0.5}), {'field-errors': ['age']})
+
+        self.assertInvalid(AgeValueSchema({'age_min_max': 17}, {'field-errors': ['age_min_max']}))
+        self.assertValid(AgeValueSchema({'age_min_max': 18}), {'age_min_max': 18})
+        self.assertValid(AgeValueSchema({'age_min_max': 40}), {'age_min_max': 40})
+        self.assertValid(AgeValueSchema({'age_min_max': 60}), {'age_min_max': 60})
+        self.assertInvalid(AgeValueSchema({'age_min_max': 61}, {'field-errors': ['age_min_max']}))
+
+        self.assertValid(AgeValueSchema({'age_max': 60}), {'age_max': 60})
+        self.assertInvalid(AgeValueSchema({'age_max': 61}, {'field-errors': ['age_max']}))
+
+        self.assertInvalid(AgeValueSchema({'age_min': 17}, {'field-errors': ['age_min']}))
+        self.assertValid(AgeValueSchema({'age_min': 18}), {'age_min': 18})
 
     def test_list(self):
         class TagsSchema(Schema):
