@@ -1,3 +1,4 @@
+import datetime
 import pytz
 import re
 from dateutil import parser
@@ -410,8 +411,18 @@ class Schema(object):
                 # Treat non-existing fields like None.
                 if raw_field_name in self.raw_data or field_name not in self.data:
                     value = field.clean(self.raw_data.get(raw_field_name))
-                    if not field.mutable and self.orig_data and field_name in self.orig_data and value != self.orig_data[field_name]:
-                        raise ValidationError('Value cannot be changed.')
+                    if not field.mutable and self.orig_data and field_name in self.orig_data:
+
+                        old_value = self.orig_data[field_name]
+
+                        # compare datetimes properly, regardless of whether they're offset-naive or offset-aware
+                        if isinstance(value, datetime.datetime) and isinstance(old_value, datetime.datetime):
+                            value = value.replace(tzinfo=None) + (value.utcoffset() or datetime.timedelta(seconds=0))
+                            old_value = old_value.replace(tzinfo=None) + (old_value.utcoffset() or datetime.timedelta(seconds=0))
+
+                        if value != old_value:
+                            raise ValidationError('Value cannot be changed.')
+
                     self.data[field_name] = value
 
             except ValidationError, e:
