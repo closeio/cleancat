@@ -14,13 +14,12 @@ class JobApplication(Schema):
     urls = List(URL(default_scheme='http://'))
 
 @app.route('/job_application', methods=['POST'])
-@mimerender(default='json', json=render_json)
 def test_view():
     schema = JobApplication(request.json)
     try:
         data = schema.full_clean()
     except SchemaValidationError:
-        return {'field-errors': schema.field_errors, 'errors': schema.errors }, '400 Bad Request'
+        return jsonify({'field-errors': schema.field_errors, 'errors': schema.errors }), 400
         
     # Now "data" has the validated data
 ```
