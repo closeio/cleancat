@@ -1,5 +1,6 @@
-import re
 import datetime
+import pytz
+import re
 import sys
 from dateutil import parser
 
@@ -18,11 +19,19 @@ class Field(object):
     base_type = None
     blank_value = None
 
-    def __init__(self, required=True, default=None, field_name=None, mutable=True):
+    def __init__(self, required=True, default=None, field_name=None, raw_field_name=None, mutable=True):
+        """
+        By default, the field name is derived from the schema model, but in
+        certain cases it can be overridden. Specifying field_name overrides
+        both the name of the field in the raw (unclean) data, as well as in the
+        clean data model. If the raw data has a different field name than the
+        clean data, raw_field_name can be overridden.
+        """
         self.required = required
         self.default = default
         self.mutable = mutable
         self.field_name = field_name
+        self.raw_field_name = raw_field_name or field_name
 
     def has_value(self, value):
         return value is not None
@@ -46,8 +55,39 @@ class String(Field):
     base_type = basestring
     blank_value = ''
 
+    def __init__(self, min_length=None, max_length=None, **kwargs):
+        self.max_length = max_length
+        self.min_length = min_length
+        super(String, self).__init__(**kwargs)
+
+    def _check_length(self, value):
+        if self.max_length is not None and len(value) > self.max_length:
+            raise ValidationError('The value must be no longer than %s characters.' % self.max_length)
+
+        if self.min_length is not None and len(value) < self.min_length:
+            raise ValidationError('The value must be at least %s characters long.' % self.min_length)
+
+    def clean(self, value):
+        value = super(String, self).clean(value)
+        self._check_length(value)
+        return value
+
     def has_value(self, value):
         return bool(value)
+
+class TrimmedString(String):
+    base_type = basestring
+    blank_value = ''
+
+    def clean(self, value):
+        value = super(String, self).clean(value)
+        if value:
+            value = value.strip()
+        self._check_length(value)
+        return value
+
+    def has_value(self, value):
+        return bool(value and value.strip())
 
 class Bool(Field):
     base_type = bool
@@ -84,6 +124,10 @@ class DateTime(Regex):
     regex_message = 'Invalid ISO 8601 datetime.'
     blank_value = None
 
+    def __init__(self, *args, **kwargs):
+        self.min_date = kwargs.pop('min_date', None)
+        super(DateTime, self).__init__(*args, **kwargs)
+
     def clean(self, value):
         value = super(Regex, self).clean(value)
         match = self.get_regex().match(value)
@@ -96,6 +140,13 @@ class DateTime(Regex):
                 raise ValidationError('Could not parse date: %s' % e.message)
             else:
                 raise ValidationError('Could not parse date.')
+        if self.min_date:
+            if dt.tzinfo is not None and self.min_date.tzinfo is None:
+                min_date = self.min_date.replace(tzinfo=pytz.utc)
+            else:
+                min_date = self.min_date
+            if dt < min_date:
+                raise ValidationError('Date cannot be earlier than %s.' % self.min_date.strftime('%Y-%m-%d'))
         time_group = match.groups()[11]
         if time_group and len(time_group) > 1:
             return dt
@@ -121,14 +172,39 @@ class URL(Regex):
 
     def clean(self, value):
         if value == self.blank_value:
-            return value 
+            return value
         value = super(URL, self).clean(value)
         if not self.scheme_regex.match(value):
             value = self.default_scheme + value
         return value
 
+class RelaxedURL(URL):
+    """Like URL but will just ignore values like "http://" and treat them as blank"""
+    def clean(self, value):
+        if not self.required and value == self.default_scheme:
+            return None
+        value = super(RelaxedURL, self).clean(value)
+        return value
+
 class Integer(Field):
     base_type = int
+
+    def __init__(self, min_value=None, max_value=None, **kwargs):
+        self.max_value = max_value
+        self.min_value = min_value
+        super(Integer, self).__init__(**kwargs)
+
+    def _check_value(self, value):
+        if self.max_value is not None and value > self.max_value:
+            raise ValidationError('The value must not be larger than %d.' % self.max_value)
+
+        if self.min_value is not None and value < self.min_value:
+            raise ValidationError('The value must be at least %d.' % self.min_value)
+
+    def clean(self, value):
+        value = super(Integer, self).clean(value)
+        self._check_value(value)
+        return value
 
 class List(Field):
     base_type = list
@@ -192,10 +268,11 @@ class Embedded(Dict):
             return True
 
 class Choices(Field):
-    def __init__(self, choices, case_insensitive=False, **kwargs):
+    def __init__(self, choices, case_insensitive=False, error_invalid_choice=None, **kwargs):
         super(Choices, self).__init__(**kwargs)
         self.choices = choices
         self.case_insensitive = case_insensitive
+        self.error_invalid_choice = error_invalid_choice or u'Not a valid choice.'
 
     def get_choices(self):
         return self.choices
@@ -208,13 +285,24 @@ class Choices(Field):
         if self.case_insensitive:
             choices = {choice.lower(): choice for choice in choices}
 
+            if not isinstance(value, basestring):
+                raise ValidationError(u'Value needs to be a string.')
+
             if value.lower() not in choices:
+<<<<<<< HEAD
                 raise ValidationError('Not a valid choice.')
+=======
+                raise ValidationError(self.error_invalid_choice.format(value=value))
+>>>>>>> master
 
             return choices[value.lower()]
 
         if value not in choices:
+<<<<<<< HEAD
             raise ValidationError('Not a valid choice.')
+=======
+            raise ValidationError(self.error_invalid_choice.format(value=value))
+>>>>>>> master
 
         return value
 
@@ -268,7 +356,10 @@ class MongoEmbeddedReference(MongoEmbedded):
                 raise ValidationError(unicode(e))
             else:
                 value = Dict.clean(self, value)
-                document_data = document._data.copy()
+                if hasattr(document, 'to_dict'): # support mongomallard
+                    document_data = document.to_dict()
+                else:
+                    document_data = document._data.copy()
                 if None in document_data:
                     del document_data[None]
                 value = self.schema_class(value, document_data).full_clean()
@@ -320,25 +411,48 @@ class Schema(object):
             if isinstance(getattr(self, field_name), Field):
                 field = getattr(self, field_name)
                 field_name = field.field_name or field_name
+                raw_field_name = field.raw_field_name or field_name
                 self.fields[field_name] = field
 
     def clean(self):
         pass
 
     def full_clean(self):
+<<<<<<< HEAD
         for field_name, field in self.fields.items():
+=======
+        for field_name, field in self.fields.iteritems():
+            raw_field_name = field.raw_field_name or field_name
+>>>>>>> master
             try:
                 # Treat non-existing fields like None.
-                if field_name in self.raw_data or field_name not in self.data:
-                    value = field.clean(self.raw_data.get(field_name))
-                    if not field.mutable and self.orig_data and field_name in self.orig_data and value != self.orig_data[field_name]:
-                        raise ValidationError('Value cannot be changed.')
+                if raw_field_name in self.raw_data or field_name not in self.data:
+                    value = field.clean(self.raw_data.get(raw_field_name))
+                    if not field.mutable and self.orig_data and field_name in self.orig_data:
+
+                        old_value = self.orig_data[field_name]
+
+                        # compare datetimes properly, regardless of whether they're offset-naive or offset-aware
+                        if isinstance(value, datetime.datetime) and isinstance(old_value, datetime.datetime):
+                            value = value.replace(tzinfo=None) + (value.utcoffset() or datetime.timedelta(seconds=0))
+                            old_value = old_value.replace(tzinfo=None) + (old_value.utcoffset() or datetime.timedelta(seconds=0))
+
+                        if value != old_value:
+                            raise ValidationError('Value cannot be changed.')
+
                     self.data[field_name] = value
 
+<<<<<<< HEAD
             except ValidationError as e:
                 self.field_errors[field_name] = e.args[0]
             except StopValidation as e:
                 self.data[field_name] = e.args[0]
+=======
+            except ValidationError, e:
+                self.field_errors[raw_field_name] = e.message
+            except StopValidation, e:
+                self.data[field_name] = e.message
+>>>>>>> master
 
         try:
             self.clean()

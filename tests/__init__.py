@@ -11,6 +11,10 @@ class FieldTestCase(ValidationTestCase):
         class OptionalTextSchema(Schema):
             text = String(required=False)
 
+        class TextLengthSchema(Schema):
+            text_min = String(required=False, min_length=3)
+            text_max = String(required=False, max_length=8)
+            text_min_max = String(required=False, min_length=3, max_length=8)
 
         self.assertValid(TextSchema({'text': 'hello world'}), {'text': 'hello world'})
         self.assertInvalid(TextSchema({'text': ''}), {'field-errors': ['text']})
@@ -22,6 +26,57 @@ class FieldTestCase(ValidationTestCase):
         self.assertValid(OptionalTextSchema({'text': ''}), {'text': ''})
         self.assertValid(OptionalTextSchema({'text': None}), {'text': ''})
         self.assertValid(OptionalTextSchema({}), {'text': ''})
+
+        self.assertInvalid(TextLengthSchema({'text_min': 'x'}), {'field-errors': 'text_min'})
+        self.assertValid(TextLengthSchema({'text_min': 'testing'}), {'text_min': 'testing'})
+        self.assertValid(TextLengthSchema({'text_min': 'way too long'}), {'text_min': 'way too long'})
+
+        self.assertValid(TextLengthSchema({'text_max': 'x'}), {'text_max': 'x'})
+        self.assertValid(TextLengthSchema({'text_max': 'testing'}), {'text_max': 'testing'})
+        self.assertInvalid(TextLengthSchema({'text_max': 'way too long'}), {'field-errors': 'text_max'})
+
+        self.assertInvalid(TextLengthSchema({'text_min_max': 'x'}), {'field-errors': 'text_min_max'})
+        self.assertValid(TextLengthSchema({'text_min_max': 'testing'}), {'text_min_max': 'testing'})
+        self.assertInvalid(TextLengthSchema({'text_min_max': 'way too long'}), {'field-errors': 'text_min_max'})
+
+    def test_trimmed_string(self):
+        class TextSchema(Schema):
+            text = TrimmedString() # required by default
+
+        class OptionalTextSchema(Schema):
+            text = TrimmedString(required=False)
+
+        class TextLengthSchema(Schema):
+            text_min = TrimmedString(required=False, min_length=3)
+            text_max = TrimmedString(required=False, max_length=8)
+            text_min_max = TrimmedString(required=False, min_length=3, max_length=8)
+
+        self.assertValid(TextSchema({'text': 'hello  world'}), {'text': 'hello  world'})
+        self.assertValid(TextSchema({'text': '\rhello\tworld \n'}), {'text': 'hello\tworld'})
+        self.assertInvalid(TextSchema({'text': ' \t\n\r'}), {'field-errors': ['text']})
+        self.assertInvalid(TextSchema({'text': ''}), {'field-errors': ['text']})
+        self.assertInvalid(TextSchema({'text': None}), {'field-errors': ['text']})
+        self.assertInvalid(TextSchema({}), {'field-errors': ['text']})
+        self.assertInvalid(TextSchema({'text': True}), {'field-errors': ['text']})
+
+        self.assertValid(OptionalTextSchema({'text': 'hello  world'}), {'text': 'hello  world'})
+        self.assertValid(OptionalTextSchema({'text': '\rhello\tworld \n'}), {'text': 'hello\tworld'})
+        self.assertValid(OptionalTextSchema({'text': ' \t\n\r'}), {'text': ''})
+        self.assertValid(OptionalTextSchema({'text': ''}), {'text': ''})
+        self.assertValid(OptionalTextSchema({'text': None}), {'text': ''})
+        self.assertValid(OptionalTextSchema({}), {'text': ''})
+
+        self.assertInvalid(TextLengthSchema({'text_min': '    x    '}), {'field-errors': 'text_min'})
+        self.assertValid(TextLengthSchema({'text_min': '    testing    '}), {'text_min': 'testing'})
+        self.assertValid(TextLengthSchema({'text_min': '    way too long    '}), {'text_min': 'way too long'})
+
+        self.assertValid(TextLengthSchema({'text_max': '    x    '}), {'text_max': 'x'})
+        self.assertValid(TextLengthSchema({'text_max': '    testing    '}), {'text_max': 'testing'})
+        self.assertInvalid(TextLengthSchema({'text_max': '    way too long    '}), {'field-errors': 'text_max'})
+
+        self.assertInvalid(TextLengthSchema({'text_min_max': '    x    '}), {'field-errors': 'text_min_max'})
+        self.assertValid(TextLengthSchema({'text_min_max': '    testing    '}), {'text_min_max': 'testing'})
+        self.assertInvalid(TextLengthSchema({'text_min_max': '    way too long    '}), {'field-errors': 'text_min_max'})
 
     def test_bool(self):
         class FlagSchema(Schema):
@@ -128,6 +183,11 @@ class FieldTestCase(ValidationTestCase):
         class OptionalAgeSchema(Schema):
             age = Integer(required=False)
 
+        class AgeValueSchema(Schema):
+            age_min_max = Integer(min_value=18, max_value=60, required=False)
+            age_max = Integer(max_value=60, required=False)
+            age_min = Integer(min_value=18, required=False)
+
         self.assertValid(AgeSchema({'age': 0}), {'age': 0})
         self.assertValid(AgeSchema({'age': 100}), {'age': 100})
         self.assertInvalid(AgeSchema({'age': None}), {'field-errors': ['age']})
@@ -137,6 +197,18 @@ class FieldTestCase(ValidationTestCase):
         self.assertValid(OptionalAgeSchema({'age': 0}), {'age': 0})
         self.assertInvalid(OptionalAgeSchema({'age': ''}), {'field-errors': ['age']})
         self.assertInvalid(OptionalAgeSchema({'age': 0.5}), {'field-errors': ['age']})
+
+        self.assertInvalid(AgeValueSchema({'age_min_max': 17}, {'field-errors': ['age_min_max']}))
+        self.assertValid(AgeValueSchema({'age_min_max': 18}), {'age_min_max': 18})
+        self.assertValid(AgeValueSchema({'age_min_max': 40}), {'age_min_max': 40})
+        self.assertValid(AgeValueSchema({'age_min_max': 60}), {'age_min_max': 60})
+        self.assertInvalid(AgeValueSchema({'age_min_max': 61}, {'field-errors': ['age_min_max']}))
+
+        self.assertValid(AgeValueSchema({'age_max': 60}), {'age_max': 60})
+        self.assertInvalid(AgeValueSchema({'age_max': 61}, {'field-errors': ['age_max']}))
+
+        self.assertInvalid(AgeValueSchema({'age_min': 17}, {'field-errors': ['age_min']}))
+        self.assertValid(AgeValueSchema({'age_min': 18}), {'age_min': 18})
 
     def test_list(self):
         class TagsSchema(Schema):
@@ -190,6 +262,28 @@ class FieldTestCase(ValidationTestCase):
         self.assertInvalid(DefaultURLSchema({'url': 'invalid'}), {'field-errors': ['url']})
         self.assertInvalid(DefaultURLSchema({'url': True}), {'field-errors': ['url']})
 
+        class RelaxedURLSchema(Schema):
+            url = RelaxedURL(default_scheme='http://')
+
+        self.assertValid(RelaxedURLSchema({'url': 'http://example.com/a?b=c'}), {'url': 'http://example.com/a?b=c'})
+        self.assertValid(RelaxedURLSchema({'url': 'ftp://ftp.example.com'}), {'url': 'ftp://ftp.example.com'})
+        self.assertValid(RelaxedURLSchema({'url': 'www.example.com'}), {'url': 'http://www.example.com'})
+        self.assertInvalid(RelaxedURLSchema({'url': 'http://'}), {'field-errors': ['url']})
+        self.assertInvalid(RelaxedURLSchema({'url': 'invalid'}), {'field-errors': ['url']})
+        self.assertInvalid(RelaxedURLSchema({'url': True}), {'field-errors': ['url']})
+
+        class OptionalRelaxedURLSchema(Schema):
+            url = RelaxedURL(required=False, default_scheme='http://')
+
+        self.assertValid(OptionalRelaxedURLSchema({'url': 'http://example.com/a?b=c'}), {'url': 'http://example.com/a?b=c'})
+        self.assertValid(OptionalRelaxedURLSchema({'url': 'ftp://ftp.example.com'}), {'url': 'ftp://ftp.example.com'})
+        self.assertValid(OptionalRelaxedURLSchema({'url': 'www.example.com'}), {'url': 'http://www.example.com'})
+        self.assertValid(OptionalRelaxedURLSchema({'url': 'http://'}), {'url': None})
+        self.assertInvalid(OptionalRelaxedURLSchema({'url': 'invalid'}), {'field-errors': ['url']})
+        self.assertInvalid(OptionalRelaxedURLSchema({'url': True}), {'field-errors': ['url']})
+
+
+
     def test_embedded(self):
         class UserSchema(Schema):
             email = Email()
@@ -223,6 +317,20 @@ class FieldTestCase(ValidationTestCase):
                 'user': 'This field is required.'
             }
         })
+
+    def test_mutable(self):
+        class UnmutableSchema(Schema):
+            text = String(mutable=False)
+
+        self.assertValid(UnmutableSchema({'text': 'hello'}), {'text': 'hello'})
+        self.assertInvalid(UnmutableSchema({'text': 'hello'}, {'text': 'existing'}), {'field-errors': ['text']})
+        self.assertInvalid(UnmutableSchema({'text': 'hello'}, {'text': ''}), {'field-errors': ['text']})
+        self.assertInvalid(UnmutableSchema({'text': 'hello'}, {'text': None}), {'field-errors': ['text']})
+        self.assertInvalid(UnmutableSchema({'text': ''}, {'text': 'existing'}), {'field-errors': ['text']})
+        self.assertInvalid(UnmutableSchema({'text': None}, {'text': 'existing'}), {'field-errors': ['text']})
+        self.assertValid(UnmutableSchema({'text': 'existing'}, {'text': 'existing'}), {'text': 'existing'})
+        self.assertValid(UnmutableSchema({}, {'text': 'hello'}), {'text': 'hello'})
+        self.assertValid(UnmutableSchema({'text': 'hello'}, {}), {'text': 'hello'})
 
     # TODO: Test MongoEmbedded, MongoReference, more Schema tests.
 
