@@ -6,8 +6,6 @@ from dateutil import parser
 
 if sys.version_info[0] == 3:
     basestring = str
-else:
-    basestring = basestring
 
 class ValidationError(Exception):
     pass
@@ -272,7 +270,7 @@ class Choices(Field):
         super(Choices, self).__init__(**kwargs)
         self.choices = choices
         self.case_insensitive = case_insensitive
-        self.error_invalid_choice = error_invalid_choice or u'Not a valid choice.'
+        self.error_invalid_choice = error_invalid_choice or 'Not a valid choice.'
 
     def get_choices(self):
         return self.choices
@@ -289,20 +287,12 @@ class Choices(Field):
                 raise ValidationError(u'Value needs to be a string.')
 
             if value.lower() not in choices:
-<<<<<<< HEAD
-                raise ValidationError('Not a valid choice.')
-=======
                 raise ValidationError(self.error_invalid_choice.format(value=value))
->>>>>>> master
 
             return choices[value.lower()]
 
         if value not in choices:
-<<<<<<< HEAD
-            raise ValidationError('Not a valid choice.')
-=======
             raise ValidationError(self.error_invalid_choice.format(value=value))
->>>>>>> master
 
         return value
 
@@ -418,12 +408,8 @@ class Schema(object):
         pass
 
     def full_clean(self):
-<<<<<<< HEAD
         for field_name, field in self.fields.items():
-=======
-        for field_name, field in self.fields.iteritems():
             raw_field_name = field.raw_field_name or field_name
->>>>>>> master
             try:
                 # Treat non-existing fields like None.
                 if raw_field_name in self.raw_data or field_name not in self.data:
@@ -442,17 +428,10 @@ class Schema(object):
 
                     self.data[field_name] = value
 
-<<<<<<< HEAD
             except ValidationError as e:
-                self.field_errors[field_name] = e.args[0]
-            except StopValidation as e:
-                self.data[field_name] = e.args[0]
-=======
-            except ValidationError, e:
                 self.field_errors[raw_field_name] = e.message
-            except StopValidation, e:
+            except StopValidation as e:
                 self.data[field_name] = e.message
->>>>>>> master
 
         try:
             self.clean()
