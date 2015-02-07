@@ -1,8 +1,11 @@
 import datetime
 import pytz
 import re
+import sys
 from dateutil import parser
 
+if sys.version_info[0] == 3:
+    basestring = str
 
 class ValidationError(Exception):
     pass
@@ -91,7 +94,7 @@ class Bool(Field):
 class Regex(String):
     regex = None
     regex_flags = 0
-    regex_message = u'Invalid input.'
+    regex_message = 'Invalid input.'
 
     def __init__(self, regex=None, regex_flags=None, regex_message=None, **kwargs):
         super(Regex, self).__init__(**kwargs)
@@ -130,11 +133,8 @@ class DateTime(Regex):
             raise ValidationError(self.regex_message)
         try:
             dt = parser.parse(value)
-        except Exception, e:
-            if hasattr(e, 'message'):
-                raise ValidationError('Could not parse date: %s' % e.message)
-            else:
-                raise ValidationError('Could not parse date.')
+        except Exception as e:
+            raise ValidationError('Could not parse date: %s' % str(e))
         if self.min_date:
             if dt.tzinfo is not None and self.min_date.tzinfo is None:
                 min_date = self.min_date.replace(tzinfo=pytz.utc)
@@ -150,7 +150,7 @@ class DateTime(Regex):
 class Email(Regex):
     regex = r'^.+@[^.].*\.[a-z]{2,10}$'
     regex_flags = re.IGNORECASE
-    regex_message = u'Invalid email address.'
+    regex_message = 'Invalid email address.'
 
 class URL(Regex):
     blank_value = None
@@ -222,8 +222,8 @@ class List(Field):
         for n, item in enumerate(value):
             try:
                 cleaned_data = self.field_instance.clean(item)
-            except ValidationError, e:
-                errors[n] = e.message
+            except ValidationError as e:
+                errors[n] = e.args and e.args[0]
             else:
                 data.append(cleaned_data)
 
@@ -249,7 +249,7 @@ class Embedded(Dict):
         value = super(Embedded, self).clean(value)
         try:
             cleaned_value = self.schema_class(value).full_clean()
-        except ValidationError, e:
+        except ValidationError as e:
             raise e
         else:
             return cleaned_value
@@ -267,7 +267,7 @@ class Choices(Field):
         super(Choices, self).__init__(**kwargs)
         self.choices = choices
         self.case_insensitive = case_insensitive
-        self.error_invalid_choice = error_invalid_choice or u'Not a valid choice.'
+        self.error_invalid_choice = error_invalid_choice or 'Not a valid choice.'
 
     def get_choices(self):
         return self.choices
@@ -338,7 +338,7 @@ class MongoEmbeddedReference(MongoEmbedded):
             try:
                 document = self.document_class.objects.get(pk=value[self.pk_field])
             except self.document_class.DoesNotExist:
-                raise ValidationError(u'Object does not exist.')
+                raise ValidationError('Object does not exist.')
             except MongoValidationError as e:
                 raise ValidationError(unicode(e))
             else:
@@ -350,7 +350,7 @@ class MongoEmbeddedReference(MongoEmbedded):
                 if None in document_data:
                     del document_data[None]
                 value = self.schema_class(value, document_data).full_clean()
-                for field_name, field_value in value.iteritems():
+                for field_name, field_value in value.items():
                     if field_name != self.pk_field:
                         setattr(document, field_name, field_value)
                 return document
@@ -376,7 +376,7 @@ class MongoReference(Field):
         try:
             return self.document_class.objects.get(pk=value)
         except self.document_class.DoesNotExist:
-            raise ValidationError(u'Object does not exist.')
+            raise ValidationError('Object does not exist.')
 
 class Schema(object):
     def __init__(self, raw_data=None, data=None):
@@ -405,7 +405,7 @@ class Schema(object):
         pass
 
     def full_clean(self):
-        for field_name, field in self.fields.iteritems():
+        for field_name, field in self.fields.items():
             raw_field_name = field.raw_field_name or field_name
             try:
                 # Treat non-existing fields like None.
@@ -425,15 +425,15 @@ class Schema(object):
 
                     self.data[field_name] = value
 
-            except ValidationError, e:
-                self.field_errors[raw_field_name] = e.message
-            except StopValidation, e:
-                self.data[field_name] = e.message
+            except ValidationError as e:
+                self.field_errors[raw_field_name] = e.args and e.args[0]
+            except StopValidation as e:
+                self.data[field_name] = e.args and e.args[0]
 
         try:
             self.clean()
-        except ValidationError, e:
-            self.errors = [e.message]
+        except ValidationError as e:
+            self.errors = [e.args and e.args[0]]
 
         if self.field_errors or self.errors:
             raise ValidationError({
@@ -446,7 +446,7 @@ class Schema(object):
     def external_clean(self, cls):
         try:
             self.data.update(cls(self.raw_data, self.data).full_clean())
-        except ValidationError, e:
-            self.field_errors.update(e.message['field-errors'])
-            self.errors += e.message['errors']
+        except ValidationError as e:
+            self.field_errors.update(e.args[0]['field-errors'])
+            self.errors += e.args[0]['errors']
             raise

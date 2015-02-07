@@ -103,9 +103,9 @@ class FieldTestCase(ValidationTestCase):
         class RegexOptionsSchema(Schema):
             letter = Regex('^[a-z]$', re.IGNORECASE)
         class RegexMessageSchema(Schema):
-            letter = Regex('^[a-z]$', regex_message=u'Not a lowercase letter.')
+            letter = Regex('^[a-z]$', regex_message='Not a lowercase letter.')
         class OptionalRegexMessageSchema(Schema):
-            letter = Regex('^[a-z]$', regex_message=u'Not a lowercase letter.', required=False)
+            letter = Regex('^[a-z]$', regex_message='Not a lowercase letter.', required=False)
 
         self.assertValid(RegexSchema({'letter': 'a'}), {'letter': 'a'})
         self.assertInvalid(RegexSchema({'letter': 'A'}), {'field-errors': ['letter']})
@@ -121,18 +121,18 @@ class FieldTestCase(ValidationTestCase):
 
         schema = RegexMessageSchema({'letter': ''})
         self.assertInvalid(schema, {'field-errors': ['letter']})
-        self.assertEqual(schema.field_errors['letter'], u'This field is required.')
+        self.assertEqual(schema.field_errors['letter'], 'This field is required.')
 
         schema = RegexMessageSchema({'letter': 'aa'})
         self.assertInvalid(schema, {'field-errors': ['letter']})
-        self.assertEqual(schema.field_errors['letter'], u'Not a lowercase letter.')
+        self.assertEqual(schema.field_errors['letter'], 'Not a lowercase letter.')
 
         self.assertValid(OptionalRegexMessageSchema({'letter': 'a'}), {'letter': 'a'})
         self.assertValid(OptionalRegexMessageSchema({'letter': ''}), {'letter': ''})
 
         schema = OptionalRegexMessageSchema({'letter': 'aa'})
         self.assertInvalid(schema, {'field-errors': ['letter']})
-        self.assertEqual(schema.field_errors['letter'], u'Not a lowercase letter.')
+        self.assertEqual(schema.field_errors['letter'], 'Not a lowercase letter.')
 
     def test_datetime(self):
         class DateTimeSchema(Schema):
@@ -141,7 +141,7 @@ class FieldTestCase(ValidationTestCase):
         from pytz import utc
 
         self.assertValid(DateTimeSchema({'dt': '2012-10-09'}), {'dt': datetime.date(2012,10,9)})
-        self.assertValid(DateTimeSchema({'dt': '2012-10-09 13:10:04'}), {'dt': datetime.datetime(2012,10,9, 13,10,04)})
+        self.assertValid(DateTimeSchema({'dt': '2012-10-09 13:10:04'}), {'dt': datetime.datetime(2012,10,9, 13,10, 4)})
         self.assertValid(DateTimeSchema({'dt': '2013-03-27T01:24:50.137000+00:00'}), {'dt': datetime.datetime(2013,3,27, 1,24,50, 137000, tzinfo=utc)})
         self.assertInvalid(DateTimeSchema({'dt': '0000-01-01T00:00:00-08:00'}), {'field-errors': ['dt']})
         self.assertInvalid(DateTimeSchema({'dt': '2012a'}), {'field-errors': ['dt']})
@@ -163,7 +163,7 @@ class FieldTestCase(ValidationTestCase):
         self.assertValid(EmailSchema({'email': 'test@example.com'}), {'email': 'test@example.com'})
         schema = EmailSchema({'email': 'test@example'})
         self.assertInvalid(schema, {'field-errors': ['email']})
-        self.assertEqual(schema.field_errors['email'], u'Invalid email address.')
+        self.assertEqual(schema.field_errors['email'], 'Invalid email address.')
         self.assertInvalid(EmailSchema({'email': 'test.example.com'}), {'field-errors': ['email']})
         self.assertInvalid(EmailSchema({'email': None}), {'field-errors': ['email']})
         self.assertInvalid(EmailSchema({}), {'field-errors': ['email']})
