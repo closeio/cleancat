@@ -134,10 +134,7 @@ class DateTime(Regex):
         try:
             dt = parser.parse(value)
         except Exception as e:
-            if hasattr(e, 'message'):
-                raise ValidationError('Could not parse date: %s' % e.message)
-            else:
-                raise ValidationError('Could not parse date.')
+            raise ValidationError('Could not parse date: %s' % str(e))
         if self.min_date:
             if dt.tzinfo is not None and self.min_date.tzinfo is None:
                 min_date = self.min_date.replace(tzinfo=pytz.utc)
@@ -226,7 +223,7 @@ class List(Field):
             try:
                 cleaned_data = self.field_instance.clean(item)
             except ValidationError as e:
-                errors[n] = e.message
+                errors[n] = e.args and e.args[0]
             else:
                 data.append(cleaned_data)
 
@@ -429,14 +426,14 @@ class Schema(object):
                     self.data[field_name] = value
 
             except ValidationError as e:
-                self.field_errors[raw_field_name] = e.message
+                self.field_errors[raw_field_name] = e.args and e.args[0]
             except StopValidation as e:
-                self.data[field_name] = e.message
+                self.data[field_name] = e.args and e.args[0]
 
         try:
             self.clean()
         except ValidationError as e:
-            self.errors = [e.message]
+            self.errors = [e.args and e.args[0]]
 
         if self.field_errors or self.errors:
             raise ValidationError({
@@ -450,6 +447,6 @@ class Schema(object):
         try:
             self.data.update(cls(self.raw_data, self.data).full_clean())
         except ValidationError as e:
-            self.field_errors.update(e.message['field-errors'])
-            self.errors += e.message['errors']
+            self.field_errors.update(e.args[0]['field-errors'])
+            self.errors += e.args[0]['errors']
             raise
