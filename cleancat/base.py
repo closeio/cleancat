@@ -405,6 +405,11 @@ class Schema(object):
         pass
 
     def full_clean(self):
+        if not isinstance(self.raw_data, dict):
+            raise ValidationError({
+                'errors': [ 'Invalid request: JSON dictionary expected.' ]
+            })
+
         for field_name, field in self.fields.items():
             raw_field_name = field.raw_field_name or field_name
             try:
