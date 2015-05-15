@@ -155,15 +155,24 @@ class Email(Regex):
 class URL(Regex):
     blank_value = None
 
-    def __init__(self, require_tld=True, default_scheme=None, **kwargs):
+    def __init__(self, require_tld=True, default_scheme=None, allowed_schemes=None, **kwargs):
         tld_part = (require_tld and r'\.[a-z]{2,10}' or '')
         scheme_part = '[a-z]+://'
         self.default_scheme = default_scheme
+        if self.default_scheme and not self.default_scheme.endswith('://'):
+            self.default_scheme += '://'
         self.scheme_regex = re.compile('^'+scheme_part, re.IGNORECASE)
         if default_scheme:
             scheme_part = '(%s)?' % scheme_part
         regex = r'^%s([^/:]+%s|([0-9]{1,3}\.){3}[0-9]{1,3})(:[0-9]+)?(\/.*)?$' % (scheme_part, tld_part)
         super(URL, self).__init__(regex=regex, regex_flags=re.IGNORECASE, regex_message='Invalid URL.', **kwargs)
+
+        self.allowed_schemes = allowed_schemes or []
+        self.allowed_schemes_regexes = []
+        for sch in self.allowed_schemes:
+            if not sch.endswith('://'):
+                sch += '://'
+            self.allowed_schemes_regexes.append(re.compile('^'+sch+'.*', re.IGNORECASE))
 
     def clean(self, value):
         if value == self.blank_value:
@@ -171,6 +180,18 @@ class URL(Regex):
         value = super(URL, self).clean(value)
         if not self.scheme_regex.match(value):
             value = self.default_scheme + value
+
+        if self.allowed_schemes:
+            allowed = False
+
+            for allowed_regex in self.allowed_schemes_regexes:
+                if allowed_regex.match(value):
+                    allowed = True
+                    break
+
+            if not allowed:
+                raise ValidationError("This URL uses a scheme that's not allowed. You can only use %s." % ' or '.join(self.allowed_schemes))
+
         return value
 
 class RelaxedURL(URL):

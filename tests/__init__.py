@@ -282,6 +282,22 @@ class FieldTestCase(ValidationTestCase):
         self.assertInvalid(OptionalRelaxedURLSchema({'url': 'invalid'}), {'field-errors': ['url']})
         self.assertInvalid(OptionalRelaxedURLSchema({'url': True}), {'field-errors': ['url']})
 
+        class OnlyHTTPSURLSchema(Schema):
+            url = URL(default_scheme='https://', allowed_schemes=['https://'])
+
+        self.assertValid(OnlyHTTPSURLSchema({'url': 'https://example.com/'}), {'url': 'https://example.com/'})
+        self.assertValid(OnlyHTTPSURLSchema({'url': 'example.com/'}), {'url': 'https://example.com/'})
+        self.assertInvalid(OnlyHTTPSURLSchema({'url': 'http://example.com'}), {'field-errors': ['url']})
+        self.assertInvalid(OnlyHTTPSURLSchema({'url': True}), {'field-errors': ['url']})
+
+        class ShortSchemeURLSchema(Schema):
+            url = URL(default_scheme='https', allowed_schemes=['https', 'ftps'])
+
+        self.assertValid(ShortSchemeURLSchema({'url': 'https://example.com/'}), {'url': 'https://example.com/'})
+        self.assertValid(ShortSchemeURLSchema({'url': 'example.com/'}), {'url': 'https://example.com/'})
+        self.assertValid(ShortSchemeURLSchema({'url': 'ftps://storage.example.com/'}), {'url': 'ftps://storage.example.com/'})
+        self.assertInvalid(ShortSchemeURLSchema({'url': 'http://example.com'}), {'field-errors': ['url']})
+        self.assertInvalid(ShortSchemeURLSchema({'url': True}), {'field-errors': ['url']})
 
 
     def test_embedded(self):
