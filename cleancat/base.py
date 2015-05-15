@@ -165,13 +165,12 @@ class URL(Regex):
         regex = r'^%s([^/:]+%s|([0-9]{1,3}\.){3}[0-9]{1,3})(:[0-9]+)?(\/.*)?$' % (scheme_part, tld_part)
         super(URL, self).__init__(regex=regex, regex_flags=re.IGNORECASE, regex_message='Invalid URL.', **kwargs)
 
-        self.allowed_schemes = allowed_schemes
+        self.allowed_schemes = allowed_schemes or []
         self.allowed_schemes_regexes = []
-        if allowed_schemes:
-            for sch in allowed_schemes:
-                if not sch.endswith('://'):
-                    raise Exception('Allowed scheme has to end with "://": %s' % sch)
-                self.allowed_schemes_regexes.append(re.compile('^'+sch+'.*', re.IGNORECASE))
+        for sch in allowed_schemes:
+            if not sch.endswith('://'):
+                raise Exception('Allowed scheme has to end with "://": %s' % sch)
+            self.allowed_schemes_regexes.append(re.compile('^'+sch+'.*', re.IGNORECASE))
 
     def clean(self, value):
         if value == self.blank_value:
@@ -182,6 +181,7 @@ class URL(Regex):
 
         if self.allowed_schemes:
             allowed = False
+
             for allowed_regex in self.allowed_schemes_regexes:
                 if allowed_regex.match(value):
                     allowed = True
@@ -189,6 +189,7 @@ class URL(Regex):
 
             if not allowed:
                 raise ValidationError("This URL uses a scheme that's not allowed. You can only use %s." % ' or '.join(self.allowed_schemes))
+
         return value
 
 class RelaxedURL(URL):
