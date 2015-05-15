@@ -159,6 +159,8 @@ class URL(Regex):
         tld_part = (require_tld and r'\.[a-z]{2,10}' or '')
         scheme_part = '[a-z]+://'
         self.default_scheme = default_scheme
+        if self.default_scheme and not self.default_scheme.endswith('://'):
+            self.default_scheme += '://'
         self.scheme_regex = re.compile('^'+scheme_part, re.IGNORECASE)
         if default_scheme:
             scheme_part = '(%s)?' % scheme_part
@@ -167,9 +169,9 @@ class URL(Regex):
 
         self.allowed_schemes = allowed_schemes or []
         self.allowed_schemes_regexes = []
-        for sch in allowed_schemes:
+        for sch in self.allowed_schemes:
             if not sch.endswith('://'):
-                raise Exception('Allowed scheme has to end with "://": %s' % sch)
+                sch += '://'
             self.allowed_schemes_regexes.append(re.compile('^'+sch+'.*', re.IGNORECASE))
 
     def clean(self, value):

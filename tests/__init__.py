@@ -290,6 +290,15 @@ class FieldTestCase(ValidationTestCase):
         self.assertInvalid(OnlyHTTPSURLSchema({'url': 'http://example.com'}), {'field-errors': ['url']})
         self.assertInvalid(OnlyHTTPSURLSchema({'url': True}), {'field-errors': ['url']})
 
+        class ShortSchemeURLSchema(Schema):
+            url = URL(default_scheme='https', allowed_schemes=['https'])
+
+        self.assertValid(ShortSchemeURLSchema({'url': 'https://example.com/'}), {'url': 'https://example.com/'})
+        self.assertValid(ShortSchemeURLSchema({'url': 'example.com/'}), {'url': 'https://example.com/'})
+        self.assertInvalid(ShortSchemeURLSchema({'url': 'http://example.com'}), {'field-errors': ['url']})
+        self.assertInvalid(ShortSchemeURLSchema({'url': True}), {'field-errors': ['url']})
+
+
     def test_embedded(self):
         class UserSchema(Schema):
             email = Email()
