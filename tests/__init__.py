@@ -160,11 +160,17 @@ class FieldTestCase(ValidationTestCase):
         class OptionalEmailSchema(Schema):
             email = Email(required=False)
 
+        # Emails must not be longer than 254 characters.
+        valid_email = '{u}@{d}.{d}.{d}.example'.format(u='u'*54, d='d'*63)
+        invalid_email = '{u}@{d}.{d}.{d}.example'.format(u='u'*55, d='d'*63)
+
         self.assertValid(EmailSchema({'email': 'test@example.com'}), {'email': 'test@example.com'})
+        self.assertValid(EmailSchema({'email': valid_email}), {'email': valid_email})
         schema = EmailSchema({'email': 'test@example'})
         self.assertInvalid(schema, {'field-errors': ['email']})
         self.assertEqual(schema.field_errors['email'], 'Invalid email address.')
         self.assertInvalid(EmailSchema({'email': 'test.example.com'}), {'field-errors': ['email']})
+        self.assertInvalid(EmailSchema({'email': invalid_email}), {'field-errors': ['email']})
         self.assertInvalid(EmailSchema({'email': None}), {'field-errors': ['email']})
         self.assertInvalid(EmailSchema({}), {'field-errors': ['email']})
         self.assertInvalid(EmailSchema({'email': ''}), {'field-errors': ['email']})

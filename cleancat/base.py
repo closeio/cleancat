@@ -52,10 +52,14 @@ class Field(object):
 class String(Field):
     base_type = basestring
     blank_value = ''
+    min_length = None
+    max_length = None
 
     def __init__(self, min_length=None, max_length=None, **kwargs):
-        self.max_length = max_length
-        self.min_length = min_length
+        if min_length != None:
+            self.min_length = min_length
+        if max_length != None:
+            self.max_length = max_length
         super(String, self).__init__(**kwargs)
 
     def _check_length(self, value):
@@ -151,6 +155,7 @@ class Email(Regex):
     regex = r'^.+@[^.].*\.[a-z]{2,63}$'
     regex_flags = re.IGNORECASE
     regex_message = 'Invalid email address.'
+    max_length = 254
 
 class URL(Regex):
     blank_value = None
