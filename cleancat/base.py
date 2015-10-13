@@ -148,7 +148,7 @@ class DateTime(Regex):
         return dt.date()
 
 class Email(Regex):
-    regex = r'^.+@[^.].*\.[a-z]{2,10}$'
+    regex = r'^.+@[^.].*\.[a-z]{2,63}$'
     regex_flags = re.IGNORECASE
     regex_message = 'Invalid email address.'
 
