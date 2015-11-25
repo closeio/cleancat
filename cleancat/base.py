@@ -231,7 +231,8 @@ class List(Field):
     base_type = list
     blank_value = []
 
-    def __init__(self, field_instance, **kwargs):
+    def __init__(self, field_instance, max_length=None, **kwargs):
+        self.max_length = max_length
         super(List, self).__init__(**kwargs)
         self.field_instance = field_instance
 
@@ -240,8 +241,13 @@ class List(Field):
 
     def clean(self, value):
         value = super(List, self).clean(value)
-        if self.required and not len(value):
+
+        item_cnt = len(value)
+        if self.required and not item_cnt:
             raise ValidationError('List must not be empty.')
+
+        if self.max_length and item_cnt > self.max_length:
+            raise ValidationError('List is too long.')
 
         errors = {}
         data = []
