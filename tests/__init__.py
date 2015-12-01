@@ -223,6 +223,9 @@ class FieldTestCase(ValidationTestCase):
         class OptionalTagsSchema(Schema):
             tags = List(String(), required=False)
 
+        class SmallTagsSchema(Schema):
+            tags = List(String(), max_length=2)
+
         self.assertValid(TagsSchema({'tags': ['python', 'ruby']}), {'tags': ['python', 'ruby']})
         self.assertInvalid(TagsSchema({'tags': []}), {'field-errors': ['tags']})
         self.assertInvalid(TagsSchema({'tags': None}), {'field-errors': ['tags']})
@@ -232,6 +235,10 @@ class FieldTestCase(ValidationTestCase):
         self.assertValid(OptionalTagsSchema({'tags': []}), {'tags': []})
         self.assertValid(OptionalTagsSchema({'tags': None}), {'tags': []})
         self.assertValid(OptionalTagsSchema({}), {'tags': []})
+
+        self.assertValid(SmallTagsSchema({'tags': ['python', 'ruby']}), {'tags': ['python', 'ruby']})
+        self.assertInvalid(SmallTagsSchema({'tags': []}), {'field-errors': ['tags']})
+        self.assertInvalid(SmallTagsSchema({'tags': ['python', 'ruby', 'go']}), {'field-errors': ['tags']})
 
     def test_choice(self):
         class ChoiceSchema(Schema):
