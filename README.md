@@ -1,7 +1,7 @@
 cleancat
 ========
 
-[![Build Status](https://travis-ci.org/elasticsales/cleancat.svg?branch=master)](https://travis-ci.org/elasticsales/cleancat)
+[![Build Status](https://travis-ci.org/closeio/cleancat.svg?branch=master)](https://travis-ci.org/closeio/cleancat)
 
 Validation library for Python designed to be used with JSON REST frameworks
 
