@@ -347,6 +347,21 @@ class FieldTestCase(ValidationTestCase):
             }
         })
 
+    def test_required(self):
+        class RequiredSchema(Schema):
+            text = String()
+
+        self.assertValid(RequiredSchema({'text': 'hello'}), {'text': 'hello'})
+        self.assertInvalid(RequiredSchema({'text': ''}), {'field-errors': ['text']})
+
+        self.assertInvalid(RequiredSchema({'text': ''}, {}), {'field-errors': ['text']})
+        self.assertInvalid(RequiredSchema({'text': ''}, {'text': ''}), {'field-errors': ['text']})
+        self.assertInvalid(RequiredSchema({'text': ''}, {'text': 'existing'}), {'field-errors': ['text']})
+
+        self.assertInvalid(RequiredSchema({}, {}), {'field-errors': ['text']})
+        self.assertInvalid(RequiredSchema({}, {'text': ''}), {'field-errors': ['text']})
+        self.assertValid(RequiredSchema({}, {'text': 'existing'}), {'text': 'existing'})
+
     def test_mutable(self):
         class UnmutableSchema(Schema):
             text = String(mutable=False)
