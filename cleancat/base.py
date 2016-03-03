@@ -472,18 +472,21 @@ class Schema(object):
         except ValidationError as e:
             self.errors = [e.args and e.args[0]]
 
+        self.raise_on_errors()
+        return self.data
+
+    def raise_on_errors(self):
         if self.field_errors or self.errors:
             raise ValidationError({
                 'field-errors': self.field_errors,
                 'errors': self.errors,
             })
-        else:
-            return self.data
 
-    def external_clean(self, cls):
+    def external_clean(self, cls, raise_on_errors=True):
         try:
             self.data.update(cls(self.raw_data, self.data).full_clean())
         except ValidationError as e:
             self.field_errors.update(e.args[0]['field-errors'])
             self.errors += e.args[0]['errors']
-            raise
+            if raise_on_errors:
+                self.raise_on_errors()
