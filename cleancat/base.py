@@ -446,7 +446,7 @@ class Schema(object):
             try:
                 # Validate a field if it's posted in raw_data, or if we don't
                 # have a value for it in case it's required.
-                if raw_field_name in self.raw_data or not self.data.get(field_name, None):
+                if raw_field_name in self.raw_data or not field.has_value(self.data.get(field_name, None)):
                     value = field.clean(self.raw_data.get(raw_field_name))
                     if not field.mutable and self.orig_data and field_name in self.orig_data:
 

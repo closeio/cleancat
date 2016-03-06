@@ -347,7 +347,7 @@ class FieldTestCase(ValidationTestCase):
             }
         })
 
-    def test_required(self):
+    def test_required_1(self):
         class RequiredSchema(Schema):
             text = String()
 
@@ -361,6 +361,30 @@ class FieldTestCase(ValidationTestCase):
         self.assertInvalid(RequiredSchema({}, {}), {'field-errors': ['text']})
         self.assertInvalid(RequiredSchema({}, {'text': ''}), {'field-errors': ['text']})
         self.assertValid(RequiredSchema({}, {'text': 'existing'}), {'text': 'existing'})
+
+    def test_required_2(self):
+        class RequiredSchema(Schema):
+            flag = Bool()
+
+        self.assertValid(RequiredSchema({'flag': True}), {'flag': True})
+        self.assertValid(RequiredSchema({'flag': False}), {'flag': False})
+        self.assertInvalid(RequiredSchema({'flag': None}), {'field-errors': ['flag']})
+        self.assertInvalid(RequiredSchema({}), {'field-errors': ['flag']})
+
+        self.assertValid(RequiredSchema({'flag': True}, {}), {'flag': True})
+        self.assertValid(RequiredSchema({'flag': False}, {}), {'flag': False})
+        self.assertInvalid(RequiredSchema({'flag': None}, {}), {'field-errors': ['flag']})
+        self.assertInvalid(RequiredSchema({}, {}), {'field-errors': ['flag']})
+
+        self.assertValid(RequiredSchema({'flag': True}, {'flag': True}), {'flag': True})
+        self.assertValid(RequiredSchema({'flag': False}, {'flag': True}), {'flag': False})
+        self.assertInvalid(RequiredSchema({'flag': None}, {'flag': True}), {'field-errors': ['flag']})
+        self.assertValid(RequiredSchema({}, {'flag': True}), {'flag': True})
+
+        self.assertValid(RequiredSchema({'flag': True}, {'flag': False}), {'flag': True})
+        self.assertValid(RequiredSchema({'flag': False}, {'flag': False}), {'flag': False})
+        self.assertInvalid(RequiredSchema({'flag': None}, {'flag': False}), {'field-errors': ['flag']})
+        self.assertValid(RequiredSchema({}, {'flag': False}), {'flag': False})
 
     def test_mutable(self):
         class UnmutableSchema(Schema):
