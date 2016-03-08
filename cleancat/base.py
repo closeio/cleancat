@@ -430,7 +430,6 @@ class Schema(object):
             if isinstance(getattr(self, field_name), Field):
                 field = getattr(self, field_name)
                 field_name = field.field_name or field_name
-                raw_field_name = field.raw_field_name or field_name
                 self.fields[field_name] = field
 
     def clean(self):
@@ -445,8 +444,9 @@ class Schema(object):
         for field_name, field in self.fields.items():
             raw_field_name = field.raw_field_name or field_name
             try:
-                # Treat non-existing fields like None.
-                if raw_field_name in self.raw_data or field_name not in self.data:
+                # Validate a field if it's posted in raw_data, or if we don't
+                # have a value for it in case it's required.
+                if raw_field_name in self.raw_data or not field.has_value(self.data.get(field_name, None)):
                     value = field.clean(self.raw_data.get(raw_field_name))
                     if not field.mutable and self.orig_data and field_name in self.orig_data:
 
