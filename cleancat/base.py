@@ -372,13 +372,13 @@ class MongoEmbeddedReference(MongoEmbedded):
             except self.document_class.DoesNotExist:
                 raise ValidationError('Object does not exist.')
             except MongoValidationError as e:
-                raise ValidationError(unicode(e))
+                raise ValidationError(str(e))
             else:
                 value = Dict.clean(self, value)
                 if hasattr(document, 'to_dict'): # support mongomallard
                     document_data = document.to_dict()
                 else:
-                    document_data = document._data.copy()
+                    document_data = dict(document._data)
                 if None in document_data:
                     del document_data[None]
                 value = self.schema_class(value, document_data).full_clean()
@@ -421,7 +421,7 @@ class Schema(object):
 
         self.raw_data = raw_data or {}
         self.orig_data = data or None
-        self.data = data and data.copy() or {}
+        self.data = data and dict(data) or {}
         self.field_errors = {}
         self.errors = []
         self.fields = {}
