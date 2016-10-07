@@ -157,6 +157,12 @@ class Email(Regex):
     regex_message = 'Invalid email address.'
     max_length = 254
 
+    def clean(self, value):
+        # trim any leading/trailing whitespace before validating the email
+        if isinstance(value, basestring):
+            value = value.strip()
+        return super(Email, self).clean(value)
+
 class URL(Regex):
     blank_value = None
 

@@ -182,6 +182,9 @@ class FieldTestCase(ValidationTestCase):
         self.assertInvalid(OptionalEmailSchema({'email': 'test@example'}), {'field-errors': ['email']})
         self.assertInvalid(OptionalEmailSchema({'email': 'test.example.com'}), {'field-errors': ['email']})
 
+        # test auto-trimming
+        self.assertValid(OptionalEmailSchema({'email': '   test@example.com   '}), {'email': 'test@example.com'})
+
     def test_integer(self):
         class AgeSchema(Schema):
             age = Integer()
