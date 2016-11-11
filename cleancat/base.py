@@ -432,11 +432,25 @@ class Schema(object):
 
     2. Create a Schema instance, passing data into it.
 
+        # Scenario 1: Creation of a new object.
         schema = UserSchema({
             'first_name': 'Donald',
             'last_name': 'Glover',
             'email': 'gambino@example.com'
         })
+
+        # Scenario 2: Update of an existing object.
+        schema = UserSchema(
+            raw_data={
+                'first_name': 'Childish',
+                'last_name': 'Gambino'
+            },
+            data={
+                'first_name': 'Donald',
+                'last_name': 'Glover',
+                'email': 'gambino@example.com'
+            }
+        )
 
     3. Clean the Schema (validating the data you passed into it).
 
