@@ -1,7 +1,9 @@
-import unittest
 import datetime
+import unittest
+
 from cleancat import *
 from cleancat.utils import ValidationTestCase
+
 
 class FieldTestCase(ValidationTestCase):
     def test_string(self):
@@ -402,6 +404,59 @@ class FieldTestCase(ValidationTestCase):
         self.assertValid(UnmutableSchema({'text': 'existing'}, {'text': 'existing'}), {'text': 'existing'})
         self.assertValid(UnmutableSchema({}, {'text': 'hello'}), {'text': 'hello'})
         self.assertValid(UnmutableSchema({'text': 'hello'}, {}), {'text': 'hello'})
+
+
+class ExternalCleanTestCase(unittest.TestCase):
+
+    def setUp(self):
+
+        # Generic message schema that may be used in composition with more
+        # specific schemas
+        class MessageSchema(Schema):
+            status = String(required=True)
+
+            def clean(self):
+                orig_status = self.orig_data and self.orig_data['status']
+                new_status = self.data['status']
+
+                if (orig_status == 'sent' and new_status == 'inbox'):
+                    self.field_errors['status'] = "Can't change from sent to inbox"
+
+                return self.data
+
+        # Specific email schema that also calls the generic message schema
+        # via external_clean
+        class EmailSchema(Schema):
+            subject = String()
+
+            def full_clean(self):
+                super(EmailSchema, self).full_clean()
+                self.external_clean(MessageSchema)
+
+        self.MessageSchema = MessageSchema
+        self.EmailSchema = EmailSchema
+
+    def test_external_clean(self):
+        schema = self.EmailSchema(
+            raw_data={'subject': 'hi', 'status': 'sent'},
+        )
+        schema.full_clean()
+
+    def test_orig_data_in_external_clean(self):
+        schema = self.EmailSchema(
+            raw_data={'subject': 'hi updated', 'status': 'inbox'},
+            data={'subject': 'hi', 'status': 'sent'},
+        )
+        try:
+            schema.full_clean()
+            self.assertFalse(True)  # we should never get here
+        except ValidationError as e:
+            self.assertEqual(e.message, {
+                'errors': [],
+                'field-errors': {
+                    'status': "Can't change from sent to inbox"
+                }
+            })
 
     # TODO: Test MongoEmbedded, MongoReference, more Schema tests.
 

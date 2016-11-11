@@ -417,7 +417,7 @@ class MongoReference(Field):
             raise ValidationError('Object does not exist.')
 
 class Schema(object):
-    def __init__(self, raw_data=None, data=None, orig_data=None):
+    def __init__(self, raw_data=None, data=None, **kwargs):
         conflicting_fields = set([
             'raw_data', 'orig_data', 'data', 'errors', 'field_errors', 'fields'
         ]).intersection(dir(self))
@@ -426,7 +426,12 @@ class Schema(object):
                 'Please use the field_name keyword to use them.' % list(conflicting_fields))
 
         self.raw_data = raw_data or {}
-        self.orig_data = orig_data or data or None
+
+        if 'orig_data' in kwargs:
+            self.orig_data = kwargs['orig_data']
+        else:
+            self.orig_data = data or None
+
         self.data = data and dict(data) or {}
         self.field_errors = {}
         self.errors = []
