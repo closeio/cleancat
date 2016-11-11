@@ -417,7 +417,46 @@ class MongoReference(Field):
             raise ValidationError('Object does not exist.')
 
 class Schema(object):
-    def __init__(self, raw_data=None, data=None, **kwargs):
+    """
+    Base Schema class. Provides core behavior like fields declaration
+    and construction, validation, and data and error proxying.
+
+    There are 3 steps to using a Schema:
+
+    1. Define the Schema, e.g.
+
+        class UserSchema(Schema):
+            first_name = String()
+            last_name = String()
+            email = Email()
+
+    2. Create a Schema instance, passing data into it.
+
+        schema = UserSchema({
+            'first_name': 'Donald',
+            'last_name': 'Glover',
+            'email': 'gambino@example.com'
+        })
+
+    3. Clean the Schema (validating the data you passed into it).
+
+        data = schema.full_clean()
+
+    This operation will raise a ValidationError if the data you passed
+    into the Schema is invalid.
+
+    To introduce custom validation to the Schema (beyond the basics
+    covered by various Field types), override the "clean" method and
+    raise a ValidationError with a descriptive message if you encounter
+    any invalid data.
+
+    Parameters:
+    - raw_data - a dict with the data you want to validate.
+    - data - dict with existing data, e.g. based on some object you're
+             trying to update.
+    """
+
+    def __init__(self, raw_data=None, data=None):
         conflicting_fields = set([
             'raw_data', 'orig_data', 'data', 'errors', 'field_errors', 'fields'
         ]).intersection(dir(self))
