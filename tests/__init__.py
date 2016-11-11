@@ -467,11 +467,8 @@ class ExternalCleanTestCase(unittest.TestCase):
             schema.full_clean()
             self.assertFalse(True)  # we should never get here
         except ValidationError as e:
-            self.assertEqual(e.message, {
-                'errors': [],
-                'field-errors': {
-                    'status': "Can't change from sent to inbox"
-                }
+            self.assertEqual(schema.field_errors, {
+                'status': "Can't change from sent to inbox"
             })
 
     # TODO: Test MongoEmbedded, MongoReference, more Schema tests.
