@@ -1,5 +1,5 @@
 from setuptools import setup
-   
+
 test_requirements = [
     'nose',
     'coverage',
@@ -7,7 +7,7 @@ test_requirements = [
 
 setup(
     name='cleancat',
-    version='0.5.2',
+    version='0.5.3',
     url='http://github.com/elasticsales/cleancat',
     license='MIT',
     author='Thomas Steinacher',
