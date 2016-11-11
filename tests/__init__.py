@@ -407,6 +407,10 @@ class FieldTestCase(ValidationTestCase):
 
 
 class ExternalCleanTestCase(unittest.TestCase):
+    """
+    Collection of tests making sure Schema#external_clean works as
+    expected.
+    """
 
     def setUp(self):
 
@@ -421,6 +425,8 @@ class ExternalCleanTestCase(unittest.TestCase):
 
                 if (orig_status == 'sent' and new_status == 'inbox'):
                     self.field_errors['status'] = "Can't change from sent to inbox"
+
+                self.data['message_cleaned'] = True
 
                 return self.data
 
@@ -441,8 +447,18 @@ class ExternalCleanTestCase(unittest.TestCase):
             raw_data={'subject': 'hi', 'status': 'sent'},
         )
         schema.full_clean()
+        self.assertEqual(schema.data, {
+            'subject': 'hi',
+            'status': 'sent',
+            'message_cleaned': True,
+        })
 
     def test_orig_data_in_external_clean(self):
+
+        # Create a schema for an existing object, which originally had
+        # subject='hi' and status='sent' and we're trying to validate an
+        # update to subject='hi updated' and status='inbox' (which shouldn't
+        # be allowed).
         schema = self.EmailSchema(
             raw_data={'subject': 'hi updated', 'status': 'inbox'},
             data={'subject': 'hi', 'status': 'sent'},

@@ -495,13 +495,14 @@ class Schema(object):
 
     def external_clean(self, cls, raise_on_errors=True):
         try:
-            self.data.update(
-                cls(
-                    raw_data=self.raw_data,
-                    data=self.data,
-                    orig_data=self.orig_data
-                ).full_clean()
-            )
+            # Instantiate the external schema with the right raw_data/data.
+            external_schema = cls(raw_data=self.raw_data, data=self.data)
+
+            # Make sure its orig_data is the same as this schema's
+            external_schema.orig_data = self.orig_data
+
+            # Validate the schema and update self.data with its results.
+            self.data.update(external_schema.full_clean())
         except ValidationError as e:
             self.field_errors.update(e.args[0]['field-errors'])
             self.errors += e.args[0]['errors']
