@@ -465,12 +465,7 @@ class Schema(object):
                 'Please use the field_name keyword to use them.' % list(conflicting_fields))
 
         self.raw_data = raw_data or {}
-
-        if 'orig_data' in kwargs:
-            self.orig_data = kwargs['orig_data']
-        else:
-            self.orig_data = data or None
-
+        self.orig_data = data or None
         self.data = data and dict(data) or {}
         self.field_errors = {}
         self.errors = []
