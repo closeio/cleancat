@@ -417,7 +417,7 @@ class MongoReference(Field):
             raise ValidationError('Object does not exist.')
 
 class Schema(object):
-    def __init__(self, raw_data=None, data=None):
+    def __init__(self, raw_data=None, data=None, orig_data=None):
         conflicting_fields = set([
             'raw_data', 'orig_data', 'data', 'errors', 'field_errors', 'fields'
         ]).intersection(dir(self))
@@ -426,7 +426,7 @@ class Schema(object):
                 'Please use the field_name keyword to use them.' % list(conflicting_fields))
 
         self.raw_data = raw_data or {}
-        self.orig_data = data or None
+        self.orig_data = orig_data or data or None
         self.data = data and dict(data) or {}
         self.field_errors = {}
         self.errors = []
@@ -490,7 +490,13 @@ class Schema(object):
 
     def external_clean(self, cls, raise_on_errors=True):
         try:
-            self.data.update(cls(self.raw_data, self.data).full_clean())
+            self.data.update(
+                cls(
+                    raw_data=self.raw_data,
+                    data=self.data,
+                    orig_data=self.orig_data
+                ).full_clean()
+            )
         except ValidationError as e:
             self.field_errors.update(e.args[0]['field-errors'])
             self.errors += e.args[0]['errors']
