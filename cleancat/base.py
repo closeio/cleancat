@@ -167,7 +167,7 @@ class URL(Regex):
     blank_value = None
 
     def __init__(self, require_tld=True, default_scheme=None, allowed_schemes=None, **kwargs):
-        tld_part = (require_tld and r'\.[a-z]{2,10}' or '')
+        tld_part = (require_tld and r'\.[\w-]{2,24}' or '')
         scheme_part = '[a-z]+://'
         self.default_scheme = default_scheme
         if self.default_scheme and not self.default_scheme.endswith('://'):
@@ -175,8 +175,8 @@ class URL(Regex):
         self.scheme_regex = re.compile('^'+scheme_part, re.IGNORECASE)
         if default_scheme:
             scheme_part = '(%s)?' % scheme_part
-        regex = r'^%s([^/:]+%s|([0-9]{1,3}\.){3}[0-9]{1,3})(:[0-9]+)?(\/.*)?$' % (scheme_part, tld_part)
-        super(URL, self).__init__(regex=regex, regex_flags=re.IGNORECASE, regex_message='Invalid URL.', **kwargs)
+        regex = r'^%s([^/:]+%s|([0-9]{1,3}\.){3}[0-9]{1,3})(:[0-9]+)?([/?].*)?$' % (scheme_part, tld_part)
+        super(URL, self).__init__(regex=regex, regex_flags=re.IGNORECASE | re.UNICODE, regex_message='Invalid URL.', **kwargs)
 
         self.allowed_schemes = allowed_schemes or []
         self.allowed_schemes_regexes = []
