@@ -283,6 +283,9 @@ class List(Field):
 
         return data
 
+    def serialize(self, value):
+        return [self.field_instance.serialize(item) for item in value]
+
 class Dict(Field):
     base_type = dict
 
@@ -427,6 +430,9 @@ class MongoReference(Field):
         except self.document_class.DoesNotExist:
             raise ValidationError('Object does not exist.')
 
+    def serialize(self, value):
+        return value.pk
+
 class Schema(object):
     """
     Base Schema class. Provides core behavior like fields declaration
@@ -504,6 +510,8 @@ class Schema(object):
         for field_name in cls.get_fields():
             if hasattr(obj, field_name):
                 value = getattr(obj, field_name)
+                if callable(value):
+                    value = value()
                 data[field_name] = value
         return data
 
