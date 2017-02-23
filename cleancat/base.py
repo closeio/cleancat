@@ -175,7 +175,7 @@ class URL(Regex):
         self.scheme_regex = re.compile('^'+scheme_part, re.IGNORECASE)
         if default_scheme:
             scheme_part = '(%s)?' % scheme_part
-        regex = r'^%s([^/:]+%s|([0-9]{1,3}\.){3}[0-9]{1,3})(:[0-9]+)?([/?].*)?$' % (scheme_part, tld_part)
+        regex = r'^%s([-\w@:%%_+.~#?&/\\=]{2,256}%s|([0-9]{1,3}\.){3}[0-9]{1,3})(:[0-9]+)?([/?].*)?$' % (scheme_part, tld_part)
         super(URL, self).__init__(regex=regex, regex_flags=re.IGNORECASE | re.UNICODE, regex_message='Invalid URL.', **kwargs)
 
         self.allowed_schemes = allowed_schemes or []
