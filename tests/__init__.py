@@ -267,11 +267,21 @@ class FieldTestCase(ValidationTestCase):
         class URLSchema(Schema):
             url = URL()
 
+        self.assertValid(URLSchema({'url': 'http://x.com'}), {'url': 'http://x.com'})
+        self.assertValid(URLSchema({'url': u'http://♡.com'}), {'url': u'http://♡.com'})
         self.assertValid(URLSchema({'url': 'http://example.com/a?b=c'}), {'url': 'http://example.com/a?b=c'})
         self.assertValid(URLSchema({'url': 'ftp://ftp.example.com'}), {'url': 'ftp://ftp.example.com'})
         self.assertValid(URLSchema({'url': 'http://example.com?params=without&path'}), {'url': 'http://example.com?params=without&path'})
         self.assertInvalid(URLSchema({'url': 'www.example.com'}), {'field-errors': ['url']})
+        self.assertInvalid(URLSchema({'url': 'http:// invalid.com'}), {'field-errors': ['url']})
+        self.assertInvalid(URLSchema({'url': 'http://!nvalid.com'}), {'field-errors': ['url']})
+        self.assertInvalid(URLSchema({'url': 'http://.com'}), {'field-errors': ['url']})
+        self.assertInvalid(URLSchema({'url': 'http://'}), {'field-errors': ['url']})
+        self.assertInvalid(URLSchema({'url': 'http://.'}), {'field-errors': ['url']})
         self.assertInvalid(URLSchema({'url': 'invalid'}), {'field-errors': ['url']})
+
+        # full-width chars disallowed
+        self.assertInvalid(URLSchema({'url': u'http://ＧＯＯＧＬＥ.com'}), {'field-errors': ['url']})
 
         # Russian unicode URL (IDN, unicode path and query params)
         self.assertValid(URLSchema({'url': u'http://пример.com'}), {'url': u'http://пример.com'})
@@ -300,6 +310,9 @@ class FieldTestCase(ValidationTestCase):
         self.assertValid(RelaxedURLSchema({'url': 'http://example.com/a?b=c'}), {'url': 'http://example.com/a?b=c'})
         self.assertValid(RelaxedURLSchema({'url': 'ftp://ftp.example.com'}), {'url': 'ftp://ftp.example.com'})
         self.assertValid(RelaxedURLSchema({'url': 'www.example.com'}), {'url': 'http://www.example.com'})
+        self.assertValid(RelaxedURLSchema({'url': u'http://пример.рф'}), {'url': u'http://пример.рф'})
+        self.assertInvalid(RelaxedURLSchema({'url': 'http:// invalid.com'}), {'field-errors': ['url']})
+        self.assertInvalid(RelaxedURLSchema({'url': 'http://!nvalid.com'}), {'field-errors': ['url']})
         self.assertInvalid(RelaxedURLSchema({'url': 'http://'}), {'field-errors': ['url']})
         self.assertInvalid(RelaxedURLSchema({'url': 'invalid'}), {'field-errors': ['url']})
         self.assertInvalid(RelaxedURLSchema({'url': True}), {'field-errors': ['url']})
