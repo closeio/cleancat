@@ -1,4 +1,5 @@
 import datetime
+import sys
 import unittest
 
 from cleancat import *
@@ -261,6 +262,21 @@ class FieldTestCase(ValidationTestCase):
         self.assertValid(CaseInsensitiveChoiceSchema({'choice': 'wOrLd'}), {'choice': 'world'})
         self.assertInvalid(CaseInsensitiveChoiceSchema({'choice': 'world '}), {'field-errors': ['choice']})
         self.assertInvalid(CaseInsensitiveChoiceSchema({'choice': 'invalid'}), {'field-errors': ['choice']})
+
+    @unittest.skipIf(sys.version_info < (3, 4), 'enum unavailable')
+    def test_enum(self):
+        import enum
+
+        class Choices(enum.Enum):
+            A = 'a'
+            B = 'b'
+
+        class ChoiceSchema(Schema):
+            choice = Enum(Choices)
+
+        self.assertValid(ChoiceSchema({'choice': 'a'}), {'choice': 'a'})
+        self.assertValid(ChoiceSchema({'choice': 'b'}), {'choice': 'b'})
+        self.assertInvalid(ChoiceSchema({'choice': 'c'}), {'field-errors': ['choice']})
 
     def test_url(self):
         class URLSchema(Schema):

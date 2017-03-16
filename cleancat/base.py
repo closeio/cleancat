@@ -315,6 +315,9 @@ class Embedded(Dict):
             return True
 
 class Choices(Field):
+    """
+    A field that accepts the given choices.
+    """
     def __init__(self, choices, case_insensitive=False, error_invalid_choice=None, **kwargs):
         super(Choices, self).__init__(**kwargs)
         self.choices = choices
@@ -344,6 +347,16 @@ class Choices(Field):
             raise ValidationError(self.error_invalid_choice.format(value=value))
 
         return value
+
+class Enum(Choices):
+    """
+    Like Choices, but expects a Python 3 Enum.
+    """
+    def get_choices(self):
+        return [choice.value for choice in self.choices]
+
+    def serialize(self, choice):
+        return choice.value
 
 # TODO move to separate module
 class MongoEmbedded(Embedded):
@@ -378,7 +391,6 @@ class MongoEmbeddedReference(MongoEmbedded):
     def __init__(self, *args, **kwargs):
         self.pk_field = kwargs.pop('pk_field', 'id')
         super(MongoEmbeddedReference, self).__init__(*args, **kwargs)
-
 
     def clean(self, value):
         value = super(Embedded, self).clean(value)
