@@ -267,12 +267,12 @@ class FieldTestCase(ValidationTestCase):
     def test_enum(self):
         import enum
 
-        class Choices(enum.Enum):
+        class MyChoices(enum.Enum):
             A = 'a'
             B = 'b'
 
         class ChoiceSchema(Schema):
-            choice = Enum(Choices)
+            choice = Enum(MyChoices)
 
         self.assertValid(ChoiceSchema({'choice': 'a'}), {'choice': 'a'})
         self.assertValid(ChoiceSchema({'choice': 'b'}), {'choice': 'b'})
@@ -488,6 +488,61 @@ class ExternalCleanTestCase(unittest.TestCase):
             })
 
     # TODO: Test MongoEmbedded, MongoReference, more Schema tests.
+
+class SerializationTestCase(unittest.TestCase):
+    def test_serialization(self):
+        class EmbeddedSchema(Schema):
+            date_time = DateTime()
+
+        class TestSchema(Schema):
+            string = String()
+            boolean = Bool()
+            date_time = DateTime()
+            integer = Integer()
+            lst = List(DateTime())
+            embedded = Embedded(EmbeddedSchema)
+
+        schema = TestSchema(data={
+            'string': 'foo',
+            'boolean': True,
+            'date_time': datetime.datetime(2016, 1, 2, 3, 4, 5),
+            'integer': 1234,
+            'lst': [datetime.datetime(2016, 1, 2, 3, 4, 5),
+                    datetime.datetime(2016, 1, 3)],
+            'embedded': { 'date_time': datetime.datetime(2000, 1, 1) },
+        })
+
+        serialized = schema.serialize()
+        self.assertEqual(serialized, {
+            'string': 'foo',
+            'boolean': True,
+            'date_time': '2016-01-02T03:04:05',
+            'integer': 1234,
+            'lst': ['2016-01-02T03:04:05', '2016-01-03T00:00:00'],
+            'embedded': { 'date_time': '2000-01-01T00:00:00' },
+        })
+
+    @unittest.skipIf(sys.version_info < (3, 4), 'enum unavailable')
+    def test_serialization_enum(self):
+        import enum
+        class MyChoices(enum.Enum):
+            A = 'a'
+            B = 'b'
+
+        class TestSchema(Schema):
+            enum = Enum(MyChoices)
+            lst = List(Enum(MyChoices))
+
+        schema = TestSchema(data={
+            'enum': MyChoices.A,
+            'lst': [MyChoices.A, MyChoices.B],
+        })
+
+        serialized = schema.serialize()
+        self.assertEqual(serialized, {
+            'enum': 'a',
+            'lst': ['a', 'b'],
+        })
 
 if __name__ == '__main__':
     unittest.main()

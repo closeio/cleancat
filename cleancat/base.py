@@ -162,6 +162,9 @@ class DateTime(Regex):
             return dt
         return dt.date()
 
+    def serialize(self, value):
+        return value.isoformat()
+
 class Email(Regex):
     regex = r'^.+@[^.].*\.[a-z]{2,63}$'
     regex_flags = re.IGNORECASE
@@ -313,6 +316,9 @@ class Embedded(Dict):
             return False
         else:
             return True
+
+    def serialize(self, value):
+        return self.schema_class(data=value).serialize()
 
 class Choices(Field):
     """
