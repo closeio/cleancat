@@ -17,7 +17,8 @@ class Field(object):
     base_type = None
     blank_value = None
 
-    def __init__(self, required=True, default=None, field_name=None, raw_field_name=None, mutable=True):
+    def __init__(self, required=True, default=None, field_name=None,
+                 raw_field_name=None, mutable=True, read_only=False):
         """
         By default, the field name is derived from the schema model, but in
         certain cases it can be overridden. Specifying field_name overrides
@@ -30,11 +31,15 @@ class Field(object):
         self.mutable = mutable
         self.field_name = field_name
         self.raw_field_name = raw_field_name or field_name
+        self.read_only = read_only
 
     def has_value(self, value):
         return value is not None
 
     def clean(self, value):
+        """
+        Takes a dirty value and cleans it.
+        """
         if self.base_type is not None and value is not None and not isinstance(value, self.base_type):
             raise ValidationError('Value must be of %s type.' % self.base_type.__name__)
 
@@ -47,6 +52,12 @@ class Field(object):
             else:
                 raise StopValidation(self.blank_value)
 
+        return value
+
+    def serialize(self, value):
+        """
+        Takes a cleaned value and serializes it.
+        """
         return value
 
 class String(Field):
@@ -150,6 +161,9 @@ class DateTime(Regex):
         if time_group and len(time_group) > 1:
             return dt
         return dt.date()
+
+    def serialize(self, value):
+        return value.isoformat()
 
 class Email(Regex):
     regex = r'^.+@[^.].*\.[a-z]{2,63}$'
@@ -277,6 +291,9 @@ class List(Field):
 
         return data
 
+    def serialize(self, value):
+        return [self.field_instance.serialize(item) for item in value]
+
 class Dict(Field):
     base_type = dict
 
@@ -305,7 +322,13 @@ class Embedded(Dict):
         else:
             return True
 
+    def serialize(self, value):
+        return self.schema_class(data=value).serialize()
+
 class Choices(Field):
+    """
+    A field that accepts the given choices.
+    """
     def __init__(self, choices, case_insensitive=False, error_invalid_choice=None, **kwargs):
         super(Choices, self).__init__(**kwargs)
         self.choices = choices
@@ -335,6 +358,16 @@ class Choices(Field):
             raise ValidationError(self.error_invalid_choice.format(value=value))
 
         return value
+
+class Enum(Choices):
+    """
+    Like Choices, but expects a Python 3 Enum.
+    """
+    def get_choices(self):
+        return [choice.value for choice in self.choices]
+
+    def serialize(self, choice):
+        return choice.value
 
 # TODO move to separate module
 class MongoEmbedded(Embedded):
@@ -369,7 +402,6 @@ class MongoEmbeddedReference(MongoEmbedded):
     def __init__(self, *args, **kwargs):
         self.pk_field = kwargs.pop('pk_field', 'id')
         super(MongoEmbeddedReference, self).__init__(*args, **kwargs)
-
 
     def clean(self, value):
         value = super(Embedded, self).clean(value)
@@ -420,6 +452,9 @@ class MongoReference(Field):
             return self.document_class.objects.get(pk=value)
         except self.document_class.DoesNotExist:
             raise ValidationError('Object does not exist.')
+
+    def serialize(self, value):
+        return value.pk
 
 class Schema(object):
     """
@@ -475,6 +510,34 @@ class Schema(object):
              trying to update.
     """
 
+    @classmethod
+    def get_fields(cls):
+        """
+        Returns a dictionary of fields and field instances for this schema.
+        """
+        fields = {}
+        for field_name in dir(cls):
+            if isinstance(getattr(cls, field_name), Field):
+                field = getattr(cls, field_name)
+                field_name = field.field_name or field_name
+                fields[field_name] = field
+        return fields
+
+    @classmethod
+    def obj_to_dict(cls, obj):
+        """
+        Takes a model object and converts it into a dictionary suitable for
+        passing to the constructor's data attribute.
+        """
+        data = {}
+        for field_name in cls.get_fields():
+            if hasattr(obj, field_name):
+                value = getattr(obj, field_name)
+                if callable(value):
+                    value = value()
+                data[field_name] = value
+        return data
+
     def __init__(self, raw_data=None, data=None):
         conflicting_fields = set([
             'raw_data', 'orig_data', 'data', 'errors', 'field_errors', 'fields'
@@ -488,13 +551,7 @@ class Schema(object):
         self.data = data and dict(data) or {}
         self.field_errors = {}
         self.errors = []
-        self.fields = {}
-
-        for field_name in dir(self):
-            if isinstance(getattr(self, field_name), Field):
-                field = getattr(self, field_name)
-                field_name = field.field_name or field_name
-                self.fields[field_name] = field
+        self.fields = self.get_fields()
 
     def clean(self):
         pass
@@ -506,6 +563,8 @@ class Schema(object):
             })
 
         for field_name, field in self.fields.items():
+            if field.read_only:
+                continue
             raw_field_name = field.raw_field_name or field_name
             try:
                 # Validate a field if it's posted in raw_data, or if we don't
@@ -561,3 +620,9 @@ class Schema(object):
             self.errors += e.args[0]['errors']
             if raise_on_errors:
                 self.raise_on_errors()
+
+    def serialize(self):
+        data = {}
+        for field_name, field in self.fields.items():
+            data[field_name] = field.serialize(self.data[field_name])
+        return data
