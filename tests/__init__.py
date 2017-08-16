@@ -184,6 +184,7 @@ class FieldTestCase(ValidationTestCase):
         self.assertValid(OptionalEmailSchema({'email': None}), {'email': ''})
         self.assertValid(OptionalEmailSchema({}), {'email': ''})
         self.assertInvalid(OptionalEmailSchema({'email': 'test@example'}), {'field-errors': ['email']})
+        self.assertInvalid(OptionalEmailSchema({'email': 'test@!example.com'}), {'field-errors': ['email']})
         self.assertInvalid(OptionalEmailSchema({'email': 'test.example.com'}), {'field-errors': ['email']})
 
         # test auto-trimming
