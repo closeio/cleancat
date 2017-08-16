@@ -369,6 +369,13 @@ class Enum(Choices):
     def serialize(self, choice):
         return choice.value
 
+
+class SortedSet(List):
+    """Sorted, unique set of values represented as a list."""
+    def clean(self, value):
+        return list(sorted(set(super(List, self).clean(value))))
+
+
 # TODO move to separate module
 class MongoEmbedded(Embedded):
     """

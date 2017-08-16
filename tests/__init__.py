@@ -247,6 +247,29 @@ class FieldTestCase(ValidationTestCase):
         self.assertInvalid(SmallTagsSchema({'tags': []}), {'field-errors': ['tags']})
         self.assertInvalid(SmallTagsSchema({'tags': ['python', 'ruby', 'go']}), {'field-errors': ['tags']})
 
+    def test_sorted_set(self):
+        class TagsSchema(Schema):
+            tags = SortedSet(String())
+
+        class OptionalTagsSchema(Schema):
+            tags = SortedSet(String(), required=False)
+
+        # Deduplicated
+        self.assertValid(TagsSchema({'tags': ['python', 'ruby', 'python']}), {'tags': ['python', 'ruby']})
+
+        # Sorted
+        self.assertValid(TagsSchema({'tags': ['ruby', 'python']}), {'tags': ['python', 'ruby']})
+
+        # Other cases just like in a List
+        self.assertInvalid(TagsSchema({'tags': []}), {'field-errors': ['tags']})
+        self.assertInvalid(TagsSchema({'tags': None}), {'field-errors': ['tags']})
+        self.assertInvalid(TagsSchema({}), {'field-errors': ['tags']})
+
+        self.assertValid(OptionalTagsSchema({'tags': ['ruby']}), {'tags': ['ruby']})
+        self.assertValid(OptionalTagsSchema({'tags': []}), {'tags': []})
+        self.assertValid(OptionalTagsSchema({'tags': None}), {'tags': []})
+        self.assertValid(OptionalTagsSchema({}), {'tags': []})
+
     def test_choice(self):
         class ChoiceSchema(Schema):
             choice = Choices(choices=['Hello', 'world'])
