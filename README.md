@@ -8,7 +8,7 @@ Validation library for Python designed to be used with JSON REST frameworks
 
 ### Basic example in Flask
 
-```
+```py
 class JobApplication(Schema):
     first_name = String()
     last_name = String()
