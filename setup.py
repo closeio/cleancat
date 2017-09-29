@@ -7,7 +7,7 @@ test_requirements = [
 
 setup(
     name='cleancat',
-    version='0.5.4',
+    version='0.5.5',
     url='http://github.com/elasticsales/cleancat',
     license='MIT',
     author='Thomas Steinacher',
