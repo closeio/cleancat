@@ -373,7 +373,7 @@ class Enum(Choices):
 class SortedSet(List):
     """Sorted, unique set of values represented as a list."""
     def clean(self, value):
-        return list(sorted(set(super(List, self).clean(value))))
+        return list(sorted(set(super(SortedSet, self).clean(value))))
 
 
 # TODO move to separate module
