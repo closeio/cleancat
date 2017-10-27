@@ -298,8 +298,8 @@ class FieldTestCase(ValidationTestCase):
         class ChoiceSchema(Schema):
             choice = Enum(MyChoices)
 
-        self.assertValid(ChoiceSchema({'choice': 'a'}), {'choice': 'a'})
-        self.assertValid(ChoiceSchema({'choice': 'b'}), {'choice': 'b'})
+        self.assertValid(ChoiceSchema({'choice': 'a'}), {'choice': MyChoices.A})
+        self.assertValid(ChoiceSchema({'choice': 'b'}), {'choice': MyChoices.B})
         self.assertInvalid(ChoiceSchema({'choice': 'c'}), {'field-errors': ['choice']})
 
     def test_url(self):
