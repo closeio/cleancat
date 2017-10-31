@@ -366,6 +366,10 @@ class Enum(Choices):
     def get_choices(self):
         return [choice.value for choice in self.choices]
 
+    def clean(self, value):
+        value = super(Enum, self).clean(value)
+        return self.choices(value)
+
     def serialize(self, choice):
         return choice.value
 
