@@ -465,7 +465,8 @@ class MongoReference(Field):
             raise ValidationError('Object does not exist.')
 
     def serialize(self, value):
-        return value.pk
+        if value:
+            return value.pk
 
 class Schema(object):
     """
