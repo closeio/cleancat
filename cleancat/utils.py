@@ -1,5 +1,7 @@
 import unittest
+
 from cleancat import ValidationError
+
 
 def compare_dict_keys(data, keys, test_true=True):
     if isinstance(keys, list):
@@ -16,15 +18,16 @@ def compare_dict_keys(data, keys, test_true=True):
         else:
             assert k in keys, 'Key %r is unexpected in %r' % (k, data)
 
+
 def compare_req_resp(req_obj, resp_obj):
     for k, v in req_obj.items():
         assert k in resp_obj.keys(), 'Key %r not in response (keys are %r)' % (k, resp_obj.keys())
         assert resp_obj[k] == v, 'Value for key %r should be %r but is %r' % (k, v, resp_obj[k])
 
+
 class ValidationTestCase(unittest.TestCase):
     def assertValid(self, schema, data):
         compare_req_resp(data, schema.full_clean())
-        #self.assertEqual(schema.full_clean(), data)
 
     def assertInvalid(self, schema, error_keys=None, error_obj=None):
         self.assertRaises(ValidationError, schema.full_clean)
