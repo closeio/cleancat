@@ -1,16 +1,20 @@
 # -*- coding: utf-8 -*-
 import datetime
+import re
 import sys
 import unittest
 
-from cleancat import *
+from cleancat import (
+    Bool, Choices, DateTime, Email, Embedded, Enum, Integer, List, Regex,
+    RelaxedURL, Schema, SortedSet, String, TrimmedString, URL, ValidationError
+)
 from cleancat.utils import ValidationTestCase
 
 
 class FieldTestCase(ValidationTestCase):
     def test_string(self):
         class TextSchema(Schema):
-            text = String() # required by default
+            text = String()  # required by default
 
         class OptionalTextSchema(Schema):
             text = String(required=False)
@@ -45,7 +49,7 @@ class FieldTestCase(ValidationTestCase):
 
     def test_trimmed_string(self):
         class TextSchema(Schema):
-            text = TrimmedString() # required by default
+            text = TrimmedString()  # required by default
 
         class OptionalTextSchema(Schema):
             text = TrimmedString(required=False)
@@ -104,12 +108,16 @@ class FieldTestCase(ValidationTestCase):
     def test_regex(self):
         class RegexSchema(Schema):
             letter = Regex('^[a-z]$')
+
         class RegexOptionsSchema(Schema):
             letter = Regex('^[a-z]$', re.IGNORECASE)
+
         class RegexMessageSchema(Schema):
             letter = Regex('^[a-z]$', regex_message='Not a lowercase letter.')
+
         class OptionalRegexMessageSchema(Schema):
-            letter = Regex('^[a-z]$', regex_message='Not a lowercase letter.', required=False)
+            letter = Regex('^[a-z]$', regex_message='Not a lowercase letter.',
+                           required=False)
 
         self.assertValid(RegexSchema({'letter': 'a'}), {'letter': 'a'})
         self.assertInvalid(RegexSchema({'letter': 'A'}), {'field-errors': ['letter']})
@@ -144,13 +152,34 @@ class FieldTestCase(ValidationTestCase):
 
         from pytz import utc
 
-        self.assertValid(DateTimeSchema({'dt': '2012-10-09'}), {'dt': datetime.date(2012,10,9)})
-        self.assertValid(DateTimeSchema({'dt': '2012-10-09 13:10:04'}), {'dt': datetime.datetime(2012,10,9, 13,10, 4)})
-        self.assertValid(DateTimeSchema({'dt': '2013-03-27T01:24:50.137000+00:00'}), {'dt': datetime.datetime(2013,3,27, 1,24,50, 137000, tzinfo=utc)})
-        self.assertInvalid(DateTimeSchema({'dt': '0000-01-01T00:00:00-08:00'}), {'field-errors': ['dt']})
-        self.assertInvalid(DateTimeSchema({'dt': '2012a'}), {'field-errors': ['dt']})
-        self.assertInvalid(DateTimeSchema({'dt': ''}), {'field-errors': ['dt']})
-        self.assertInvalid(DateTimeSchema({'dt': None}), {'field-errors': ['dt']})
+        self.assertValid(
+            DateTimeSchema({'dt': '2012-10-09'}),
+            {'dt': datetime.date(2012, 10, 9)}
+        )
+        self.assertValid(
+            DateTimeSchema({'dt': '2012-10-09 13:10:04'}),
+            {'dt': datetime.datetime(2012, 10, 9, 13, 10, 4)}
+        )
+        self.assertValid(
+            DateTimeSchema({'dt': '2013-03-27T01:24:50.137000+00:00'}),
+            {'dt': datetime.datetime(2013, 3, 27, 1, 24, 50, 137000, tzinfo=utc)}
+        )
+        self.assertInvalid(
+            DateTimeSchema({'dt': '0000-01-01T00:00:00-08:00'}),
+            {'field-errors': ['dt']}
+        )
+        self.assertInvalid(
+            DateTimeSchema({'dt': '2012a'}),
+            {'field-errors': ['dt']}
+        )
+        self.assertInvalid(
+            DateTimeSchema({'dt': ''}),
+            {'field-errors': ['dt']}
+        )
+        self.assertInvalid(
+            DateTimeSchema({'dt': None}),
+            {'field-errors': ['dt']}
+        )
 
         class OptionalDateTimeSchema(Schema):
             dt = DateTime(required=False)
@@ -165,8 +194,8 @@ class FieldTestCase(ValidationTestCase):
             email = Email(required=False)
 
         # Emails must not be longer than 254 characters.
-        valid_email = '{u}@{d}.{d}.{d}.example'.format(u='u'*54, d='d'*63)
-        invalid_email = '{u}@{d}.{d}.{d}.example'.format(u='u'*55, d='d'*63)
+        valid_email = '{u}@{d}.{d}.{d}.example'.format(u='u' * 54, d='d' * 63)
+        invalid_email = '{u}@{d}.{d}.{d}.example'.format(u='u' * 55, d='d' * 63)
 
         self.assertValid(EmailSchema({'email': 'test@example.com'}), {'email': 'test@example.com'})
         self.assertValid(EmailSchema({'email': valid_email}), {'email': valid_email})
@@ -383,7 +412,6 @@ class FieldTestCase(ValidationTestCase):
         self.assertInvalid(ShortSchemeURLSchema({'url': 'http://example.com'}), {'field-errors': ['url']})
         self.assertInvalid(ShortSchemeURLSchema({'url': True}), {'field-errors': ['url']})
 
-
     def test_embedded(self):
         class UserSchema(Schema):
             email = Email()
@@ -392,13 +420,13 @@ class FieldTestCase(ValidationTestCase):
             user = Embedded(UserSchema)
 
         self.assertValid(MemberSchema({
-            'user': { 'email': 'a@example.com' }
+            'user': {'email': 'a@example.com'}
         }), {
-            'user': { 'email': 'a@example.com' }
+            'user': {'email': 'a@example.com'}
         })
 
         self.assertInvalid(MemberSchema({
-            'user': { 'email': 'invalid' }
+            'user': {'email': 'invalid'}
         }), error_obj={
             'field-errors': {
                 'user': {
@@ -411,7 +439,7 @@ class FieldTestCase(ValidationTestCase):
         })
 
         self.assertInvalid(MemberSchema({
-            'user': { }
+            'user': {}
         }), error_obj={
             'field-errors': {
                 'user': 'This field is required.'
@@ -532,12 +560,13 @@ class ExternalCleanTestCase(unittest.TestCase):
         try:
             schema.full_clean()
             self.assertFalse(True)  # we should never get here
-        except ValidationError as e:
+        except ValidationError:
             self.assertEqual(schema.field_errors, {
                 'status': "Can't change from sent to inbox"
             })
 
     # TODO: Test MongoEmbedded, MongoReference, more Schema tests.
+
 
 class SerializationTestCase(unittest.TestCase):
     def test_serialization(self):
@@ -559,7 +588,7 @@ class SerializationTestCase(unittest.TestCase):
             'integer': 1234,
             'lst': [datetime.datetime(2016, 1, 2, 3, 4, 5),
                     datetime.datetime(2016, 1, 3)],
-            'embedded': { 'date_time': datetime.datetime(2000, 1, 1) },
+            'embedded': {'date_time': datetime.datetime(2000, 1, 1)},
         })
 
         serialized = schema.serialize()
@@ -569,12 +598,13 @@ class SerializationTestCase(unittest.TestCase):
             'date_time': '2016-01-02T03:04:05',
             'integer': 1234,
             'lst': ['2016-01-02T03:04:05', '2016-01-03T00:00:00'],
-            'embedded': { 'date_time': '2000-01-01T00:00:00' },
+            'embedded': {'date_time': '2000-01-01T00:00:00'},
         })
 
     @unittest.skipIf(sys.version_info < (3, 4), 'enum unavailable')
     def test_serialization_enum(self):
         import enum
+
         class MyChoices(enum.Enum):
             A = 'a'
             B = 'b'
@@ -593,6 +623,7 @@ class SerializationTestCase(unittest.TestCase):
             'enum': 'a',
             'lst': ['a', 'b'],
         })
+
 
 if __name__ == '__main__':
     unittest.main()
