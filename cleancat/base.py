@@ -466,13 +466,6 @@ class MongoEmbeddedReference(MongoEmbedded):
         except MongoValidationError as e:
             raise ValidationError(str(e))
 
-        # Validate the value is a dict.
-        # TODO this validation is redundant since this class inherits from
-        # MongoEmbedded, which inherits from Embedded, which inherits from
-        # Dict. Dict's validation is performed before the clean() method is
-        # even called.
-        value = Dict.clean(self, value)
-
         # Get a dict of existing document's field names and values.
         if hasattr(document, 'to_dict'):
             # MongoMallard
@@ -483,7 +476,8 @@ class MongoEmbeddedReference(MongoEmbedded):
         if None in document_data:
             del document_data[None]
 
-        # Clean the data.
+        # Clean the data (passing the new data dict and the original data to
+        # the schema).
         value = self.schema_class(value, document_data).full_clean()
 
         # Set cleaned data on the document (except for the pk_field).
