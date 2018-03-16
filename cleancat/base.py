@@ -442,13 +442,13 @@ class MongoEmbeddedReference(MongoEmbedded):
         super(MongoEmbeddedReference, self).__init__(*args, **kwargs)
 
     def clean(self, value):
+        value = Dict.clean(self, value)
         if value and self.pk_field in value:
             return self.clean_existing(value)
         return self.clean_new(value)
 
     def clean_new(self, value):
         """Return a new document instantiated with cleaned data."""
-        value = Dict.clean(self, value)
         value = self.schema_class(value).full_clean()
         return self.document_class(**value)
 
