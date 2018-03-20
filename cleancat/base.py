@@ -345,6 +345,62 @@ class Embedded(Dict):
         return self.schema_class(data=value).serialize()
 
 
+class EmbeddedReference(Dict):
+    """Represents an object which can be referenced by its ID.
+
+    This field allows one to submit a dict of values which will then create
+    a new instance of the object, or it will update fields of an existing
+    object if a field representing its ID (called `pk_field`) was included
+    in the submitted dict.
+    """
+
+    def __init__(self, object_class, schema_class, pk_field='id', **kwargs):
+        self.object_class = object_class
+        self.schema_class = schema_class
+        self.pk_field = pk_field
+        super(EmbeddedReference, self).__init__(schema_class, **kwargs)
+
+    def clean(self, value):
+        # Clean the dict first.
+        value = super(EmbeddedReference, self).clean(value)
+
+        # Then, depending on whether `pk_field` is in the dict of submitted
+        # values or not, update an existing object or create a new one.
+        if value and self.pk_field in value:
+            return self.clean_existing(value)
+        return self.clean_new(value)
+
+    def clean_new(self, value):
+        """Return a new object instantiated with cleaned data."""
+        value = self.schema_class(value).full_clean()
+        return self.object_class(**value)
+
+    def clean_existing(self, value):
+        """Clean the data and return an existing document with its fields
+        updated based on the cleaned values.
+        """
+        existing_pk = value[self.pk_field]
+        obj = self.fetch_existing(existing_pk)
+        orig_data = self.get_orig_data_from_existing(obj)
+
+        # Clean the data (passing the new data dict and the original data to
+        # the schema).
+        value = self.schema_class(value, orig_data).full_clean()
+
+        # Set cleaned data on the object (except for the pk_field).
+        for field_name, field_value in value.iteritems():
+            if field_name != self.pk_field:
+                setattr(obj, field_name, field_value)
+
+        return obj
+
+    def fetch_existing(self, pk):
+        raise NotImplementedError  # should be subclassed
+
+    def get_orig_data_from_existing(self, obj):
+        raise NotImplementedError  # should be subclassed
+
+
 class Choices(Field):
     """
     A field that accepts the given choices.
