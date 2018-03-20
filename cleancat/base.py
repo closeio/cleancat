@@ -400,6 +400,12 @@ class EmbeddedReference(Dict):
     def get_orig_data_from_existing(self, obj):
         raise NotImplementedError  # should be subclassed
 
+    def serialize(self, obj):
+        obj_data = self.get_orig_data_from_existing(obj)
+        serialized = self.schema_class(data=obj_data).serialize()
+        serialized[self.pk_field] = getattr(obj, self.pk_field)
+        return serialized
+
 
 class Choices(Field):
     """
