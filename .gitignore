@@ -19,9 +19,10 @@ develop-eggs
 # Installer logs
 pip-log.txt
 
-# Unit test / coverage reports
+# Unit test / coverage reports and cache
 .coverage
 .tox
+.pytest_cache/
 
 #Translations
 *.mo
