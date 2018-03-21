@@ -6,7 +6,9 @@ them via `from cleancat.mongo import ...`.
 
 from mongoengine import ValidationError as MongoValidationError
 
-from .base import Embedded, EmbeddedReference, Field, ValidationError
+from .base import (
+    Embedded, EmbeddedReference, Field, ValidationError, basestring
+)
 
 
 class MongoEmbedded(Embedded):

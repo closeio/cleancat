@@ -1,13 +1,12 @@
 import datetime
 import re
-import sys
 
 import pytz
+import six
 from dateutil import parser
 
 
-if sys.version_info[0] == 3:
-    basestring = str
+basestring = six.string_types[0]
 
 
 class ValidationError(Exception):
@@ -388,7 +387,7 @@ class EmbeddedReference(Dict):
         value = self.schema_class(value, orig_data).full_clean()
 
         # Set cleaned data on the object (except for the pk_field).
-        for field_name, field_value in value.iteritems():
+        for field_name, field_value in value.items():
             if field_name != self.pk_field:
                 setattr(obj, field_name, field_value)
 

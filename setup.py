@@ -2,7 +2,8 @@ from setuptools import setup
 
 install_requirements = [
     'python-dateutil',
-    'pytz'
+    'pytz',
+    'six'
 ]
 test_requirements = install_requirements + [
     'pytest',
