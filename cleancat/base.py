@@ -369,6 +369,12 @@ class EmbeddedReference(Dict):
             return self.clean_existing(value)
         return self.clean_new(value)
 
+    def serialize(self, obj):
+        obj_data = self.get_orig_data_from_existing(obj)
+        serialized = self.schema_class(data=obj_data).serialize()
+        serialized[self.pk_field] = getattr(obj, self.pk_field)
+        return serialized
+
     def clean_new(self, value):
         """Return a new object instantiated with cleaned data."""
         value = self.schema_class(value).full_clean()
@@ -394,16 +400,30 @@ class EmbeddedReference(Dict):
         return obj
 
     def fetch_existing(self, pk):
+        """Fetch an existing object that corresponds to a given ID.
+
+        This needs to be subclassed since, depending on the object class,
+        the fetching mechanism might be different. See implementations of
+        SQLAEmbeddedResource and MongoEmbeddedResource for a concrete example
+        of fetching objects from a relational and non-relational database.
+
+        :param str pk: ID of the object that's supposed to exist.
+        :returns: an instance of the object class.
+        """
         raise NotImplementedError  # should be subclassed
 
     def get_orig_data_from_existing(self, obj):
-        raise NotImplementedError  # should be subclassed
+        """Return a dictionary of field names and values for a given object.
 
-    def serialize(self, obj):
-        obj_data = self.get_orig_data_from_existing(obj)
-        serialized = self.schema_class(data=obj_data).serialize()
-        serialized[self.pk_field] = getattr(obj, self.pk_field)
-        return serialized
+        The values in the dictionary should be in their "cleaned" state (as
+        in, exactly as they were set on the object, without any serialization).
+
+        :param object obj: existing object for which new data is currently
+            being cleaned.
+        :returns: dict of fields and values that are currently set on the
+            object (before the new cleaned data is applied).
+        """
+        raise NotImplementedError  # should be subclassed
 
 
 class Choices(Field):
