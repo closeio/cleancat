@@ -79,7 +79,7 @@ class MongoEmbeddedReference(MongoEmbedded):
             # Upstream MongoEngine
             document_data = dict(document._data)
         if None in document_data:
-            del document_data[None]
+            raise Exception('here!')
 
         # Clean the data (passing the new data dict and the original data to
         # the schema).
