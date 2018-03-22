@@ -7,7 +7,8 @@ them via `from cleancat.mongo import ...`.
 from mongoengine import ValidationError as MongoValidationError
 
 from .base import (
-    Embedded, EmbeddedReference, Field, ValidationError, basestring
+    Embedded, EmbeddedReference, Field, ReferenceNotFoundError,
+    ValidationError, basestring
 )
 
 
@@ -44,7 +45,7 @@ class MongoEmbeddedReference(EmbeddedReference):
         try:
             return doc_cls.objects.get(pk=pk)
         except doc_cls.DoesNotExist:
-            raise ValidationError('Object does not exist.')
+            raise ReferenceNotFoundError
         except MongoValidationError as e:
             raise ValidationError(str(e))
 
@@ -78,7 +79,7 @@ class MongoReference(Field):
         try:
             return self.document_class.objects.get(pk=value)
         except self.document_class.DoesNotExist:
-            raise ValidationError('Object does not exist.')
+            raise ReferenceNotFoundError
 
     def serialize(self, value):
         if value:

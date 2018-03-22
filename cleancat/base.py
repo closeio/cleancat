@@ -344,6 +344,10 @@ class Embedded(Dict):
         return self.schema_class(data=value).serialize()
 
 
+class ReferenceNotFoundError(Exception):
+    """Exception to be raised when a referenced object isn't found."""
+
+
 class EmbeddedReference(Dict):
     """Represents an object which can be referenced by its ID.
 
@@ -409,6 +413,7 @@ class EmbeddedReference(Dict):
 
         :param str pk: ID of the object that's supposed to exist.
         :returns: an instance of the object class.
+        :raises: ReferenceNotFoundError if the object doesn't exist.
         """
         raise NotImplementedError  # should be subclassed
 
@@ -613,6 +618,8 @@ class Schema(object):
 
                     self.data[field_name] = value
 
+            except ReferenceNotFoundError:
+                self.field_errors[raw_field_name] = 'Object does not exist.'
             except ValidationError as e:
                 self.field_errors[raw_field_name] = e.args and e.args[0]
             except StopValidation as e:

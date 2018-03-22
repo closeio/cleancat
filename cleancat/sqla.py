@@ -6,7 +6,7 @@ them via `from cleancat.sqla import ...`.
 
 from sqlalchemy import inspect
 
-from .base import EmbeddedReference, ValidationError
+from .base import EmbeddedReference, ReferenceNotFoundError
 
 
 def object_as_dict(obj):
@@ -33,7 +33,7 @@ class SQLAEmbeddedReference(EmbeddedReference):
         model_cls = self.object_class
         model = model_cls.query.get(pk)
         if not model:
-            raise ValidationError('Object does not exist.')
+            raise ReferenceNotFoundError
         return model
 
     def get_orig_data_from_existing(self, obj):
