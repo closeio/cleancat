@@ -8,7 +8,7 @@ from mongoengine import ValidationError as MongoValidationError
 
 from .base import (
     Embedded, EmbeddedReference, Field, ReferenceNotFoundError,
-    ValidationError, basestring
+    ValidationError, str_type
 )
 
 
@@ -68,7 +68,7 @@ class MongoReference(Field):
     Example document: ReferenceField(Doc)
     """
 
-    base_type = basestring
+    base_type = str_type
 
     def __init__(self, document_class=None, **kwargs):
         self.document_class = document_class

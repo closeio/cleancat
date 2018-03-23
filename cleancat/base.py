@@ -1,12 +1,15 @@
 import datetime
 import re
+import sys
 
 import pytz
-import six
 from dateutil import parser
 
 
-basestring = six.string_types[0]
+if sys.version_info[0] == 3:
+    str_type = str
+else:
+    str_type = basestring
 
 
 class ValidationError(Exception):
@@ -66,7 +69,7 @@ class Field(object):
 
 
 class String(Field):
-    base_type = basestring
+    base_type = str_type
     blank_value = ''
     min_length = None
     max_length = None
@@ -95,7 +98,7 @@ class String(Field):
 
 
 class TrimmedString(String):
-    base_type = basestring
+    base_type = str_type
     blank_value = ''
 
     def clean(self, value):
@@ -183,7 +186,7 @@ class Email(Regex):
 
     def clean(self, value):
         # trim any leading/trailing whitespace before validating the email
-        if isinstance(value, basestring):
+        if isinstance(value, str_type):
             value = value.strip()
         return super(Email, self).clean(value)
 
@@ -452,7 +455,7 @@ class Choices(Field):
         if self.case_insensitive:
             choices = {choice.lower(): choice for choice in choices}
 
-            if not isinstance(value, basestring):
+            if not isinstance(value, str_type):
                 raise ValidationError(u'Value needs to be a string.')
 
             if value.lower() not in choices:
