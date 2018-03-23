@@ -79,7 +79,7 @@ class MongoReference(Field):
         try:
             return self.document_class.objects.get(pk=value)
         except self.document_class.DoesNotExist:
-            raise ReferenceNotFoundError
+            raise ValidationError('Object does not exist.')
 
     def serialize(self, value):
         if value:

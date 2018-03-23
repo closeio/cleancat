@@ -392,7 +392,10 @@ class EmbeddedReference(Dict):
         updated based on the cleaned values.
         """
         existing_pk = value[self.pk_field]
-        obj = self.fetch_existing(existing_pk)
+        try:
+            obj = self.fetch_existing(existing_pk)
+        except ReferenceNotFoundError:
+            raise ValidationError('Object does not exist.')
         orig_data = self.get_orig_data_from_existing(obj)
 
         # Clean the data (passing the new data dict and the original data to
@@ -621,8 +624,6 @@ class Schema(object):
 
                     self.data[field_name] = value
 
-            except ReferenceNotFoundError:
-                self.field_errors[raw_field_name] = 'Object does not exist.'
             except ValidationError as e:
                 self.field_errors[raw_field_name] = e.args and e.args[0]
             except StopValidation as e:
