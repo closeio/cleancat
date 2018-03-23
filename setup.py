@@ -1,8 +1,14 @@
 from setuptools import setup
 
-test_requirements = [
-    'nose',
+install_requirements = [
+    'python-dateutil',
+    'pytz',
+]
+test_requirements = install_requirements + [
+    'pytest',
     'coverage',
+    'mongoengine',
+    'sqlalchemy'
 ]
 
 setup(
@@ -19,12 +25,11 @@ setup(
     packages=[
         'cleancat',
     ],
-    test_suite='nose.collector',
     zip_safe=False,
     platforms='any',
-    install_requires=[
-        'python-dateutil',
-    ],
+    install_requires=install_requirements,
+    setup_requires=['pytest-runner'],
+    test_suite='tests',
     tests_require=test_requirements,
     extras_require={'test': test_requirements},
     classifiers=[

@@ -7,7 +7,9 @@ from dateutil import parser
 
 
 if sys.version_info[0] == 3:
-    basestring = str
+    str_type = str
+else:
+    str_type = basestring
 
 
 class ValidationError(Exception):
@@ -67,7 +69,7 @@ class Field(object):
 
 
 class String(Field):
-    base_type = basestring
+    base_type = str_type
     blank_value = ''
     min_length = None
     max_length = None
@@ -96,7 +98,7 @@ class String(Field):
 
 
 class TrimmedString(String):
-    base_type = basestring
+    base_type = str_type
     blank_value = ''
 
     def clean(self, value):
@@ -184,7 +186,7 @@ class Email(Regex):
 
     def clean(self, value):
         # trim any leading/trailing whitespace before validating the email
-        if isinstance(value, basestring):
+        if isinstance(value, str_type):
             value = value.strip()
         return super(Email, self).clean(value)
 
@@ -345,6 +347,96 @@ class Embedded(Dict):
         return self.schema_class(data=value).serialize()
 
 
+class ReferenceNotFoundError(Exception):
+    """Exception to be raised when a referenced object isn't found."""
+
+
+class EmbeddedReference(Dict):
+    """Represents an object which can be referenced by its ID.
+
+    This field allows one to submit a dict of values which will then create
+    a new instance of the object, or it will update fields of an existing
+    object if a field representing its ID (called `pk_field`) was included
+    in the submitted dict.
+    """
+
+    def __init__(self, object_class, schema_class, pk_field='id', **kwargs):
+        self.object_class = object_class
+        self.schema_class = schema_class
+        self.pk_field = pk_field
+        super(EmbeddedReference, self).__init__(schema_class, **kwargs)
+
+    def clean(self, value):
+        # Clean the dict first.
+        value = super(EmbeddedReference, self).clean(value)
+
+        # Then, depending on whether `pk_field` is in the dict of submitted
+        # values or not, update an existing object or create a new one.
+        if value and self.pk_field in value:
+            return self.clean_existing(value)
+        return self.clean_new(value)
+
+    def serialize(self, obj):
+        obj_data = self.get_orig_data_from_existing(obj)
+        serialized = self.schema_class(data=obj_data).serialize()
+        serialized[self.pk_field] = getattr(obj, self.pk_field)
+        return serialized
+
+    def clean_new(self, value):
+        """Return a new object instantiated with cleaned data."""
+        value = self.schema_class(value).full_clean()
+        return self.object_class(**value)
+
+    def clean_existing(self, value):
+        """Clean the data and return an existing document with its fields
+        updated based on the cleaned values.
+        """
+        existing_pk = value[self.pk_field]
+        try:
+            obj = self.fetch_existing(existing_pk)
+        except ReferenceNotFoundError:
+            raise ValidationError('Object does not exist.')
+        orig_data = self.get_orig_data_from_existing(obj)
+
+        # Clean the data (passing the new data dict and the original data to
+        # the schema).
+        value = self.schema_class(value, orig_data).full_clean()
+
+        # Set cleaned data on the object (except for the pk_field).
+        for field_name, field_value in value.items():
+            if field_name != self.pk_field:
+                setattr(obj, field_name, field_value)
+
+        return obj
+
+    def fetch_existing(self, pk):
+        """Fetch an existing object that corresponds to a given ID.
+
+        This needs to be subclassed since, depending on the object class,
+        the fetching mechanism might be different. See implementations of
+        SQLAEmbeddedResource and MongoEmbeddedResource for a concrete example
+        of fetching objects from a relational and non-relational database.
+
+        :param str pk: ID of the object that's supposed to exist.
+        :returns: an instance of the object class.
+        :raises: ReferenceNotFoundError if the object doesn't exist.
+        """
+        raise NotImplementedError  # should be subclassed
+
+    def get_orig_data_from_existing(self, obj):
+        """Return a dictionary of field names and values for a given object.
+
+        The values in the dictionary should be in their "cleaned" state (as
+        in, exactly as they were set on the object, without any serialization).
+
+        :param object obj: existing object for which new data is currently
+            being cleaned.
+        :returns: dict of fields and values that are currently set on the
+            object (before the new cleaned data is applied).
+        """
+        raise NotImplementedError  # should be subclassed
+
+
 class Choices(Field):
     """
     A field that accepts the given choices.
@@ -366,7 +458,7 @@ class Choices(Field):
         if self.case_insensitive:
             choices = {choice.lower(): choice for choice in choices}
 
-            if not isinstance(value, basestring):
+            if not isinstance(value, str_type):
                 raise ValidationError(u'Value needs to be a string.')
 
             if value.lower() not in choices:
