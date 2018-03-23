@@ -53,13 +53,10 @@ class MongoEmbeddedReference(EmbeddedReference):
         # Get a dict of existing document's field names and values.
         if hasattr(obj, 'to_dict'):
             # MongoMallard
-            doc_data = obj.to_dict()
+            return obj.to_dict()
         else:
             # Upstream MongoEngine
-            doc_data = dict(obj._data)
-        if None in doc_data:
-            del doc_data[None]
-        return doc_data
+            return dict(obj._data)
 
 
 class MongoReference(Field):
