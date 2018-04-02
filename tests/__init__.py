@@ -648,7 +648,7 @@ class SerializationTestCase(unittest.TestCase):
 
         class TestSchema(Schema):
             enum = Enum(MyChoices)
-            optional_enum = Enum(MyChoices)
+            optional_enum = Enum(MyChoices, required=False)
             lst = List(Enum(MyChoices))
 
         schema = TestSchema(data={
