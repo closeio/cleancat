@@ -664,8 +664,8 @@ class Schema(object):
         data = {}
         for field_name, field in self.fields.items():
             value = self.data[field_name]
-            if value is not None:
-                data[field_name] = field.serialize(value)
-            else:
+            if value is None:
                 data[field_name] = None
+            else:
+                data[field_name] = field.serialize(value)
         return data
