@@ -663,5 +663,9 @@ class Schema(object):
     def serialize(self):
         data = {}
         for field_name, field in self.fields.items():
-            data[field_name] = field.serialize(self.data[field_name])
+            value = self.data[field_name]
+            if value is not None:
+                data[field_name] = field.serialize(value)
+            else:
+                data[field_name] = None
         return data

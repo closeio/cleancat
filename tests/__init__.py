@@ -5,8 +5,9 @@ import sys
 import unittest
 
 from cleancat import (
-    Bool, Choices, DateTime, Email, Embedded, Enum, Integer, List, Regex,
-    RelaxedURL, Schema, SortedSet, String, TrimmedString, URL, ValidationError
+    Bool, Choices, DateTime, Dict, Email, Embedded, Enum, Integer, List,
+    Regex, RelaxedURL, Schema, SortedSet, String, TrimmedString, URL,
+    ValidationError
 )
 from cleancat.utils import ValidationTestCase
 
@@ -601,6 +602,42 @@ class SerializationTestCase(unittest.TestCase):
             'embedded': {'date_time': '2000-01-01T00:00:00'},
         })
 
+    def test_serialization_optional_fields(self):
+        class EmbeddedSchema(Schema):
+            date_time = DateTime()
+
+        class TestSchema(Schema):
+            name = String(required=True)
+            string = String(required=False)
+            boolean = Bool(required=False)
+            date_time = DateTime(required=False)
+            integer = Integer(required=False)
+            lst = List(DateTime(), required=False)
+            embedded = Embedded(EmbeddedSchema, required=False)
+            dictionary = Dict(required=False)
+
+        schema = TestSchema(data={
+            'name': 'One Required Field',
+            'string': None,
+            'boolean': None,
+            'date_time': None,
+            'integer': None,
+            'lst': None,
+            'embedded': None,
+            'dictionary': None,
+        })
+        serialized = schema.serialize()
+        self.assertEqual(serialized, {
+            'name': 'One Required Field',
+            'string': None,
+            'boolean': None,
+            'date_time': None,
+            'integer': None,
+            'lst': None,
+            'embedded': None,
+            'dictionary': None,
+        })
+
     @unittest.skipIf(sys.version_info < (3, 4), 'enum unavailable')
     def test_serialization_enum(self):
         import enum
@@ -611,16 +648,19 @@ class SerializationTestCase(unittest.TestCase):
 
         class TestSchema(Schema):
             enum = Enum(MyChoices)
+            optional_enum = Enum(MyChoices)
             lst = List(Enum(MyChoices))
 
         schema = TestSchema(data={
             'enum': MyChoices.A,
+            'optional_enum': None,
             'lst': [MyChoices.A, MyChoices.B],
         })
 
         serialized = schema.serialize()
         self.assertEqual(serialized, {
             'enum': 'a',
+            'optional_enum': None,
             'lst': ['a', 'b'],
         })
 
