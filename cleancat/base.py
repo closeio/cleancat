@@ -64,6 +64,9 @@ class Field(object):
     def serialize(self, value):
         """
         Takes a cleaned value and serializes it.
+
+        Keep in mind that if this field is not required, the cleaned value
+        might be None.
         """
         return value
 
@@ -175,7 +178,8 @@ class DateTime(Regex):
         return dt.date()
 
     def serialize(self, value):
-        return value.isoformat()
+        if value is not None:
+            return value.isoformat()
 
 
 class Email(Regex):
@@ -311,7 +315,8 @@ class List(Field):
         return data
 
     def serialize(self, value):
-        return [self.field_instance.serialize(item) for item in value]
+        if value is not None:
+            return [self.field_instance.serialize(item) for item in value]
 
 
 class Dict(Field):
@@ -344,7 +349,8 @@ class Embedded(Dict):
             return True
 
     def serialize(self, value):
-        return self.schema_class(data=value).serialize()
+        if value is not None:
+            return self.schema_class(data=value).serialize()
 
 
 class ReferenceNotFoundError(Exception):
@@ -377,6 +383,9 @@ class EmbeddedReference(Dict):
         return self.clean_new(value)
 
     def serialize(self, obj):
+        if obj is None:
+            return
+
         obj_data = self.get_orig_data_from_existing(obj)
         serialized = self.schema_class(data=obj_data).serialize()
         serialized[self.pk_field] = getattr(obj, self.pk_field)
@@ -484,7 +493,8 @@ class Enum(Choices):
         return self.choices(value)
 
     def serialize(self, choice):
-        return choice.value
+        if choice is not None:
+            return choice.value
 
 
 class SortedSet(List):
@@ -664,8 +674,5 @@ class Schema(object):
         data = {}
         for field_name, field in self.fields.items():
             value = self.data[field_name]
-            if value is None:
-                data[field_name] = None
-            else:
-                data[field_name] = field.serialize(value)
+            data[field_name] = field.serialize(value)
         return data
