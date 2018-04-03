@@ -609,33 +609,39 @@ class SerializationTestCase(unittest.TestCase):
         class TestSchema(Schema):
             name = String(required=True)
             string = String(required=False)
+            choice = Choices(['a', 'b'], required=False)
             boolean = Bool(required=False)
             date_time = DateTime(required=False)
             integer = Integer(required=False)
-            lst = List(DateTime(), required=False)
             embedded = Embedded(EmbeddedSchema, required=False)
+            lst = List(DateTime(), required=False)
+            sorted_set = SortedSet(String(), required=False)
             dictionary = Dict(required=False)
 
         schema = TestSchema(data={
             'name': 'One Required Field',
             'string': None,
+            'choice': None,
             'boolean': None,
             'date_time': None,
             'integer': None,
-            'lst': None,
             'embedded': None,
+            'lst': None,
+            'sorted_set': None,
             'dictionary': None,
         })
         serialized = schema.serialize()
         self.assertEqual(serialized, {
             'name': 'One Required Field',
             'string': None,
+            'choice': None,
             'boolean': None,
             'date_time': None,
             'integer': None,
-            'lst': None,
             'embedded': None,
-            'dictionary': None,
+            'lst': [],
+            'sorted_set': [],
+            'dictionary': {},
         })
 
     @unittest.skipIf(sys.version_info < (3, 4), 'enum unavailable')

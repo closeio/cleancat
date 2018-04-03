@@ -315,8 +315,10 @@ class List(Field):
         return data
 
     def serialize(self, value):
-        if value is not None:
-            return [self.field_instance.serialize(item) for item in value]
+        # Serialize all falsy values as an empty list.
+        if not value:
+            value = []
+        return [self.field_instance.serialize(item) for item in value]
 
 
 class Dict(Field):
@@ -324,6 +326,10 @@ class Dict(Field):
 
     def has_value(self, value):
         return bool(value)
+
+    def serialize(self, value):
+        # Serialize all falsy values as an empty dict.
+        return value or {}
 
 
 class Embedded(Dict):
