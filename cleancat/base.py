@@ -317,7 +317,7 @@ class List(Field):
     def serialize(self, value):
         # Serialize all falsy values as an empty list.
         if not value:
-            value = []
+            return []
         return [self.field_instance.serialize(item) for item in value]
 
 
