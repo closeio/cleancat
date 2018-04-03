@@ -43,6 +43,21 @@ class MongoReferenceTestCase(MongoValidationTestCase):
             {'field-errors': ['author_id']}
         )
 
+    def test_optional(self):
+        class BookSchema(Schema):
+            title = String()
+            author_id = MongoReference(self.Person, required=False)
+
+        schema = BookSchema({
+            'title': 'Book without an author',
+            'author_id': None
+        })
+        data = schema.full_clean()
+        assert data == {
+            'title': 'Book without an author',
+            'author_id': None
+        }
+
 
 class MongoEmbeddedReferenceTestCase(MongoValidationTestCase):
 
@@ -100,6 +115,25 @@ class MongoEmbeddedReferenceTestCase(MongoValidationTestCase):
         })
         self.assertRaises(ValidationError, schema.full_clean)
         assert schema.field_errors == {'author': 'Object does not exist.'}
+
+    def test_optional(self):
+        class PersonSchema(Schema):
+            name = String()
+
+        class BookSchema(Schema):
+            title = String()
+            author = MongoEmbeddedReference(self.Person, PersonSchema,
+                                            required=False)
+
+        schema = BookSchema({
+            'title': 'Book without an author',
+            'author': None
+        })
+        data = schema.full_clean()
+        assert data == {
+            'title': 'Book without an author',
+            'author': None
+        }
 
 
 if __name__ == '__main__':

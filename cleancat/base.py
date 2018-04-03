@@ -376,7 +376,7 @@ class EmbeddedReference(Dict):
         self.object_class = object_class
         self.schema_class = schema_class
         self.pk_field = pk_field
-        super(EmbeddedReference, self).__init__(schema_class, **kwargs)
+        super(EmbeddedReference, self).__init__(**kwargs)
 
     def clean(self, value):
         # Clean the dict first.
