@@ -1,5 +1,6 @@
 import unittest
 
+import pytest
 from bson import ObjectId
 from mongoengine import Document, StringField, connect
 
@@ -42,6 +43,21 @@ class MongoReferenceTestCase(MongoValidationTestCase):
             BookSchema({'author_id': str(ObjectId())}),
             {'field-errors': ['author_id']}
         )
+
+    def test_optional(self):
+        class BookSchema(Schema):
+            title = String()
+            author_id = MongoReference(self.Person, required=False)
+
+        schema = BookSchema({
+            'title': 'Book without an author',
+            'author_id': None
+        })
+        data = schema.full_clean()
+        assert data == {
+            'title': 'Book without an author',
+            'author_id': None
+        }
 
 
 class MongoEmbeddedReferenceTestCase(MongoValidationTestCase):
@@ -98,8 +114,27 @@ class MongoEmbeddedReferenceTestCase(MongoValidationTestCase):
                 'name': 'Arbitrary Non-existent Object ID'
             }
         })
-        self.assertRaises(ValidationError, schema.full_clean)
+        pytest.raises(ValidationError, schema.full_clean)
         assert schema.field_errors == {'author': 'Object does not exist.'}
+
+    def test_optional(self):
+        class PersonSchema(Schema):
+            name = String()
+
+        class BookSchema(Schema):
+            title = String()
+            author = MongoEmbeddedReference(self.Person, PersonSchema,
+                                            required=False)
+
+        schema = BookSchema({
+            'title': 'Book without an author',
+            'author': None
+        })
+        data = schema.full_clean()
+        assert data == {
+            'title': 'Book without an author',
+            'author': None
+        }
 
 
 if __name__ == '__main__':

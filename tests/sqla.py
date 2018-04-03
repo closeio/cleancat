@@ -1,5 +1,6 @@
 import unittest
 
+import pytest
 import sqlalchemy as sa
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import scoped_session, sessionmaker
@@ -8,23 +9,21 @@ from cleancat import Integer, Schema, String, ValidationError
 from cleancat.sqla import SQLAEmbeddedReference, object_as_dict
 
 
-class ObjectAsDictTestCase(unittest.TestCase):
+def test_object_as_dict():
+    Base = declarative_base()
 
-    def test_object_as_dict(self):
-        Base = declarative_base()
+    class Person(Base):
+        __tablename__ = 'cleancattest'
+        id = sa.Column(sa.Integer, primary_key=True)
+        name = sa.Column(sa.String)
+        age = sa.Column(sa.Integer)
 
-        class Person(Base):
-            __tablename__ = 'cleancattest'
-            id = sa.Column(sa.Integer, primary_key=True)
-            name = sa.Column(sa.String)
-            age = sa.Column(sa.Integer)
-
-        steve = Person(name='Steve', age=30)
-        assert object_as_dict(steve) == {
-            'id': None,
-            'age': 30,
-            'name': 'Steve'
-        }
+    steve = Person(name='Steve', age=30)
+    assert object_as_dict(steve) == {
+        'id': None,
+        'age': 30,
+        'name': 'Steve'
+    }
 
 
 class SQLAEmbeddedReferenceTestCase(unittest.TestCase):
@@ -108,8 +107,27 @@ class SQLAEmbeddedReferenceTestCase(unittest.TestCase):
                 'name': 'Arbitrary Non-existent ID'
             }
         })
-        self.assertRaises(ValidationError, schema.full_clean)
+        pytest.raises(ValidationError, schema.full_clean)
         assert schema.field_errors == {'author': 'Object does not exist.'}
+
+    def test_optional(self):
+        class PersonSchema(Schema):
+            name = String()
+
+        class BookSchema(Schema):
+            title = String()
+            author = SQLAEmbeddedReference(self.Person, PersonSchema,
+                                           required=False)
+
+        schema = BookSchema({
+            'title': 'Book without an author',
+            'author': None
+        })
+        data = schema.full_clean()
+        assert data == {
+            'title': 'Book without an author',
+            'author': None
+        }
 
 
 if __name__ == '__main__':

@@ -64,6 +64,9 @@ class Field(object):
     def serialize(self, value):
         """
         Takes a cleaned value and serializes it.
+
+        Keep in mind that if this field is not required, the cleaned value
+        might be None.
         """
         return value
 
@@ -175,7 +178,8 @@ class DateTime(Regex):
         return dt.date()
 
     def serialize(self, value):
-        return value.isoformat()
+        if value is not None:
+            return value.isoformat()
 
 
 class Email(Regex):
@@ -311,6 +315,9 @@ class List(Field):
         return data
 
     def serialize(self, value):
+        # Serialize all falsy values as an empty list.
+        if not value:
+            return []
         return [self.field_instance.serialize(item) for item in value]
 
 
@@ -319,6 +326,10 @@ class Dict(Field):
 
     def has_value(self, value):
         return bool(value)
+
+    def serialize(self, value):
+        # Serialize all falsy values as an empty dict.
+        return value or {}
 
 
 class Embedded(Dict):
@@ -344,7 +355,8 @@ class Embedded(Dict):
             return True
 
     def serialize(self, value):
-        return self.schema_class(data=value).serialize()
+        if value is not None:
+            return self.schema_class(data=value).serialize()
 
 
 class ReferenceNotFoundError(Exception):
@@ -364,7 +376,7 @@ class EmbeddedReference(Dict):
         self.object_class = object_class
         self.schema_class = schema_class
         self.pk_field = pk_field
-        super(EmbeddedReference, self).__init__(schema_class, **kwargs)
+        super(EmbeddedReference, self).__init__(**kwargs)
 
     def clean(self, value):
         # Clean the dict first.
@@ -377,6 +389,9 @@ class EmbeddedReference(Dict):
         return self.clean_new(value)
 
     def serialize(self, obj):
+        if obj is None:
+            return
+
         obj_data = self.get_orig_data_from_existing(obj)
         serialized = self.schema_class(data=obj_data).serialize()
         serialized[self.pk_field] = getattr(obj, self.pk_field)
@@ -484,7 +499,8 @@ class Enum(Choices):
         return self.choices(value)
 
     def serialize(self, choice):
-        return choice.value
+        if choice is not None:
+            return choice.value
 
 
 class SortedSet(List):
@@ -663,5 +679,6 @@ class Schema(object):
     def serialize(self):
         data = {}
         for field_name, field in self.fields.items():
-            data[field_name] = field.serialize(self.data[field_name])
+            value = self.data[field_name]
+            data[field_name] = field.serialize(value)
         return data
