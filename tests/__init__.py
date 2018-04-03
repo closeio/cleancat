@@ -4,6 +4,8 @@ import re
 import sys
 import unittest
 
+import pytest
+
 from cleancat import (
     Bool, Choices, DateTime, Dict, Email, Embedded, Enum, Integer, List,
     Regex, RelaxedURL, Schema, SortedSet, String, TrimmedString, URL,
@@ -134,18 +136,18 @@ class FieldTestCase(ValidationTestCase):
 
         schema = RegexMessageSchema({'letter': ''})
         self.assertInvalid(schema, {'field-errors': ['letter']})
-        self.assertEqual(schema.field_errors['letter'], 'This field is required.')
+        assert schema.field_errors['letter'] == 'This field is required.'
 
         schema = RegexMessageSchema({'letter': 'aa'})
         self.assertInvalid(schema, {'field-errors': ['letter']})
-        self.assertEqual(schema.field_errors['letter'], 'Not a lowercase letter.')
+        assert schema.field_errors['letter'] == 'Not a lowercase letter.'
 
         self.assertValid(OptionalRegexMessageSchema({'letter': 'a'}), {'letter': 'a'})
         self.assertValid(OptionalRegexMessageSchema({'letter': ''}), {'letter': ''})
 
         schema = OptionalRegexMessageSchema({'letter': 'aa'})
         self.assertInvalid(schema, {'field-errors': ['letter']})
-        self.assertEqual(schema.field_errors['letter'], 'Not a lowercase letter.')
+        assert schema.field_errors['letter'] == 'Not a lowercase letter.'
 
     def test_datetime(self):
         class DateTimeSchema(Schema):
@@ -202,7 +204,7 @@ class FieldTestCase(ValidationTestCase):
         self.assertValid(EmailSchema({'email': valid_email}), {'email': valid_email})
         schema = EmailSchema({'email': 'test@example'})
         self.assertInvalid(schema, {'field-errors': ['email']})
-        self.assertEqual(schema.field_errors['email'], 'Invalid email address.')
+        assert schema.field_errors['email'] == 'Invalid email address.'
         self.assertInvalid(EmailSchema({'email': 'test.example.com'}), {'field-errors': ['email']})
         self.assertInvalid(EmailSchema({'email': invalid_email}), {'field-errors': ['email']})
         self.assertInvalid(EmailSchema({'email': None}), {'field-errors': ['email']})
@@ -542,11 +544,11 @@ class ExternalCleanTestCase(unittest.TestCase):
             raw_data={'subject': 'hi', 'status': 'sent'},
         )
         schema.full_clean()
-        self.assertEqual(schema.data, {
+        assert schema.data == {
             'subject': 'hi',
             'status': 'sent',
             'message_cleaned': True,
-        })
+        }
 
     def test_orig_data_in_external_clean(self):
 
@@ -558,15 +560,13 @@ class ExternalCleanTestCase(unittest.TestCase):
             raw_data={'subject': 'hi updated', 'status': 'inbox'},
             data={'subject': 'hi', 'status': 'sent'},
         )
-        try:
-            schema.full_clean()
-            self.assertFalse(True)  # we should never get here
-        except ValidationError:
-            self.assertEqual(schema.field_errors, {
-                'status': "Can't change from sent to inbox"
-            })
 
-    # TODO: Test MongoEmbedded, MongoReference, more Schema tests.
+        with pytest.raises(ValidationError):
+            schema.full_clean()
+
+        assert schema.field_errors == {
+            'status': "Can't change from sent to inbox"
+        }
 
 
 class SerializationTestCase(unittest.TestCase):
@@ -593,14 +593,14 @@ class SerializationTestCase(unittest.TestCase):
         })
 
         serialized = schema.serialize()
-        self.assertEqual(serialized, {
+        assert serialized == {
             'string': 'foo',
             'boolean': True,
             'date_time': '2016-01-02T03:04:05',
             'integer': 1234,
             'lst': ['2016-01-02T03:04:05', '2016-01-03T00:00:00'],
             'embedded': {'date_time': '2000-01-01T00:00:00'},
-        })
+        }
 
     def test_serialization_optional_fields(self):
         class EmbeddedSchema(Schema):
@@ -631,7 +631,7 @@ class SerializationTestCase(unittest.TestCase):
             'dictionary': None,
         })
         serialized = schema.serialize()
-        self.assertEqual(serialized, {
+        assert serialized == {
             'name': 'One Required Field',
             'string': None,
             'choice': None,
@@ -642,7 +642,7 @@ class SerializationTestCase(unittest.TestCase):
             'lst': [],
             'sorted_set': [],
             'dictionary': {},
-        })
+        }
 
     @unittest.skipIf(sys.version_info < (3, 4), 'enum unavailable')
     def test_serialization_enum(self):
@@ -664,11 +664,11 @@ class SerializationTestCase(unittest.TestCase):
         })
 
         serialized = schema.serialize()
-        self.assertEqual(serialized, {
+        assert serialized == {
             'enum': 'a',
             'optional_enum': None,
             'lst': ['a', 'b'],
-        })
+        }
 
 
 if __name__ == '__main__':

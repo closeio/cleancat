@@ -1,5 +1,6 @@
 import unittest
 
+import pytest
 from bson import ObjectId
 from mongoengine import Document, StringField, connect
 
@@ -113,7 +114,7 @@ class MongoEmbeddedReferenceTestCase(MongoValidationTestCase):
                 'name': 'Arbitrary Non-existent Object ID'
             }
         })
-        self.assertRaises(ValidationError, schema.full_clean)
+        pytest.raises(ValidationError, schema.full_clean)
         assert schema.field_errors == {'author': 'Object does not exist.'}
 
     def test_optional(self):
