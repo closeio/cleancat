@@ -111,6 +111,25 @@ class SQLAEmbeddedReferenceTestCase(unittest.TestCase):
         self.assertRaises(ValidationError, schema.full_clean)
         assert schema.field_errors == {'author': 'Object does not exist.'}
 
+    def test_optional(self):
+        class PersonSchema(Schema):
+            name = String()
+
+        class BookSchema(Schema):
+            title = String()
+            author = SQLAEmbeddedReference(self.Person, PersonSchema,
+                                           required=False)
+
+        schema = BookSchema({
+            'title': 'Book without an author',
+            'author': None
+        })
+        data = schema.full_clean()
+        assert data == {
+            'title': 'Book without an author',
+            'author': None
+        }
+
 
 if __name__ == '__main__':
     unittest.main()
