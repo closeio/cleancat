@@ -5,6 +5,8 @@ import sys
 import pytz
 from dateutil import parser
 
+from .registry import add_schema_to_registry
+
 
 if sys.version_info[0] == 3:
     str_type = str
@@ -509,6 +511,15 @@ class SortedSet(List):
         return list(sorted(set(super(SortedSet, self).clean(value))))
 
 
+class SchemaMetaclass(type):
+
+    def __new__(cls, name, bases, attrs):
+        cls = super(SchemaMetaclass, cls).__new__(cls, name, bases, attrs)
+        if object not in bases:
+            add_schema_to_registry(name, cls)
+        return cls
+
+
 class Schema(object):
     """
     Base Schema class. Provides core behavior like fields declaration
@@ -562,6 +573,8 @@ class Schema(object):
     - data - dict with existing data, e.g. based on some object you're
              trying to update.
     """
+
+    __metaclass__ = SchemaMetaclass
 
     @classmethod
     def get_fields(cls):
