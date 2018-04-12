@@ -7,6 +7,7 @@ install_requirements = [
 test_requirements = install_requirements + [
     'pytest',
     'coverage',
+    'enum34',
     'mongoengine',
     'sqlalchemy'
 ]

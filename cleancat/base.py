@@ -456,7 +456,8 @@ class Choices(Field):
     """
     A field that accepts the given choices.
     """
-    def __init__(self, choices, case_insensitive=False, error_invalid_choice=None, **kwargs):
+    def __init__(self, choices, case_insensitive=False,
+                 error_invalid_choice=None, **kwargs):
         super(Choices, self).__init__(**kwargs)
         self.choices = choices
         self.case_insensitive = case_insensitive
@@ -491,12 +492,19 @@ class Enum(Choices):
     """
     Like Choices, but expects a Python 3 Enum.
     """
+    def __init__(self, enum_cls, choices=None, **kwargs):
+        self.enum_cls = enum_cls
+        if not choices:
+            # Enums are iterable, so we can safely specify choices like that.
+            choices = enum_cls
+        return super(Enum, self).__init__(choices, **kwargs)
+
     def get_choices(self):
         return [choice.value for choice in self.choices]
 
     def clean(self, value):
         value = super(Enum, self).clean(value)
-        return self.choices(value)
+        return self.enum_cls(value)
 
     def serialize(self, choice):
         if choice is not None:

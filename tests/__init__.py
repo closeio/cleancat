@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import datetime
+import enum
 import re
-import sys
 import unittest
 
 import pytest
@@ -319,16 +319,26 @@ class FieldTestCase(ValidationTestCase):
         self.assertInvalid(CaseInsensitiveChoiceSchema({'choice': 'world '}), {'field-errors': ['choice']})
         self.assertInvalid(CaseInsensitiveChoiceSchema({'choice': 'invalid'}), {'field-errors': ['choice']})
 
-    @unittest.skipIf(sys.version_info < (3, 4), 'enum unavailable')
     def test_enum(self):
-        import enum
-
         class MyChoices(enum.Enum):
             A = 'a'
             B = 'b'
 
         class ChoiceSchema(Schema):
             choice = Enum(MyChoices)
+
+        self.assertValid(ChoiceSchema({'choice': 'a'}), {'choice': MyChoices.A})
+        self.assertValid(ChoiceSchema({'choice': 'b'}), {'choice': MyChoices.B})
+        self.assertInvalid(ChoiceSchema({'choice': 'c'}), {'field-errors': ['choice']})
+
+    def test_enum_with_choices(self):
+        class MyChoices(enum.Enum):
+            A = 'a'
+            B = 'b'
+            C = 'c'
+
+        class ChoiceSchema(Schema):
+            choice = Enum(MyChoices, choices=[MyChoices.A, MyChoices.B])
 
         self.assertValid(ChoiceSchema({'choice': 'a'}), {'choice': MyChoices.A})
         self.assertValid(ChoiceSchema({'choice': 'b'}), {'choice': MyChoices.B})
@@ -644,10 +654,7 @@ class SerializationTestCase(unittest.TestCase):
             'dictionary': {},
         }
 
-    @unittest.skipIf(sys.version_info < (3, 4), 'enum unavailable')
     def test_serialization_enum(self):
-        import enum
-
         class MyChoices(enum.Enum):
             A = 'a'
             B = 'b'
