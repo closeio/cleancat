@@ -1,4 +1,5 @@
 import datetime
+import inspect
 import re
 import sys
 
@@ -492,11 +493,20 @@ class Enum(Choices):
     """
     Like Choices, but expects a Python 3 Enum.
     """
-    def __init__(self, enum_cls, choices=None, **kwargs):
-        self.enum_cls = enum_cls
-        if not choices:
-            # Enums are iterable, so we can safely specify choices like that.
-            choices = enum_cls
+    def __init__(self, choices, **kwargs):
+        """Initialize the Enum field.
+
+        The `choices` param can be either:
+        * an enum.Enum class (in which case all of its values will become
+          valid choices),
+        * a list containing a subset of the enum's choices (e.g.
+          `[SomeEnumCls.OptionA, SomeEnumCls.OptionB]`).
+        """
+        is_cls = inspect.isclass(choices)
+        if is_cls:
+            self.enum_cls = choices
+        else:
+            self.enum_cls = choices[0].__class__
         return super(Enum, self).__init__(choices, **kwargs)
 
     def get_choices(self):

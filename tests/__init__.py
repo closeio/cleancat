@@ -338,7 +338,7 @@ class FieldTestCase(ValidationTestCase):
             C = 'c'
 
         class ChoiceSchema(Schema):
-            choice = Enum(MyChoices, choices=[MyChoices.A, MyChoices.B])
+            choice = Enum([MyChoices.A, MyChoices.B])
 
         self.assertValid(ChoiceSchema({'choice': 'a'}), {'choice': MyChoices.A})
         self.assertValid(ChoiceSchema({'choice': 'b'}), {'choice': MyChoices.B})
