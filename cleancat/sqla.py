@@ -6,7 +6,10 @@ them via `from cleancat.sqla import ...`.
 
 from sqlalchemy import inspect
 
-from .base import EmbeddedReference, ReferenceNotFoundError
+from .base import (
+    EmbeddedReference, Field, ReferenceNotFoundError, ValidationError,
+    str_type
+)
 
 
 def object_as_dict(obj):
@@ -38,3 +41,28 @@ class SQLAEmbeddedReference(EmbeddedReference):
 
     def get_orig_data_from_existing(self, obj):
         return object_as_dict(obj)
+
+
+class SQLAReference(Field):
+    """
+    Represents a reference to an SQLAlchemy object. Expects an ID string as
+    input and returned a cleaned model instance (verifying that it exists
+    first).
+    """
+
+    base_type = str_type
+
+    def __init__(self, model_class, *args, **kwargs):
+        self.model_class = model_class
+        super(SQLAReference, self).__init__(*args, **kwargs)
+
+    def clean(self, value):
+        model_id = super(SQLAReference, self).clean(value)
+        model = self.model_class.query.get(model_id)
+        if not model:
+            raise ValidationError('Object does not exist.')
+        return model
+
+    def serialize(self, value):
+        if value:
+            return value.pk
