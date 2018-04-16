@@ -684,6 +684,5 @@ def test_raw_field_name():
     assert serialized == {'value_id': 'val_xyz'}
 
 
-
 if __name__ == '__main__':
     unittest.main()
