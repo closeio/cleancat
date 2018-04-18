@@ -500,12 +500,15 @@ class Enum(Choices):
         * an enum.Enum class (in which case all of its values will become
           valid choices),
         * a list containing a subset of the enum's choices (e.g.
-          `[SomeEnumCls.OptionA, SomeEnumCls.OptionB]`).
+          `[SomeEnumCls.OptionA, SomeEnumCls.OptionB]`). You should provide
+          more than one choice in this list and *all* of the choices should
+          belong to the same enum class.
         """
         is_cls = inspect.isclass(choices)
         if is_cls:
             self.enum_cls = choices
         else:
+            assert choices, 'You need to provide at least one enum choice.'
             self.enum_cls = choices[0].__class__
         return super(Enum, self).__init__(choices, **kwargs)
 
