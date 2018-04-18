@@ -46,7 +46,7 @@ class SQLAEmbeddedReference(EmbeddedReference):
 class SQLAReference(Field):
     """
     Represents a reference to an SQLAlchemy object. Expects an ID string as
-    input and returned a cleaned model instance (verifying that it exists
+    input and returns a cleaned model instance (verifying that it exists
     first).
     """
 
