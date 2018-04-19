@@ -21,7 +21,14 @@ class StopValidation(Exception):
 
 
 class Field(object):
+
+    # If specified, the field ensures that the supplied value is an instance
+    # of this type. Can be either a single specific type (e.g. int) or a tuple
+    # of multiple types.
     base_type = None
+
+    # Value to be used when there was no specific value supplied for this
+    # field and the field is not required.
     blank_value = None
 
     def __init__(self, required=True, default=None, field_name=None,
@@ -44,11 +51,19 @@ class Field(object):
         return value is not None
 
     def clean(self, value):
-        """
-        Takes a dirty value and cleans it.
-        """
-        if self.base_type is not None and value is not None and not isinstance(value, self.base_type):
-            raise ValidationError('Value must be of %s type.' % self.base_type.__name__)
+        """Take a dirty value and clean it."""
+        if (
+            self.base_type is not None and
+            value is not None and
+            not isinstance(value, self.base_type)
+        ):
+            if isinstance(self.base_type, tuple):
+                allowed_types = [typ.__name__ for typ in self.base_type]
+                allowed_types_text = ' or '.join(allowed_types)
+            else:
+                allowed_types_text = self.base_type.__name__
+            err_msg = 'Value must be of %s type.' % allowed_types_text
+            raise ValidationError(err_msg)
 
         if not self.has_value(value):
             if self.default is not None:
@@ -429,8 +444,9 @@ class EmbeddedReference(Dict):
 
         This needs to be subclassed since, depending on the object class,
         the fetching mechanism might be different. See implementations of
-        SQLAEmbeddedResource and MongoEmbeddedResource for a concrete example
-        of fetching objects from a relational and non-relational database.
+        SQLAEmbeddedReference and MongoEmbeddedReference for a concrete
+        example of fetching objects from a relational and non-relational
+        database.
 
         :param str pk: ID of the object that's supposed to exist.
         :returns: an instance of the object class.
@@ -448,6 +464,45 @@ class EmbeddedReference(Dict):
             being cleaned.
         :returns: dict of fields and values that are currently set on the
             object (before the new cleaned data is applied).
+        """
+        raise NotImplementedError  # should be subclassed
+
+
+class Reference(Field):
+    """Represents an object which can be referenced by its ID.
+
+    This field allows one to submit an ID of an object and get a cleaned
+    instance of that object. Equivalently, serialization accepts an object
+    and outputs its ID.
+    """
+
+    # The ID is assumed to be supplied as a string. However, subclasses can
+    # change this field if need be (e.g. it's common for objects persisted in
+    # relational databases to use integers as IDs).
+    base_type = str_type
+
+    def __init__(self, object_class, **kwargs):
+        self.object_class = object_class
+        super(Reference, self).__init__(**kwargs)
+
+    def clean(self, value):
+        obj_id = super(Reference, self).clean(value)
+        try:
+            return self.fetch_object(obj_id)
+        except ReferenceNotFoundError:
+            raise ValidationError('Object does not exist.')
+
+    def fetch_object(self, ref_id):
+        """Fetch an existing object that corresponds to a given ID.
+
+        This needs to be subclassed since, depending on the object class,
+        the fetching mechanism might be different. See implementations of
+        SQLAReference and MongoReference for a concrete example of fetching
+        objects from a relational and non-relational database.
+
+        :param str pk: ID of the referenced object.
+        :returns: an instance of the object class.
+        :raises: ReferenceNotFoundError if the object doesn't exist.
         """
         raise NotImplementedError  # should be subclassed
 

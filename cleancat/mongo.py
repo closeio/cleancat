@@ -7,8 +7,8 @@ them via `from cleancat.mongo import ...`.
 from mongoengine import ValidationError as MongoValidationError
 
 from .base import (
-    Embedded, EmbeddedReference, Field, ReferenceNotFoundError,
-    ValidationError, str_type
+    Embedded, EmbeddedReference, Reference, ReferenceNotFoundError,
+    ValidationError
 )
 
 
@@ -59,25 +59,20 @@ class MongoEmbeddedReference(EmbeddedReference):
             return dict(obj._data)
 
 
-class MongoReference(Field):
+class MongoReference(Reference):
     """
-    Represents a reference. Expects the ID as input.
-    Example document: ReferenceField(Doc)
+    Represents a reference to a MongoEngine document. Expects an ID string as
+    input and returns a cleaned document instance (verifying that it exists
+    first).
     """
 
-    base_type = str_type
-
-    def __init__(self, document_class=None, **kwargs):
-        self.document_class = document_class
-        super(MongoReference, self).__init__(**kwargs)
-
-    def clean(self, value):
-        value = super(MongoReference, self).clean(value)
+    def fetch_object(self, doc_id):
+        """Fetch the document by its PK."""
         try:
-            return self.document_class.objects.get(pk=value)
-        except self.document_class.DoesNotExist:
-            raise ValidationError('Object does not exist.')
+            return self.object_class.objects.get(pk=doc_id)
+        except self.object_class.DoesNotExist:
+            raise ReferenceNotFoundError
 
-    def serialize(self, value):
-        if value:
-            return value.pk
+    def serialize(self, doc):
+        if doc:
+            return doc.pk

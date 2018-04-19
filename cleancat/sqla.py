@@ -6,10 +6,7 @@ them via `from cleancat.sqla import ...`.
 
 from sqlalchemy import inspect
 
-from .base import (
-    EmbeddedReference, Field, ReferenceNotFoundError, ValidationError,
-    str_type
-)
+from .base import EmbeddedReference, Reference, ReferenceNotFoundError
 
 
 def object_as_dict(obj):
@@ -43,26 +40,26 @@ class SQLAEmbeddedReference(EmbeddedReference):
         return object_as_dict(obj)
 
 
-class SQLAReference(Field):
+class SQLAReference(Reference):
     """
-    Represents a reference to an SQLAlchemy object. Expects an ID string as
+    Represents a reference to an SQLAlchemy model. Expects an ID string as
     input and returns a cleaned model instance (verifying that it exists
     first).
     """
 
-    base_type = str_type
+    def __init__(self, object_class, pk_field='id', **kwargs):
+        self.pk_field = pk_field
+        super(SQLAReference, self).__init__(object_class, **kwargs)
 
-    def __init__(self, model_class, *args, **kwargs):
-        self.model_class = model_class
-        super(SQLAReference, self).__init__(*args, **kwargs)
-
-    def clean(self, value):
-        model_id = super(SQLAReference, self).clean(value)
-        model = self.model_class.query.get(model_id)
+    def fetch_object(self, model_id):
+        """Fetch the model by its ID."""
+        pk_field_instance = getattr(self.object_class, self.pk_field)
+        qs = self.object_class.query.filter(pk_field_instance == model_id)
+        model = qs.one_or_none()
         if not model:
-            raise ValidationError('Object does not exist.')
+            raise ReferenceNotFoundError
         return model
 
-    def serialize(self, value):
-        if value:
-            return value.pk
+    def serialize(self, obj):
+        if obj:
+            return obj.id

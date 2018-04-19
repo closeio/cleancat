@@ -7,8 +7,8 @@ import unittest
 import pytest
 
 from cleancat import (
-    Bool, Choices, DateTime, Dict, Email, Embedded, Enum, Integer, List,
-    Regex, RelaxedURL, Schema, SortedSet, String, TrimmedString, URL,
+    Bool, Choices, DateTime, Dict, Email, Embedded, Enum, Field, Integer,
+    List, Regex, RelaxedURL, Schema, SortedSet, String, TrimmedString, URL,
     ValidationError
 )
 from cleancat.utils import ValidationTestCase
@@ -501,6 +501,20 @@ class FieldTestCase(ValidationTestCase):
         self.assertValid(UnmutableSchema({'text': 'existing'}, {'text': 'existing'}), {'text': 'existing'})
         self.assertValid(UnmutableSchema({}, {'text': 'hello'}), {'text': 'hello'})
         self.assertValid(UnmutableSchema({'text': 'hello'}, {}), {'text': 'hello'})
+
+    def test_multiple_base_types(self):
+        class IntOrStrField(Field):
+            base_type = (int, str)
+
+        class TestSchema(Schema):
+            id = IntOrStrField()
+
+        self.assertValid(TestSchema({'id': 5}), {'id': 5})
+        self.assertValid(TestSchema({'id': 'five'}), {'id': 'five'})
+
+        schema = TestSchema({'id': 4.5})
+        self.assertInvalid(schema, {'field-errors': ['id']})
+        assert schema.field_errors['id'] == 'Value must be of int or str type.'
 
 
 class ExternalCleanTestCase(unittest.TestCase):
