@@ -101,10 +101,16 @@ class String(Field):
 
     def _check_length(self, value):
         if self.max_length is not None and len(value) > self.max_length:
-            raise ValidationError('The value must be no longer than %s characters.' % self.max_length)
+            err_msg = 'The value must be no longer than %s characters.' % (
+                self.max_length
+            )
+            raise ValidationError(err_msg)
 
         if self.min_length is not None and len(value) < self.min_length:
-            raise ValidationError('The value must be at least %s characters long.' % self.min_length)
+            err_msg = 'The value must be at least %s characters long.' % (
+                self.min_length
+            )
+            raise ValidationError(err_msg)
 
     def clean(self, value):
         value = super(String, self).clean(value)
@@ -140,7 +146,8 @@ class Regex(String):
     regex_flags = 0
     regex_message = 'Invalid input.'
 
-    def __init__(self, regex=None, regex_flags=None, regex_message=None, **kwargs):
+    def __init__(self, regex=None, regex_flags=None, regex_message=None,
+                 **kwargs):
         super(Regex, self).__init__(**kwargs)
         if regex is not None:
             self.regex = regex
@@ -162,7 +169,7 @@ class Regex(String):
 
 
 class DateTime(Regex):
-    """ ISO 8601 from http://www.pelagodesign.com/blog/2009/05/20/iso-8601-date-validation-that-doesnt-suck/ """
+    """ISO 8601 from http://www.pelagodesign.com/blog/2009/05/20/iso-8601-date-validation-that-doesnt-suck/"""
     regex = "^([\\+-]?\\d{4}(?!\\d{2}\\b))((-?)((0[1-9]|1[0-2])(\\3([12]\\d|0[1-9]|3[01]))?|W([0-4]\\d|5[0-2])(-?[1-7])?|(00[1-9]|0[1-9]\\d|[12]\\d{2}|3([0-5]\\d|6[1-6])))([T\\s]((([01]\\d|2[0-3])((:?)[0-5]\\d)?|24\\:?00)([\\.,]\\d+(?!:))?)?(\\17[0-5]\\d([\\.,]\\d+)?)?([zZ]|([\\+-])([01]\\d|2[0-3]):?([0-5]\\d)?)?)?)?$"
     regex_message = 'Invalid ISO 8601 datetime.'
     blank_value = None
@@ -186,7 +193,11 @@ class DateTime(Regex):
             else:
                 min_date = self.min_date
             if dt < min_date:
-                raise ValidationError('Date cannot be earlier than %s.' % self.min_date.strftime('%Y-%m-%d'))
+                err_msg = 'Date cannot be earlier than %s.' % (
+                    self.min_date.strftime('%Y-%m-%d')
+                )
+                raise ValidationError(err_msg)
+
         time_group = match.groups()[11]
         if time_group and len(time_group) > 1:
             return dt
@@ -213,7 +224,8 @@ class Email(Regex):
 class URL(Regex):
     blank_value = None
 
-    def __init__(self, require_tld=True, default_scheme=None, allowed_schemes=None, **kwargs):
+    def __init__(self, require_tld=True, default_scheme=None,
+                 allowed_schemes=None, **kwargs):
         # FQDN validation similar to https://github.com/chriso/validator.js/blob/master/src/lib/isFQDN.js
 
         # ff01-ff5f -> full-width chars, not allowed
@@ -228,7 +240,12 @@ class URL(Regex):
         if default_scheme:
             scheme_part = '(%s)?' % scheme_part
         regex = r'^%s([-%s@:%%_+.~#?&/\\=]{1,256}%s|([0-9]{1,3}\.){3}[0-9]{1,3})(:[0-9]+)?([/?].*)?$' % (scheme_part, alpha_numeric_and_symbols_ranges, tld_part)
-        super(URL, self).__init__(regex=regex, regex_flags=re.IGNORECASE | re.UNICODE, regex_message='Invalid URL.', **kwargs)
+        super(URL, self).__init__(
+            regex=regex,
+            regex_flags=re.IGNORECASE | re.UNICODE,
+            regex_message='Invalid URL.',
+            **kwargs
+        )
 
         self.allowed_schemes = allowed_schemes or []
         self.allowed_schemes_regexes = []
@@ -255,13 +272,20 @@ class URL(Regex):
                     break
 
             if not allowed:
-                raise ValidationError("This URL uses a scheme that's not allowed. You can only use %s." % ' or '.join(self.allowed_schemes))
+                allowed_schemes_text = ' or '.join(self.allowed_schemes)
+                err_msg = (
+                    "This URL uses a scheme that's not allowed. You can only "
+                    "use %s." % allowed_schemes_text
+                )
+                raise ValidationError(err_msg)
 
         return value
 
 
 class RelaxedURL(URL):
-    """Like URL but will just ignore values like "http://" and treat them as blank"""
+    """Like URL but will just ignore values like "http://" and treat them
+    as blank.
+    """
     def clean(self, value):
         if not self.required and value == self.default_scheme:
             return None
@@ -279,10 +303,12 @@ class Integer(Field):
 
     def _check_value(self, value):
         if self.max_value is not None and value > self.max_value:
-            raise ValidationError('The value must not be larger than %d.' % self.max_value)
+            err_msg = 'The value must not be larger than %d.' % self.max_value
+            raise ValidationError(err_msg)
 
         if self.min_value is not None and value < self.min_value:
-            raise ValidationError('The value must be at least %d.' % self.min_value)
+            err_msg = 'The value must be at least %d.' % self.min_value
+            raise ValidationError(err_msg)
 
     def clean(self, value):
         value = super(Integer, self).clean(value)
@@ -511,7 +537,8 @@ class Choices(Field):
     """
     A field that accepts the given choices.
     """
-    def __init__(self, choices, case_insensitive=False, error_invalid_choice=None, **kwargs):
+    def __init__(self, choices, case_insensitive=False,
+                 error_invalid_choice=None, **kwargs):
         super(Choices, self).__init__(**kwargs)
         self.choices = choices
         self.case_insensitive = case_insensitive
@@ -532,20 +559,21 @@ class Choices(Field):
                 raise ValidationError(u'Value needs to be a string.')
 
             if value.lower() not in choices:
-                raise ValidationError(self.error_invalid_choice.format(value=value))
+                err_msg = self.error_invalid_choice.format(value=value)
+                raise ValidationError(err_msg)
 
             return choices[value.lower()]
 
         if value not in choices:
-            raise ValidationError(self.error_invalid_choice.format(value=value))
+            err_msg = self.error_invalid_choice.format(value=value)
+            raise ValidationError(err_msg)
 
         return value
 
 
 class Enum(Choices):
-    """
-    Like Choices, but expects a Python 3 Enum.
-    """
+    """Like Choices, but expects a Python 3 Enum."""
+
     def get_choices(self):
         return [choice.value for choice in self.choices]
 
