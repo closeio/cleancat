@@ -62,4 +62,4 @@ class SQLAReference(Reference):
 
     def serialize(self, obj):
         if obj:
-            return obj.id
+            return getattr(obj, self.pk_field)
