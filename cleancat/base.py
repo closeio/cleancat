@@ -1,4 +1,5 @@
 import datetime
+import inspect
 import re
 import sys
 
@@ -574,12 +575,31 @@ class Choices(Field):
 class Enum(Choices):
     """Like Choices, but expects a Python 3 Enum."""
 
+    def __init__(self, choices, **kwargs):
+        """Initialize the Enum field.
+
+        The `choices` param can be either:
+        * an enum.Enum class (in which case all of its values will become
+          valid choices),
+        * a list containing a subset of the enum's choices (e.g.
+          `[SomeEnumCls.OptionA, SomeEnumCls.OptionB]`). You must provide
+          more than one choice in this list and *all* of the choices must
+          belong to the same enum class.
+        """
+        is_cls = inspect.isclass(choices)
+        if is_cls:
+            self.enum_cls = choices
+        else:
+            assert choices, 'You need to provide at least one enum choice.'
+            self.enum_cls = choices[0].__class__
+        return super(Enum, self).__init__(choices, **kwargs)
+
     def get_choices(self):
         return [choice.value for choice in self.choices]
 
     def clean(self, value):
         value = super(Enum, self).clean(value)
-        return self.choices(value)
+        return self.enum_cls(value)
 
     def serialize(self, choice):
         if choice is not None:
