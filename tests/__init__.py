@@ -685,5 +685,18 @@ class SerializationTestCase(unittest.TestCase):
         }
 
 
+def test_raw_field_name():
+    class TestSchema(Schema):
+        value = String(raw_field_name='value_id')
+
+    schema = TestSchema(raw_data={'value_id': 'val_xyz'})
+
+    schema.full_clean()
+    assert schema.data == {'value': 'val_xyz'}
+
+    serialized = schema.serialize()
+    assert serialized == {'value_id': 'val_xyz'}
+
+
 if __name__ == '__main__':
     unittest.main()

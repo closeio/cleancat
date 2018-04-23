@@ -762,6 +762,7 @@ class Schema(object):
     def serialize(self):
         data = {}
         for field_name, field in self.fields.items():
+            raw_field_name = field.raw_field_name or field_name
             value = self.data[field_name]
-            data[field_name] = field.serialize(value)
+            data[raw_field_name] = field.serialize(value)
         return data
