@@ -582,8 +582,8 @@ class Enum(Choices):
         * an enum.Enum class (in which case all of its values will become
           valid choices),
         * a list containing a subset of the enum's choices (e.g.
-          `[SomeEnumCls.OptionA, SomeEnumCls.OptionB]`). You should provide
-          more than one choice in this list and *all* of the choices should
+          `[SomeEnumCls.OptionA, SomeEnumCls.OptionB]`). You must provide
+          more than one choice in this list and *all* of the choices must
           belong to the same enum class.
         """
         is_cls = inspect.isclass(choices)

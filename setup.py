@@ -1,3 +1,4 @@
+import sys
 from setuptools import setup
 
 install_requirements = [
@@ -7,10 +8,12 @@ install_requirements = [
 test_requirements = install_requirements + [
     'pytest',
     'coverage',
-    'enum34',
     'mongoengine',
     'sqlalchemy'
 ]
+
+if sys.version_info[:2] < (3, 4):
+    test_requirements += ['enum34']
 
 setup(
     name='cleancat',
