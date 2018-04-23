@@ -22,7 +22,14 @@ class StopValidation(Exception):
 
 
 class Field(object):
+
+    # If specified, the field ensures that the supplied value is an instance
+    # of this type. Can be either a single specific type (e.g. int) or a tuple
+    # of multiple types.
     base_type = None
+
+    # Value to be used when there was no specific value supplied for this
+    # field and the field is not required.
     blank_value = None
 
     def __init__(self, required=True, default=None, field_name=None,
@@ -45,11 +52,19 @@ class Field(object):
         return value is not None
 
     def clean(self, value):
-        """
-        Takes a dirty value and cleans it.
-        """
-        if self.base_type is not None and value is not None and not isinstance(value, self.base_type):
-            raise ValidationError('Value must be of %s type.' % self.base_type.__name__)
+        """Take a dirty value and clean it."""
+        if (
+            self.base_type is not None and
+            value is not None and
+            not isinstance(value, self.base_type)
+        ):
+            if isinstance(self.base_type, tuple):
+                allowed_types = [typ.__name__ for typ in self.base_type]
+                allowed_types_text = ' or '.join(allowed_types)
+            else:
+                allowed_types_text = self.base_type.__name__
+            err_msg = 'Value must be of %s type.' % allowed_types_text
+            raise ValidationError(err_msg)
 
         if not self.has_value(value):
             if self.default is not None:
@@ -87,10 +102,16 @@ class String(Field):
 
     def _check_length(self, value):
         if self.max_length is not None and len(value) > self.max_length:
-            raise ValidationError('The value must be no longer than %s characters.' % self.max_length)
+            err_msg = 'The value must be no longer than %s characters.' % (
+                self.max_length
+            )
+            raise ValidationError(err_msg)
 
         if self.min_length is not None and len(value) < self.min_length:
-            raise ValidationError('The value must be at least %s characters long.' % self.min_length)
+            err_msg = 'The value must be at least %s characters long.' % (
+                self.min_length
+            )
+            raise ValidationError(err_msg)
 
     def clean(self, value):
         value = super(String, self).clean(value)
@@ -126,7 +147,8 @@ class Regex(String):
     regex_flags = 0
     regex_message = 'Invalid input.'
 
-    def __init__(self, regex=None, regex_flags=None, regex_message=None, **kwargs):
+    def __init__(self, regex=None, regex_flags=None, regex_message=None,
+                 **kwargs):
         super(Regex, self).__init__(**kwargs)
         if regex is not None:
             self.regex = regex
@@ -148,7 +170,7 @@ class Regex(String):
 
 
 class DateTime(Regex):
-    """ ISO 8601 from http://www.pelagodesign.com/blog/2009/05/20/iso-8601-date-validation-that-doesnt-suck/ """
+    """ISO 8601 from http://www.pelagodesign.com/blog/2009/05/20/iso-8601-date-validation-that-doesnt-suck/"""
     regex = "^([\\+-]?\\d{4}(?!\\d{2}\\b))((-?)((0[1-9]|1[0-2])(\\3([12]\\d|0[1-9]|3[01]))?|W([0-4]\\d|5[0-2])(-?[1-7])?|(00[1-9]|0[1-9]\\d|[12]\\d{2}|3([0-5]\\d|6[1-6])))([T\\s]((([01]\\d|2[0-3])((:?)[0-5]\\d)?|24\\:?00)([\\.,]\\d+(?!:))?)?(\\17[0-5]\\d([\\.,]\\d+)?)?([zZ]|([\\+-])([01]\\d|2[0-3]):?([0-5]\\d)?)?)?)?$"
     regex_message = 'Invalid ISO 8601 datetime.'
     blank_value = None
@@ -172,7 +194,11 @@ class DateTime(Regex):
             else:
                 min_date = self.min_date
             if dt < min_date:
-                raise ValidationError('Date cannot be earlier than %s.' % self.min_date.strftime('%Y-%m-%d'))
+                err_msg = 'Date cannot be earlier than %s.' % (
+                    self.min_date.strftime('%Y-%m-%d')
+                )
+                raise ValidationError(err_msg)
+
         time_group = match.groups()[11]
         if time_group and len(time_group) > 1:
             return dt
@@ -199,7 +225,8 @@ class Email(Regex):
 class URL(Regex):
     blank_value = None
 
-    def __init__(self, require_tld=True, default_scheme=None, allowed_schemes=None, **kwargs):
+    def __init__(self, require_tld=True, default_scheme=None,
+                 allowed_schemes=None, **kwargs):
         # FQDN validation similar to https://github.com/chriso/validator.js/blob/master/src/lib/isFQDN.js
 
         # ff01-ff5f -> full-width chars, not allowed
@@ -214,7 +241,12 @@ class URL(Regex):
         if default_scheme:
             scheme_part = '(%s)?' % scheme_part
         regex = r'^%s([-%s@:%%_+.~#?&/\\=]{1,256}%s|([0-9]{1,3}\.){3}[0-9]{1,3})(:[0-9]+)?([/?].*)?$' % (scheme_part, alpha_numeric_and_symbols_ranges, tld_part)
-        super(URL, self).__init__(regex=regex, regex_flags=re.IGNORECASE | re.UNICODE, regex_message='Invalid URL.', **kwargs)
+        super(URL, self).__init__(
+            regex=regex,
+            regex_flags=re.IGNORECASE | re.UNICODE,
+            regex_message='Invalid URL.',
+            **kwargs
+        )
 
         self.allowed_schemes = allowed_schemes or []
         self.allowed_schemes_regexes = []
@@ -241,13 +273,20 @@ class URL(Regex):
                     break
 
             if not allowed:
-                raise ValidationError("This URL uses a scheme that's not allowed. You can only use %s." % ' or '.join(self.allowed_schemes))
+                allowed_schemes_text = ' or '.join(self.allowed_schemes)
+                err_msg = (
+                    "This URL uses a scheme that's not allowed. You can only "
+                    "use %s." % allowed_schemes_text
+                )
+                raise ValidationError(err_msg)
 
         return value
 
 
 class RelaxedURL(URL):
-    """Like URL but will just ignore values like "http://" and treat them as blank"""
+    """Like URL but will just ignore values like "http://" and treat them
+    as blank.
+    """
     def clean(self, value):
         if not self.required and value == self.default_scheme:
             return None
@@ -265,10 +304,12 @@ class Integer(Field):
 
     def _check_value(self, value):
         if self.max_value is not None and value > self.max_value:
-            raise ValidationError('The value must not be larger than %d.' % self.max_value)
+            err_msg = 'The value must not be larger than %d.' % self.max_value
+            raise ValidationError(err_msg)
 
         if self.min_value is not None and value < self.min_value:
-            raise ValidationError('The value must be at least %d.' % self.min_value)
+            err_msg = 'The value must be at least %d.' % self.min_value
+            raise ValidationError(err_msg)
 
     def clean(self, value):
         value = super(Integer, self).clean(value)
@@ -430,8 +471,9 @@ class EmbeddedReference(Dict):
 
         This needs to be subclassed since, depending on the object class,
         the fetching mechanism might be different. See implementations of
-        SQLAEmbeddedResource and MongoEmbeddedResource for a concrete example
-        of fetching objects from a relational and non-relational database.
+        SQLAEmbeddedReference and MongoEmbeddedReference for a concrete
+        example of fetching objects from a relational and non-relational
+        database.
 
         :param str pk: ID of the object that's supposed to exist.
         :returns: an instance of the object class.
@@ -449,6 +491,45 @@ class EmbeddedReference(Dict):
             being cleaned.
         :returns: dict of fields and values that are currently set on the
             object (before the new cleaned data is applied).
+        """
+        raise NotImplementedError  # should be subclassed
+
+
+class Reference(Field):
+    """Represents an object which can be referenced by its ID.
+
+    This field allows one to submit an ID of an object and get a cleaned
+    instance of that object. Equivalently, serialization accepts an object
+    and outputs its ID.
+    """
+
+    # The ID is assumed to be supplied as a string. However, subclasses can
+    # change this field if need be (e.g. it's common for objects persisted in
+    # relational databases to use integers as IDs).
+    base_type = str_type
+
+    def __init__(self, object_class, **kwargs):
+        self.object_class = object_class
+        super(Reference, self).__init__(**kwargs)
+
+    def clean(self, value):
+        obj_id = super(Reference, self).clean(value)
+        try:
+            return self.fetch_object(obj_id)
+        except ReferenceNotFoundError:
+            raise ValidationError('Object does not exist.')
+
+    def fetch_object(self, ref_id):
+        """Fetch an existing object that corresponds to a given ID.
+
+        This needs to be subclassed since, depending on the object class,
+        the fetching mechanism might be different. See implementations of
+        SQLAReference and MongoReference for a concrete example of fetching
+        objects from a relational and non-relational database.
+
+        :param str pk: ID of the referenced object.
+        :returns: an instance of the object class.
+        :raises: ReferenceNotFoundError if the object doesn't exist.
         """
         raise NotImplementedError  # should be subclassed
 
@@ -479,20 +560,21 @@ class Choices(Field):
                 raise ValidationError(u'Value needs to be a string.')
 
             if value.lower() not in choices:
-                raise ValidationError(self.error_invalid_choice.format(value=value))
+                err_msg = self.error_invalid_choice.format(value=value)
+                raise ValidationError(err_msg)
 
             return choices[value.lower()]
 
         if value not in choices:
-            raise ValidationError(self.error_invalid_choice.format(value=value))
+            err_msg = self.error_invalid_choice.format(value=value)
+            raise ValidationError(err_msg)
 
         return value
 
 
 class Enum(Choices):
-    """
-    Like Choices, but expects a Python 3 Enum.
-    """
+    """Like Choices, but expects a Python 3 Enum."""
+
     def __init__(self, choices, **kwargs):
         """Initialize the Enum field.
 
@@ -700,6 +782,7 @@ class Schema(object):
     def serialize(self):
         data = {}
         for field_name, field in self.fields.items():
+            raw_field_name = field.raw_field_name or field_name
             value = self.data[field_name]
-            data[field_name] = field.serialize(value)
+            data[raw_field_name] = field.serialize(value)
         return data
