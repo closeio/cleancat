@@ -692,7 +692,7 @@ class SerializationTestCase(unittest.TestCase):
         }
 
 
-def test_raw_field_name():
+def test_raw_field_name_serialization():
     class TestSchema(Schema):
         value = String(raw_field_name='value_id')
 
@@ -703,6 +703,20 @@ def test_raw_field_name():
 
     serialized = schema.serialize()
     assert serialized == {'value_id': 'val_xyz'}
+
+
+def test_raw_field_name_error():
+    class TestSchema(Schema):
+        value = Integer(raw_field_name='value_id')
+
+    schema = TestSchema(raw_data={'value_id': 'not-an-integer'})
+
+    with pytest.raises(ValidationError):
+        schema.full_clean()
+
+    assert schema.field_errors == {
+        'value_id': 'Value must be of int type.'
+    }
 
 
 if __name__ == '__main__':
