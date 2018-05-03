@@ -44,6 +44,16 @@ class MongoReferenceTestCase(MongoValidationTestCase):
             {'field-errors': ['author_id']}
         )
 
+    def test_missing_with_raw_field_name(self):
+        class BookSchema(Schema):
+            author = MongoReference(self.Person, raw_field_name='author_id')
+
+        schema = BookSchema({'author_id': str(ObjectId())})
+        pytest.raises(ValidationError, schema.full_clean)
+        assert schema.field_errors == {
+            'author_id': 'Object does not exist.'
+        }
+
     def test_optional(self):
         class BookSchema(Schema):
             title = String()
