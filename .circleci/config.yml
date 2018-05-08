@@ -1,0 +1,46 @@
+version: 2
+
+workflows:
+  version: 2
+  workflow:
+    jobs:
+      - test-2.7
+      - test-3.4
+      - test-3.5
+      - test-3.6
+
+defaults: &defaults
+  working_directory: ~/code
+  steps:
+  - checkout
+  - run:
+      name: Install dependencies
+      command: sudo pip install -r requirements.txt
+  - run:
+      name: Lint
+      command: flake8
+  - run:
+      name: Test
+      command: sudo python setup.py test
+
+jobs:
+  test-2.7:
+    <<: *defaults
+    docker:
+    - image: circleci/python:2.7
+    - image: mongo:3
+  test-3.4:
+    <<: *defaults
+    docker:
+    - image: circleci/python:3.4
+    - image: mongo:3
+  test-3.5:
+    <<: *defaults
+    docker:
+    - image: circleci/python:3.5
+    - image: mongo:3
+  test-3.6:
+    <<: *defaults
+    docker:
+    - image: circleci/python:3.6
+    - image: mongo:3

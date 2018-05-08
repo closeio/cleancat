@@ -10,7 +10,7 @@ from dateutil import parser
 if sys.version_info[0] == 3:
     str_type = str
 else:
-    str_type = basestring
+    str_type = basestring  # noqa: F821
 
 
 class ValidationError(Exception):
