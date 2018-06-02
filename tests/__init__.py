@@ -205,6 +205,8 @@ class FieldTestCase(ValidationTestCase):
         schema = EmailSchema({'email': 'test@example'})
         self.assertInvalid(schema, {'field-errors': ['email']})
         assert schema.field_errors['email'] == 'Invalid email address.'
+        self.assertInvalid(EmailSchema({'email': 'test@!example.com'}), {'field-errors': ['email']})
+        self.assertInvalid(EmailSchema({'email': 'test....test@example.com'}), {'field-errors': ['email']})
         self.assertInvalid(EmailSchema({'email': 'test.example.com'}), {'field-errors': ['email']})
         self.assertInvalid(EmailSchema({'email': invalid_email}), {'field-errors': ['email']})
         self.assertInvalid(EmailSchema({'email': None}), {'field-errors': ['email']})
