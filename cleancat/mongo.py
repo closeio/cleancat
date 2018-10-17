@@ -51,7 +51,7 @@ class MongoEmbeddedReference(EmbeddedReference):
 
     def get_orig_data_from_existing(self, obj):
         # Get a dict of existing document's field names and values.
-        if hasattr(obj, 'to_dict'):
+        if getattr(obj, 'to_dict', None):
             # MongoMallard
             return obj.to_dict()
         else:

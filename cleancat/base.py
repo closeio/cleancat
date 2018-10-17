@@ -687,7 +687,7 @@ class Schema(object):
         """
         data = {}
         for field_name in cls.get_fields():
-            if hasattr(obj, field_name):
+            if getattr(obj, field_name, None):
                 value = getattr(obj, field_name)
                 if callable(value):
                     value = value()
