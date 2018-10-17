@@ -687,11 +687,20 @@ class Schema(object):
         """
         data = {}
         for field_name in cls.get_fields():
-            if hasattr(obj, field_name):
+            try:
                 value = getattr(obj, field_name)
-                if callable(value):
-                    value = value()
-                data[field_name] = value
+            except AttributeError:
+                # If the field doesn't exist on the object, fail gracefully
+                # and don't include the field in the data dict at all. Fail
+                # loudly if the field exists but produces a different error
+                # (edge case: accessing an *existing* field could technically
+                # produce an unrelated AttributeError).
+                continue
+
+            if callable(value):
+                value = value()
+            data[field_name] = value
+
         return data
 
     def __init__(self, raw_data=None, data=None):
