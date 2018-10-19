@@ -376,6 +376,15 @@ class FieldTestCase(ValidationTestCase):
         # Longest to date (Feb 2017) TLD in punicode format is 24 chars long
         self.assertValid(URLSchema({'url': u'http://test.xn--vermgensberatung-pwb'}), {'url': u'http://test.xn--vermgensberatung-pwb'})
 
+    def test_url_required_flag(self):
+        class URLSchema(Schema):
+            url = URL()
+
+        schema = URLSchema({'url': None})
+        self.assertInvalid(schema, {'field-errors': ['url']})
+        assert schema.field_errors['url'] == 'This field is required.'
+
+    def test_url_with_default_schema(self):
         class DefaultURLSchema(Schema):
             url = URL(default_scheme='http://')
 
@@ -385,6 +394,7 @@ class FieldTestCase(ValidationTestCase):
         self.assertInvalid(DefaultURLSchema({'url': 'invalid'}), {'field-errors': ['url']})
         self.assertInvalid(DefaultURLSchema({'url': True}), {'field-errors': ['url']})
 
+    def test_relaxed_url(self):
         class RelaxedURLSchema(Schema):
             url = RelaxedURL(default_scheme='http://')
 
@@ -398,6 +408,7 @@ class FieldTestCase(ValidationTestCase):
         self.assertInvalid(RelaxedURLSchema({'url': 'invalid'}), {'field-errors': ['url']})
         self.assertInvalid(RelaxedURLSchema({'url': True}), {'field-errors': ['url']})
 
+    def test_optional_relaxed_url(self):
         class OptionalRelaxedURLSchema(Schema):
             url = RelaxedURL(required=False, default_scheme='http://')
 
@@ -408,6 +419,7 @@ class FieldTestCase(ValidationTestCase):
         self.assertInvalid(OptionalRelaxedURLSchema({'url': 'invalid'}), {'field-errors': ['url']})
         self.assertInvalid(OptionalRelaxedURLSchema({'url': True}), {'field-errors': ['url']})
 
+    def test_url_with_allowed_schemes(self):
         class OnlyHTTPSURLSchema(Schema):
             url = URL(default_scheme='https://', allowed_schemes=['https://'])
 
