@@ -258,8 +258,6 @@ class URL(Regex):
             )
 
     def clean(self, value):
-        if value == self.blank_value and not self.required:
-            return value
         value = super(URL, self).clean(value)
         if not self.scheme_regex.match(value):
             value = self.default_scheme + value

@@ -380,9 +380,18 @@ class FieldTestCase(ValidationTestCase):
         class URLSchema(Schema):
             url = URL()
 
-        schema = URLSchema({'url': None})
+        for value in (None, ''):
+            schema = URLSchema({'url': value})
+            self.assertInvalid(schema, {'field-errors': ['url']})
+            assert schema.field_errors['url'] == 'This field is required.'
+
+    def test_url_bad_data_type(self):
+        class URLSchema(Schema):
+            url = URL()
+
+        schema = URLSchema({'url': 23.0})
         self.assertInvalid(schema, {'field-errors': ['url']})
-        assert schema.field_errors['url'] == 'This field is required.'
+        assert schema.field_errors['url'] == 'Value must be of basestring type.'
 
     def test_url_with_default_schema(self):
         class DefaultURLSchema(Schema):
