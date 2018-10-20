@@ -299,45 +299,81 @@ class TestEmailField:
         assert unicode(e.value) == 'Value must be of basestring type.'
 
 
+class TestIntegerField:
+
+    @pytest.mark.parametrize('value', [-1, 0, 100, 1000000])
+    def test_it_accepts_valid_integers(self, value):
+        assert Integer().clean(value) == value
+
+    @pytest.mark.parametrize('value, valid', [
+        (10, True),
+        (0, True),
+        (-1, False),
+    ])
+    def test_it_enforces_min_value(self, value, valid):
+        field = Integer(min_value=0)
+        if valid:
+            assert field.clean(value) == value
+        else:
+            with pytest.raises(ValidationError) as e:
+                field.clean(value)
+            assert unicode(e.value) == 'The value must be at least 0.'
+
+    @pytest.mark.parametrize('value, valid', [
+        (-1, True),
+        (0, True),
+        (100, True),
+        (101, False),
+    ])
+    def test_it_enforces_max_value(self, value, valid):
+        field = Integer(max_value=100)
+        if valid:
+            assert field.clean(value) == value
+        else:
+            with pytest.raises(ValidationError) as e:
+                field.clean(value)
+            assert unicode(e.value) == 'The value must not be larger than 100.'
+
+    @pytest.mark.parametrize('value, valid', [
+        (-1, False),
+        (0, True),
+        (50, True),
+        (100, True),
+        (101, False),
+    ])
+    def test_it_enforces_min_and_max_value(self, value, valid):
+        field = Integer(min_value=0, max_value=100)
+        if valid:
+            assert field.clean(value) == value
+        else:
+            with pytest.raises(ValidationError) as e:
+                field.clean(value)
+            assert unicode(e.value) in (
+                'The value must be at least 0.',
+                'The value must not be larger than 100.',
+            )
+
+    def test_it_enforces_required_flag(self):
+        with pytest.raises(ValidationError) as e:
+            Integer().clean(None)
+        assert unicode(e.value) == 'This field is required.'
+
+    def test_it_can_be_optional(self):
+        with pytest.raises(StopValidation) as e:
+            Integer(required=False).clean(None)
+        assert e.value.args[0] is None
+
+    @pytest.mark.parametrize('value', ['', '0', 23.0])
+    def test_it_enforces_valid_data_type(self, value):
+        with pytest.raises(ValidationError) as e:
+            Integer().clean(value)
+        assert unicode(e.value) == 'Value must be of int type.'
+
 # TODO for schema-level tests: test empty dict
 # TODO for schema-level tests: test blank values beyond StopValidation
 
 
 class FieldTestCase(ValidationTestCase):
-
-    def test_integer(self):
-        class AgeSchema(Schema):
-            age = Integer()
-
-        class OptionalAgeSchema(Schema):
-            age = Integer(required=False)
-
-        class AgeValueSchema(Schema):
-            age_min_max = Integer(min_value=18, max_value=60, required=False)
-            age_max = Integer(max_value=60, required=False)
-            age_min = Integer(min_value=18, required=False)
-
-        self.assertValid(AgeSchema({'age': 0}), {'age': 0})
-        self.assertValid(AgeSchema({'age': 100}), {'age': 100})
-        self.assertInvalid(AgeSchema({'age': None}), {'field-errors': ['age']})
-        self.assertInvalid(AgeSchema({'age': 0.5}), {'field-errors': ['age']})
-
-        self.assertValid(OptionalAgeSchema({'age': None}), {'age': None})
-        self.assertValid(OptionalAgeSchema({'age': 0}), {'age': 0})
-        self.assertInvalid(OptionalAgeSchema({'age': ''}), {'field-errors': ['age']})
-        self.assertInvalid(OptionalAgeSchema({'age': 0.5}), {'field-errors': ['age']})
-
-        self.assertInvalid(AgeValueSchema({'age_min_max': 17}, {'field-errors': ['age_min_max']}))
-        self.assertValid(AgeValueSchema({'age_min_max': 18}), {'age_min_max': 18})
-        self.assertValid(AgeValueSchema({'age_min_max': 40}), {'age_min_max': 40})
-        self.assertValid(AgeValueSchema({'age_min_max': 60}), {'age_min_max': 60})
-        self.assertInvalid(AgeValueSchema({'age_min_max': 61}, {'field-errors': ['age_min_max']}))
-
-        self.assertValid(AgeValueSchema({'age_max': 60}), {'age_max': 60})
-        self.assertInvalid(AgeValueSchema({'age_max': 61}, {'field-errors': ['age_max']}))
-
-        self.assertInvalid(AgeValueSchema({'age_min': 17}, {'field-errors': ['age_min']}))
-        self.assertValid(AgeValueSchema({'age_min': 18}), {'age_min': 18})
 
     def test_list(self):
         class TagsSchema(Schema):
