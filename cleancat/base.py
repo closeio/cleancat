@@ -160,7 +160,9 @@ class Regex(String):
             self.regex_message = regex_message
 
     def get_regex(self):
-        return re.compile(self.regex, self.regex_flags)
+        if not getattr(self, '_compiled_regex', None):
+            self._compiled_regex = re.compile(self.regex, self.regex_flags)
+        return self._compiled_regex
 
     def clean(self, value):
         value = super(Regex, self).clean(value)
