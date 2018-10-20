@@ -161,45 +161,11 @@ class TestBoolField:
         assert e.value.args[0] is False
 
 
+# TODO for schema-level tests: test empty dict
+# TODO for schema-level tests: test blank values beyond StopValidation
+
+
 class FieldTestCase(ValidationTestCase):
-    def test_string(self):
-        class TextSchema(Schema):
-            text = String()  # required by default
-
-        class OptionalTextSchema(Schema):
-            text = String(required=False)
-
-        self.assertInvalid(TextSchema({}), {'field-errors': ['text']})
-        self.assertInvalid(TextSchema({'text': ''}), {'field-errors': ['text']})
-        self.assertInvalid(TextSchema({'text': None}), {'field-errors': ['text']})
-        self.assertValid(OptionalTextSchema({'text': ''}), {'text': ''})
-        self.assertValid(OptionalTextSchema({'text': None}), {'text': ''})
-        self.assertValid(OptionalTextSchema({}), {'text': ''})
-
-    def test_trimmed_string(self):
-        class TextSchema(Schema):
-            text = TrimmedString()  # required by default
-
-        class OptionalTextSchema(Schema):
-            text = TrimmedString(required=False)
-
-        class TextLengthSchema(Schema):
-            text_min = TrimmedString(required=False, min_length=3)
-            text_max = TrimmedString(required=False, max_length=8)
-            text_min_max = TrimmedString(required=False, min_length=3, max_length=8)
-
-        self.assertInvalid(TextSchema({}), {'field-errors': ['text']})
-        self.assertValid(OptionalTextSchema({}), {'text': ''})
-
-    def test_bool(self):
-        class FlagSchema(Schema):
-            flag = Bool()
-
-        class OptionalFlagSchema(Schema):
-            flag = Bool(required=False)
-
-        self.assertInvalid(FlagSchema({}), {'field-errors': ['flag']})
-        self.assertValid(OptionalFlagSchema({}), {'flag': False})
 
     def test_regex(self):
         class RegexSchema(Schema):
