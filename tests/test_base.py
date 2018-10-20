@@ -247,43 +247,63 @@ class TestDateTimeField:
         assert unicode(e.value) == 'Value must be of basestring type.'
 
 
+class TestEmailField:
+
+    def test_it_accepts_valid_email_addresses(self):
+        value = 'test@example.com'
+        assert Email().clean(value) == value
+
+    @pytest.mark.parametrize('value', [
+        'test@example',
+        'test.example.com',
+    ])
+    def test_it_rejects_invalid_email_addresses(self, value):
+        with pytest.raises(ValidationError) as e:
+            Email().clean(value)
+        assert unicode(e.value) == 'Invalid email address.'
+
+    def test_it_autotrims_input(self):
+        assert Email().clean('   test@example.com   ') == 'test@example.com'
+
+    @pytest.mark.parametrize('value, valid', [
+        ('{u}@{d}.{d}.{d}.example'.format(u='u' * 54, d='d' * 63), True),
+
+        # Emails must not be longer than 254 characters.
+        ('{u}@{d}.{d}.{d}.example'.format(u='u' * 55, d='d' * 63), False),
+    ])
+    def test_it_enforces_max_email_address_length(self, value, valid):
+        field = Email()
+        if valid:
+            assert field.clean(value) == value
+        else:
+            with pytest.raises(ValidationError) as e:
+                field.clean(value)
+            err_msg = 'The value must be no longer than 254 characters.'
+            assert unicode(e.value) == err_msg
+
+    @pytest.mark.parametrize('value', ['', None])
+    def test_it_enforces_required_flag(self, value):
+        with pytest.raises(ValidationError) as e:
+            Email().clean(value)
+        assert unicode(e.value) == 'This field is required.'
+
+    @pytest.mark.parametrize('value', ['', None])
+    def test_it_can_be_optional(self, value):
+        with pytest.raises(StopValidation) as e:
+            Email(required=False).clean(value)
+        assert e.value.args[0] == ''
+
+    def test_it_enforces_valid_data_type(self):
+        with pytest.raises(ValidationError) as e:
+            Email().clean(True)
+        assert unicode(e.value) == 'Value must be of basestring type.'
+
+
 # TODO for schema-level tests: test empty dict
 # TODO for schema-level tests: test blank values beyond StopValidation
 
 
 class FieldTestCase(ValidationTestCase):
-
-    def test_email(self):
-        class EmailSchema(Schema):
-            email = Email(required=True)
-
-        class OptionalEmailSchema(Schema):
-            email = Email(required=False)
-
-        # Emails must not be longer than 254 characters.
-        valid_email = '{u}@{d}.{d}.{d}.example'.format(u='u' * 54, d='d' * 63)
-        invalid_email = '{u}@{d}.{d}.{d}.example'.format(u='u' * 55, d='d' * 63)
-
-        self.assertValid(EmailSchema({'email': 'test@example.com'}), {'email': 'test@example.com'})
-        self.assertValid(EmailSchema({'email': valid_email}), {'email': valid_email})
-        schema = EmailSchema({'email': 'test@example'})
-        self.assertInvalid(schema, {'field-errors': ['email']})
-        assert schema.field_errors['email'] == 'Invalid email address.'
-        self.assertInvalid(EmailSchema({'email': 'test.example.com'}), {'field-errors': ['email']})
-        self.assertInvalid(EmailSchema({'email': invalid_email}), {'field-errors': ['email']})
-        self.assertInvalid(EmailSchema({'email': None}), {'field-errors': ['email']})
-        self.assertInvalid(EmailSchema({}), {'field-errors': ['email']})
-        self.assertInvalid(EmailSchema({'email': ''}), {'field-errors': ['email']})
-
-        self.assertValid(OptionalEmailSchema({'email': 'test@example.com'}), {'email': 'test@example.com'})
-        self.assertValid(OptionalEmailSchema({'email': ''}), {'email': ''})
-        self.assertValid(OptionalEmailSchema({'email': None}), {'email': ''})
-        self.assertValid(OptionalEmailSchema({}), {'email': ''})
-        self.assertInvalid(OptionalEmailSchema({'email': 'test@example'}), {'field-errors': ['email']})
-        self.assertInvalid(OptionalEmailSchema({'email': 'test.example.com'}), {'field-errors': ['email']})
-
-        # test auto-trimming
-        self.assertValid(OptionalEmailSchema({'email': '   test@example.com   '}), {'email': 'test@example.com'})
 
     def test_integer(self):
         class AgeSchema(Schema):
