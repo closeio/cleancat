@@ -15,6 +15,20 @@ from cleancat import (
 from cleancat.utils import ValidationTestCase
 
 
+class TestField:
+
+    def test_it_supports_multiple_base_types(self):
+        class IntOrStrField(Field):
+            base_type = (int, str)
+
+        assert IntOrStrField().clean(5) == 5
+        assert IntOrStrField().clean('five') == 'five'
+
+        with pytest.raises(ValidationError) as e:
+            assert IntOrStrField().clean(4.5)
+        assert unicode(e.value) == 'Value must be of int or str type.'
+
+
 class TestStringField:
 
     def test_it_accepts_valid_input(self):
@@ -413,34 +427,37 @@ class TestListField:
         assert e.value.args[0] == []
 
 
+class TestSortedSetField:
+
+    def test_it_dedupes_valid_values(self):
+        assert SortedSet(String()).clean(['a', 'b', 'a']) == ['a', 'b']
+
+    def test_it_sorts_valid_values(self):
+        assert SortedSet(String()).clean(['b', 'a']) == ['a', 'b']
+
+    def test_it_enforces_required_flag(self):
+        with pytest.raises(ValidationError) as e:
+            SortedSet(String()).clean(None)
+        assert unicode(e.value) == 'This field is required.'
+
+    def test_it_can_be_optional(self):
+        with pytest.raises(StopValidation) as e:
+            SortedSet(String(), required=False).clean(None)
+        assert e.value.args[0] == []
+
+    @pytest.mark.parametrize('value', [23.0, True])
+    def test_it_enforces_valid_data_type(self, value):
+        with pytest.raises(ValidationError) as e:
+            SortedSet(String()).clean(value)
+        assert unicode(e.value) == 'Value must be of list type.'
+
+
 # TODO for schema-level tests: test empty dict
 # TODO for schema-level tests: test blank values beyond StopValidation
+# TODO for schema-level tests: test no new data and orig_data keeps old values
 
 
 class FieldTestCase(ValidationTestCase):
-
-    def test_sorted_set(self):
-        class TagsSchema(Schema):
-            tags = SortedSet(String())
-
-        class OptionalTagsSchema(Schema):
-            tags = SortedSet(String(), required=False)
-
-        # Deduplicated
-        self.assertValid(TagsSchema({'tags': ['python', 'ruby', 'python']}), {'tags': ['python', 'ruby']})
-
-        # Sorted
-        self.assertValid(TagsSchema({'tags': ['ruby', 'python']}), {'tags': ['python', 'ruby']})
-
-        # Other cases just like in a List
-        self.assertInvalid(TagsSchema({'tags': []}), {'field-errors': ['tags']})
-        self.assertInvalid(TagsSchema({'tags': None}), {'field-errors': ['tags']})
-        self.assertInvalid(TagsSchema({}), {'field-errors': ['tags']})
-
-        self.assertValid(OptionalTagsSchema({'tags': ['ruby']}), {'tags': ['ruby']})
-        self.assertValid(OptionalTagsSchema({'tags': []}), {'tags': []})
-        self.assertValid(OptionalTagsSchema({'tags': None}), {'tags': []})
-        self.assertValid(OptionalTagsSchema({}), {'tags': []})
 
     def test_choice(self):
         class ChoiceSchema(Schema):
@@ -620,45 +637,6 @@ class FieldTestCase(ValidationTestCase):
             }
         })
 
-    def test_required_1(self):
-        class RequiredSchema(Schema):
-            text = String()
-
-        self.assertValid(RequiredSchema({'text': 'hello'}), {'text': 'hello'})
-        self.assertInvalid(RequiredSchema({'text': ''}), {'field-errors': ['text']})
-
-        self.assertInvalid(RequiredSchema({'text': ''}, {}), {'field-errors': ['text']})
-        self.assertInvalid(RequiredSchema({'text': ''}, {'text': ''}), {'field-errors': ['text']})
-        self.assertInvalid(RequiredSchema({'text': ''}, {'text': 'existing'}), {'field-errors': ['text']})
-
-        self.assertInvalid(RequiredSchema({}, {}), {'field-errors': ['text']})
-        self.assertInvalid(RequiredSchema({}, {'text': ''}), {'field-errors': ['text']})
-        self.assertValid(RequiredSchema({}, {'text': 'existing'}), {'text': 'existing'})
-
-    def test_required_2(self):
-        class RequiredSchema(Schema):
-            flag = Bool()
-
-        self.assertValid(RequiredSchema({'flag': True}), {'flag': True})
-        self.assertValid(RequiredSchema({'flag': False}), {'flag': False})
-        self.assertInvalid(RequiredSchema({'flag': None}), {'field-errors': ['flag']})
-        self.assertInvalid(RequiredSchema({}), {'field-errors': ['flag']})
-
-        self.assertValid(RequiredSchema({'flag': True}, {}), {'flag': True})
-        self.assertValid(RequiredSchema({'flag': False}, {}), {'flag': False})
-        self.assertInvalid(RequiredSchema({'flag': None}, {}), {'field-errors': ['flag']})
-        self.assertInvalid(RequiredSchema({}, {}), {'field-errors': ['flag']})
-
-        self.assertValid(RequiredSchema({'flag': True}, {'flag': True}), {'flag': True})
-        self.assertValid(RequiredSchema({'flag': False}, {'flag': True}), {'flag': False})
-        self.assertInvalid(RequiredSchema({'flag': None}, {'flag': True}), {'field-errors': ['flag']})
-        self.assertValid(RequiredSchema({}, {'flag': True}), {'flag': True})
-
-        self.assertValid(RequiredSchema({'flag': True}, {'flag': False}), {'flag': True})
-        self.assertValid(RequiredSchema({'flag': False}, {'flag': False}), {'flag': False})
-        self.assertInvalid(RequiredSchema({'flag': None}, {'flag': False}), {'field-errors': ['flag']})
-        self.assertValid(RequiredSchema({}, {'flag': False}), {'flag': False})
-
     def test_mutable(self):
         class UnmutableSchema(Schema):
             text = String(mutable=False)
@@ -672,20 +650,6 @@ class FieldTestCase(ValidationTestCase):
         self.assertValid(UnmutableSchema({'text': 'existing'}, {'text': 'existing'}), {'text': 'existing'})
         self.assertValid(UnmutableSchema({}, {'text': 'hello'}), {'text': 'hello'})
         self.assertValid(UnmutableSchema({'text': 'hello'}, {}), {'text': 'hello'})
-
-    def test_multiple_base_types(self):
-        class IntOrStrField(Field):
-            base_type = (int, str)
-
-        class TestSchema(Schema):
-            id = IntOrStrField()
-
-        self.assertValid(TestSchema({'id': 5}), {'id': 5})
-        self.assertValid(TestSchema({'id': 'five'}), {'id': 'five'})
-
-        schema = TestSchema({'id': 4.5})
-        self.assertInvalid(schema, {'field-errors': ['id']})
-        assert schema.field_errors['id'] == 'Value must be of int or str type.'
 
 
 class ExternalCleanTestCase(unittest.TestCase):
@@ -754,7 +718,8 @@ class ExternalCleanTestCase(unittest.TestCase):
         }
 
 
-class SerializationTestCase(unittest.TestCase):
+class TestSchema:
+
     def test_serialization(self):
         class EmbeddedSchema(Schema):
             date_time = DateTime()
@@ -851,9 +816,6 @@ class SerializationTestCase(unittest.TestCase):
             'optional_enum': None,
             'lst': ['a', 'b'],
         }
-
-
-class TestSchema:
 
     def test_raw_field_name_serialization(self):
         class TestSchema(Schema):
