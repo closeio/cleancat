@@ -8,10 +8,85 @@ import pytest
 
 from cleancat import (
     Bool, Choices, DateTime, Dict, Email, Embedded, Enum, Field, Integer,
-    List, Regex, RelaxedURL, Schema, SortedSet, String, TrimmedString, URL,
-    ValidationError
+    List, Regex, RelaxedURL, Schema, SortedSet, StopValidation, String,
+    TrimmedString, URL, ValidationError
 )
 from cleancat.utils import ValidationTestCase
+
+
+class TestStringField:
+
+    def test_it_accepts_valid_input(self):
+        value = 'hello world'
+        assert String().clean(value) == value
+
+    @pytest.mark.parametrize('value', ['', None])
+    def test_it_enforces_the_required_flag(self, value):
+        with pytest.raises(ValidationError) as e:
+            String().clean(value)
+        assert unicode(e.value) == 'This field is required.'
+
+    def test_it_accepts_valid_input_if_not_required(self):
+        value = 'hello world'
+        assert String().clean(value) == value
+
+    @pytest.mark.parametrize('value', ['', None])
+    def test_it_allows_empty_values_if_not_required(self, value):
+        with pytest.raises(StopValidation) as e:
+            String(required=False).clean(value)
+        assert e.value.args[0] == ''
+
+    def test_it_enforces_valid_data_type(self):
+        with pytest.raises(ValidationError) as e:
+            String().clean(True)
+        assert unicode(e.value) == 'Value must be of basestring type.'
+
+    @pytest.mark.parametrize('value,valid', [
+        ('long enough', True),
+        ('short', False),
+    ])
+    def test_it_enforces_min_length(self, value, valid):
+        field = String(min_length=10)
+        if valid:
+            assert field.clean(value) == value
+        else:
+            with pytest.raises(ValidationError) as e:
+                field.clean(value)
+            assert unicode(e.value) == (
+                'The value must be at least 10 characters long.'
+            )
+
+    @pytest.mark.parametrize('value,valid', [
+        ('short is ok', True),
+        ('this is way too long enough', False),
+    ])
+    def test_it_enforces_max_length(self, value, valid):
+        field = String(max_length=12)
+        if valid:
+            assert field.clean(value) == value
+        else:
+            with pytest.raises(ValidationError) as e:
+                field.clean(value)
+            assert unicode(e.value) == (
+                'The value must be no longer than 12 characters.'
+            )
+
+    @pytest.mark.parametrize('value,valid', [
+        ('right in the middle', True),
+        ('too short', False),
+        ('way too long to be valid', False),
+    ])
+    def test_it_enforces_min_and_max_length(self, value, valid):
+        field = String(min_length=10, max_length=20)
+        if valid:
+            assert field.clean(value) == value
+        else:
+            with pytest.raises(ValidationError) as e:
+                field.clean(value)
+            assert unicode(e.value) in (
+                'The value must be at least 10 characters long.',
+                'The value must be no longer than 20 characters.',
+            )
 
 
 class FieldTestCase(ValidationTestCase):
@@ -22,33 +97,12 @@ class FieldTestCase(ValidationTestCase):
         class OptionalTextSchema(Schema):
             text = String(required=False)
 
-        class TextLengthSchema(Schema):
-            text_min = String(required=False, min_length=3)
-            text_max = String(required=False, max_length=8)
-            text_min_max = String(required=False, min_length=3, max_length=8)
-
-        self.assertValid(TextSchema({'text': 'hello world'}), {'text': 'hello world'})
+        self.assertInvalid(TextSchema({}), {'field-errors': ['text']})
         self.assertInvalid(TextSchema({'text': ''}), {'field-errors': ['text']})
         self.assertInvalid(TextSchema({'text': None}), {'field-errors': ['text']})
-        self.assertInvalid(TextSchema({}), {'field-errors': ['text']})
-        self.assertInvalid(TextSchema({'text': True}), {'field-errors': ['text']})
-
-        self.assertValid(OptionalTextSchema({'text': 'hello world'}), {'text': 'hello world'})
         self.assertValid(OptionalTextSchema({'text': ''}), {'text': ''})
         self.assertValid(OptionalTextSchema({'text': None}), {'text': ''})
         self.assertValid(OptionalTextSchema({}), {'text': ''})
-
-        self.assertInvalid(TextLengthSchema({'text_min': 'x'}), {'field-errors': 'text_min'})
-        self.assertValid(TextLengthSchema({'text_min': 'testing'}), {'text_min': 'testing'})
-        self.assertValid(TextLengthSchema({'text_min': 'way too long'}), {'text_min': 'way too long'})
-
-        self.assertValid(TextLengthSchema({'text_max': 'x'}), {'text_max': 'x'})
-        self.assertValid(TextLengthSchema({'text_max': 'testing'}), {'text_max': 'testing'})
-        self.assertInvalid(TextLengthSchema({'text_max': 'way too long'}), {'field-errors': 'text_max'})
-
-        self.assertInvalid(TextLengthSchema({'text_min_max': 'x'}), {'field-errors': 'text_min_max'})
-        self.assertValid(TextLengthSchema({'text_min_max': 'testing'}), {'text_min_max': 'testing'})
-        self.assertInvalid(TextLengthSchema({'text_min_max': 'way too long'}), {'field-errors': 'text_min_max'})
 
     def test_trimmed_string(self):
         class TextSchema(Schema):
