@@ -179,7 +179,3 @@ class SQLAReferenceTestCase(SQLABaseTestCase):
             'title': 'Book without an author',
             'author': None
         }
-
-
-if __name__ == '__main__':
-    unittest.main()

@@ -1,5 +1,3 @@
-import unittest
-
 import pytest
 from bson import ObjectId
 from mongoengine import Document, StringField, connect
@@ -145,7 +143,3 @@ class MongoEmbeddedReferenceTestCase(MongoValidationTestCase):
             'title': 'Book without an author',
             'author': None
         }
-
-
-if __name__ == '__main__':
-    unittest.main()
