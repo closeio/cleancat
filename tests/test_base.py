@@ -161,52 +161,51 @@ class TestBoolField:
         assert e.value.args[0] is False
 
 
+class TestRegexField:
+
+    @pytest.mark.parametrize('value', ['a', 'm', 'z'])
+    def test_it_accepts_valid_input(self, value):
+        assert Regex('^[a-z]$').clean(value) == value
+
+    @pytest.mark.parametrize('value', ['A', 'M', 'Z', 'aa', 'mm', 'zz'])
+    def test_it_rejects_invalid_input(self, value):
+        with pytest.raises(ValidationError) as e:
+            Regex('^[a-z]$').clean(value)
+        assert unicode(e.value) == 'Invalid input.'
+
+    @pytest.mark.parametrize('value', ['A', 'M', 'Z'])
+    def test_it_accepts_case_insensitive_input(self, value):
+        assert Regex('^[a-z]$', re.IGNORECASE).clean(value) == value
+
+    def test_it_supports_custom_error_messaging(self):
+        err_msg = 'Not a lowercase letter.'
+        with pytest.raises(ValidationError) as e:
+            Regex('^[a-z]$', regex_message=err_msg).clean('aa')
+        assert unicode(e.value) == err_msg
+
+    @pytest.mark.parametrize('value', ['', None])
+    def test_it_enforces_required_flag(self, value):
+        with pytest.raises(ValidationError) as e:
+            Regex('^[a-z]$').clean(value)
+        assert unicode(e.value) == 'This field is required.'
+
+    @pytest.mark.parametrize('value', ['', None])
+    def test_it_can_be_optional(self, value):
+        with pytest.raises(StopValidation) as e:
+            Regex('^[a-z]$', required=False).clean(value)
+        assert e.value.args[0] == ''
+
+    def test_it_enforces_valid_data_type(self):
+        with pytest.raises(ValidationError) as e:
+            Regex('^[a-z]$').clean(True)
+        assert unicode(e.value) == 'Value must be of basestring type.'
+
+
 # TODO for schema-level tests: test empty dict
 # TODO for schema-level tests: test blank values beyond StopValidation
 
 
 class FieldTestCase(ValidationTestCase):
-
-    def test_regex(self):
-        class RegexSchema(Schema):
-            letter = Regex('^[a-z]$')
-
-        class RegexOptionsSchema(Schema):
-            letter = Regex('^[a-z]$', re.IGNORECASE)
-
-        class RegexMessageSchema(Schema):
-            letter = Regex('^[a-z]$', regex_message='Not a lowercase letter.')
-
-        class OptionalRegexMessageSchema(Schema):
-            letter = Regex('^[a-z]$', regex_message='Not a lowercase letter.',
-                           required=False)
-
-        self.assertValid(RegexSchema({'letter': 'a'}), {'letter': 'a'})
-        self.assertInvalid(RegexSchema({'letter': 'A'}), {'field-errors': ['letter']})
-        self.assertInvalid(RegexSchema({'letter': ''}), {'field-errors': ['letter']})
-        self.assertInvalid(RegexSchema({'letter': 'aa'}), {'field-errors': ['letter']})
-
-        self.assertValid(RegexOptionsSchema({'letter': 'a'}), {'letter': 'a'})
-        self.assertValid(RegexOptionsSchema({'letter': 'A'}), {'letter': 'A'})
-        self.assertInvalid(RegexOptionsSchema({'letter': ''}), {'field-errors': ['letter']})
-        self.assertInvalid(RegexOptionsSchema({'letter': 'aa'}), {'field-errors': ['letter']})
-
-        self.assertValid(RegexMessageSchema({'letter': 'a'}), {'letter': 'a'})
-
-        schema = RegexMessageSchema({'letter': ''})
-        self.assertInvalid(schema, {'field-errors': ['letter']})
-        assert schema.field_errors['letter'] == 'This field is required.'
-
-        schema = RegexMessageSchema({'letter': 'aa'})
-        self.assertInvalid(schema, {'field-errors': ['letter']})
-        assert schema.field_errors['letter'] == 'Not a lowercase letter.'
-
-        self.assertValid(OptionalRegexMessageSchema({'letter': 'a'}), {'letter': 'a'})
-        self.assertValid(OptionalRegexMessageSchema({'letter': ''}), {'letter': ''})
-
-        schema = OptionalRegexMessageSchema({'letter': 'aa'})
-        self.assertInvalid(schema, {'field-errors': ['letter']})
-        assert schema.field_errors['letter'] == 'Not a lowercase letter.'
 
     def test_datetime(self):
         class DateTimeSchema(Schema):
