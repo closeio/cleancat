@@ -127,6 +127,8 @@ class TrimmedString(String):
     blank_value = ''
 
     def clean(self, value):
+        # XXX we skip a level of inheritance so that we can perform length
+        # checks *after* trimming.
         value = super(String, self).clean(value)
         if value:
             value = value.strip()
