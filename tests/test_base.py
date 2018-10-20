@@ -664,11 +664,6 @@ class TestEmbeddedField:
         assert unicode(e.value) == 'This field is required.'
 
 
-# TODO for schema-level tests: test empty dict
-# TODO for schema-level tests: test blank values beyond StopValidation
-# TODO for schema-level tests: test no new data and orig_data keeps old values
-
-
 class ExternalCleanTestCase(unittest.TestCase):
     """
     Collection of tests making sure Schema#external_clean works as
@@ -736,6 +731,35 @@ class ExternalCleanTestCase(unittest.TestCase):
 
 
 class TestSchema:
+
+    def test_empty_data_dict_with_required_fields(self):
+        class RequiredSchema(Schema):
+            text = String()
+
+        schema = RequiredSchema({})
+        pytest.raises(ValidationError, schema.full_clean)
+        assert schema.field_errors['text'] == 'This field is required.'
+
+    def test_blank_values_for_optional_fields(self):
+        class OptionalSchema(Schema):
+            text = String(required=False)
+            boolean = Bool(required=False)
+            number = Integer(required=False)
+
+        data = OptionalSchema({}).full_clean()
+        assert data == {
+            'text': '',
+            'boolean': False,
+            'number': None,
+        }
+
+    def test_it_preserves_orig_data_if_no_new_data_given(self):
+        class OptionalSchema(Schema):
+            text = String(required=False)
+
+        orig_data = {'text': 'old value'}
+        data = OptionalSchema({}, orig_data).full_clean()
+        assert data == orig_data
 
     @pytest.mark.parametrize('old_data, new_data, is_valid', [
         (None, {'text': 'hello'}, True),
