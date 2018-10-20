@@ -182,6 +182,8 @@ class DateTime(Regex):
         super(DateTime, self).__init__(*args, **kwargs)
 
     def clean(self, value):
+        # XXX we're skipping a level of inheritance so that we can reuse
+        # the regex match later in this method.
         value = super(Regex, self).clean(value)
         match = self.get_regex().match(value)
         if not match:
