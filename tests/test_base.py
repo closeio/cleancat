@@ -675,20 +675,6 @@ class FieldTestCase(ValidationTestCase):
             }
         })
 
-    def test_mutable(self):
-        class UnmutableSchema(Schema):
-            text = String(mutable=False)
-
-        self.assertValid(UnmutableSchema({'text': 'hello'}), {'text': 'hello'})
-        self.assertInvalid(UnmutableSchema({'text': 'hello'}, {'text': 'existing'}), {'field-errors': ['text']})
-        self.assertInvalid(UnmutableSchema({'text': 'hello'}, {'text': ''}), {'field-errors': ['text']})
-        self.assertInvalid(UnmutableSchema({'text': 'hello'}, {'text': None}), {'field-errors': ['text']})
-        self.assertInvalid(UnmutableSchema({'text': ''}, {'text': 'existing'}), {'field-errors': ['text']})
-        self.assertInvalid(UnmutableSchema({'text': None}, {'text': 'existing'}), {'field-errors': ['text']})
-        self.assertValid(UnmutableSchema({'text': 'existing'}, {'text': 'existing'}), {'text': 'existing'})
-        self.assertValid(UnmutableSchema({}, {'text': 'hello'}), {'text': 'hello'})
-        self.assertValid(UnmutableSchema({'text': 'hello'}, {}), {'text': 'hello'})
-
 
 class ExternalCleanTestCase(unittest.TestCase):
     """
@@ -757,6 +743,36 @@ class ExternalCleanTestCase(unittest.TestCase):
 
 
 class TestSchema:
+
+    @pytest.mark.parametrize('old_data, new_data, is_valid', [
+        (None, {'text': 'hello'}, True),
+        ({}, {'text': 'hello'}, True),
+        ({'text': 'existing'}, {'text': 'existing'}, True),
+        ({'text': 'existing'}, {}, True),
+        ({'text': 'existing'}, {'text': 'new'}, False),
+        ({'text': ''}, {'text': 'new'}, False),
+        ({'text': None}, {'text': 'new'}, False),
+    ])
+    def test_it_enforces_mutability(self, old_data, new_data, is_valid):
+        class UnmutableSchema(Schema):
+            text = String(mutable=False)
+
+        if old_data is None:
+            schema = UnmutableSchema(new_data)
+        else:
+            schema = UnmutableSchema(new_data, old_data)
+
+        if is_valid:
+            assert schema.full_clean() == new_data or old_data
+        else:
+            with pytest.raises(ValidationError) as e:
+                schema.full_clean()
+            assert e.value.args[0] == {
+                'errors': [],
+                'field-errors': {
+                    'text': 'Value cannot be changed.'
+                }
+            }
 
     def test_serialization(self):
         class EmbeddedSchema(Schema):
