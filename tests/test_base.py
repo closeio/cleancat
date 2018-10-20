@@ -919,7 +919,7 @@ class TestSchema:
         class TestSchema(Schema):
             value = String(raw_field_name='value_id')
 
-        schema = TestSchema(raw_data={'value_id': 'val_xyz'})
+        schema = TestSchema({'value_id': 'val_xyz'})
 
         schema.full_clean()
         assert schema.data == {'value': 'val_xyz'}
@@ -931,7 +931,7 @@ class TestSchema:
         class TestSchema(Schema):
             value = Integer(raw_field_name='value_id')
 
-        schema = TestSchema(raw_data={'value_id': 'not-an-integer'})
+        schema = TestSchema({'value_id': 'not-an-integer'})
 
         with pytest.raises(ValidationError):
             schema.full_clean()
