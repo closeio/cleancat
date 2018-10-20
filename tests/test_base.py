@@ -470,37 +470,42 @@ class TestSortedSetField:
         assert unicode(e.value) == 'Value must be of list type.'
 
 
+class TestEnumField:
+
+    @pytest.fixture
+    def enum_cls(self):
+        class MyChoices(enum.Enum):
+            A = 'a'
+            B = 'b'
+            C = 'c'
+
+        return MyChoices
+
+    def test_it_accepts_valid_choices(self, enum_cls):
+        assert Enum(enum_cls).clean('a') == enum_cls.A
+        assert Enum(enum_cls).clean('b') == enum_cls.B
+        assert Enum(enum_cls).clean('c') == enum_cls.C
+
+    def test_it_rejects_invalid_choices(self, enum_cls):
+        with pytest.raises(ValidationError) as e:
+            Enum(enum_cls).clean('d')
+        assert unicode(e.value) == 'Not a valid choice.'
+
+    def test_it_accepts_a_sublist_of_choices(self, enum_cls):
+        field = Enum([enum_cls.A, enum_cls.B])
+        assert field.clean('a') == enum_cls.A
+        assert field.clean('b') == enum_cls.B
+        with pytest.raises(ValidationError) as e:
+            field.clean('c')
+        assert unicode(e.value) == 'Not a valid choice.'
+
+
 # TODO for schema-level tests: test empty dict
 # TODO for schema-level tests: test blank values beyond StopValidation
 # TODO for schema-level tests: test no new data and orig_data keeps old values
 
 
 class FieldTestCase(ValidationTestCase):
-
-    def test_enum(self):
-        class MyChoices(enum.Enum):
-            A = 'a'
-            B = 'b'
-
-        class ChoiceSchema(Schema):
-            choice = Enum(MyChoices)
-
-        self.assertValid(ChoiceSchema({'choice': 'a'}), {'choice': MyChoices.A})
-        self.assertValid(ChoiceSchema({'choice': 'b'}), {'choice': MyChoices.B})
-        self.assertInvalid(ChoiceSchema({'choice': 'c'}), {'field-errors': ['choice']})
-
-    def test_enum_with_choices(self):
-        class MyChoices(enum.Enum):
-            A = 'a'
-            B = 'b'
-            C = 'c'
-
-        class ChoiceSchema(Schema):
-            choice = Enum([MyChoices.A, MyChoices.B])
-
-        self.assertValid(ChoiceSchema({'choice': 'a'}), {'choice': MyChoices.A})
-        self.assertValid(ChoiceSchema({'choice': 'b'}), {'choice': MyChoices.B})
-        self.assertInvalid(ChoiceSchema({'choice': 'c'}), {'field-errors': ['choice']})
 
     def test_url(self):
         class URLSchema(Schema):
