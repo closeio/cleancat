@@ -2,7 +2,6 @@
 import datetime
 import enum
 import re
-import unittest
 
 import pytest
 from pytz import utc
@@ -664,13 +663,14 @@ class TestEmbeddedField:
         assert unicode(e.value) == 'This field is required.'
 
 
-class ExternalCleanTestCase(unittest.TestCase):
+class TestSchemaExternalClean:
     """
     Collection of tests making sure Schema#external_clean works as
     expected.
     """
 
-    def setUp(self):
+    @pytest.fixture
+    def message_schema_cls(self):
 
         # Generic message schema that may be used in composition with more
         # specific schemas
@@ -688,6 +688,11 @@ class ExternalCleanTestCase(unittest.TestCase):
 
                 return self.data
 
+        return MessageSchema
+
+    @pytest.fixture
+    def email_schema_cls(self, message_schema_cls):
+
         # Specific email schema that also calls the generic message schema
         # via external_clean
         class EmailSchema(Schema):
@@ -695,15 +700,12 @@ class ExternalCleanTestCase(unittest.TestCase):
 
             def full_clean(self):
                 super(EmailSchema, self).full_clean()
-                self.external_clean(MessageSchema)
+                self.external_clean(message_schema_cls)
 
-        self.MessageSchema = MessageSchema
-        self.EmailSchema = EmailSchema
+        return EmailSchema
 
-    def test_external_clean(self):
-        schema = self.EmailSchema(
-            raw_data={'subject': 'hi', 'status': 'sent'},
-        )
+    def test_external_clean(self, email_schema_cls):
+        schema = email_schema_cls({'subject': 'hi', 'status': 'sent'})
         schema.full_clean()
         assert schema.data == {
             'subject': 'hi',
@@ -711,20 +713,18 @@ class ExternalCleanTestCase(unittest.TestCase):
             'message_cleaned': True,
         }
 
-    def test_orig_data_in_external_clean(self):
+    def test_orig_data_in_external_clean(self, email_schema_cls):
+        """
+        Create a schema for an existing object, which originally had
+        subject='hi' and status='sent' and we're trying to validate an
+        update to subject='hi updated' and status='inbox' (which shouldn't
+        be allowed).
+        """
+        orig_data = {'subject': 'hi', 'status': 'sent'}
+        new_data = {'subject': 'hi updated', 'status': 'inbox'}
+        schema = email_schema_cls(new_data, orig_data)
 
-        # Create a schema for an existing object, which originally had
-        # subject='hi' and status='sent' and we're trying to validate an
-        # update to subject='hi updated' and status='inbox' (which shouldn't
-        # be allowed).
-        schema = self.EmailSchema(
-            raw_data={'subject': 'hi updated', 'status': 'inbox'},
-            data={'subject': 'hi', 'status': 'sent'},
-        )
-
-        with pytest.raises(ValidationError):
-            schema.full_clean()
-
+        pytest.raises(ValidationError, schema.full_clean)
         assert schema.field_errors == {
             'status': "Can't change from sent to inbox"
         }
