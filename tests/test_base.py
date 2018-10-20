@@ -49,6 +49,12 @@ class TestStringField:
             String(required=False).clean(value)
         assert e.value.args[0] == ''
 
+    @pytest.mark.parametrize('value', ['', None])
+    def test_it_falls_back_to_the_default_value(self, value):
+        with pytest.raises(StopValidation) as e:
+            String(required=False, default='default').clean(value)
+        assert e.value.args[0] == 'default'
+
     def test_it_enforces_valid_data_type(self):
         with pytest.raises(ValidationError) as e:
             String().clean(True)
