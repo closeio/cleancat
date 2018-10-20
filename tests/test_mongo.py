@@ -1,9 +1,11 @@
 import pytest
 from bson import ObjectId
-from mongoengine import Document, StringField, connect
+from mongoengine import Document, EmbeddedDocument, StringField, connect
 
 from cleancat import Schema, StopValidation, String, ValidationError
-from cleancat.mongo import MongoEmbeddedReference, MongoReference
+from cleancat.mongo import (
+    MongoEmbedded, MongoEmbeddedReference, MongoReference
+)
 
 
 @pytest.fixture
@@ -17,6 +19,36 @@ def person_cls(mongodb):
         name = StringField()
     Person.drop_collection()
     return Person
+
+
+class TestMongoEmbedded:
+
+    @pytest.fixture
+    def doc_cls(self):
+        class EmbeddedPerson(EmbeddedDocument):
+            name = StringField()
+        return EmbeddedPerson
+
+    @pytest.fixture
+    def schema_cls(self):
+        class EmbeddedPersonSchema(Schema):
+            name = String(min_length=2)
+        return EmbeddedPersonSchema
+
+    def test_it_accepts_valid_input(self, doc_cls, schema_cls):
+        value = {'name': 'Jon'}
+        MongoEmbedded(doc_cls, schema_cls).clean(value) == value
+
+    def test_it_enforces_validation_of_embedded_schema(self, doc_cls,
+                                                       schema_cls):
+        with pytest.raises(ValidationError) as e:
+            MongoEmbedded(doc_cls, schema_cls).clean({'name': 'X'})
+        assert e.value.args[0] == {
+            'errors': [],
+            'field-errors': {
+                'name': 'The value must be at least 2 characters long.'
+            }
+        }
 
 
 class TestMongoReferenceField:
