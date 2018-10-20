@@ -138,6 +138,29 @@ class TestTrimmedStringField:
             )
 
 
+class TestBoolField:
+
+    @pytest.mark.parametrize('value', [True, False])
+    def test_it_accepts_valid_input(self, value):
+        assert Bool().clean(value) == value
+
+    def test_it_enforces_required_flag(self):
+        with pytest.raises(ValidationError) as e:
+            Bool().clean(None)
+        assert unicode(e.value) == 'This field is required.'
+
+    def test_it_enforces_valid_data_type(self):
+        with pytest.raises(ValidationError) as e:
+            Bool().clean('')
+        assert unicode(e.value) == 'Value must be of bool type.'
+
+    def test_it_can_be_optional(self):
+        with pytest.raises(StopValidation) as e:
+            Bool(required=False).clean(None)
+        # TODO should the blank value for a Bool really be False and not None?
+        assert e.value.args[0] is False
+
+
 class FieldTestCase(ValidationTestCase):
     def test_string(self):
         class TextSchema(Schema):
@@ -175,17 +198,8 @@ class FieldTestCase(ValidationTestCase):
         class OptionalFlagSchema(Schema):
             flag = Bool(required=False)
 
-        self.assertValid(FlagSchema({'flag': True}), {'flag': True})
-        self.assertValid(FlagSchema({'flag': False}), {'flag': False})
-        self.assertInvalid(FlagSchema({'flag': None}), {'field-errors': ['flag']})
         self.assertInvalid(FlagSchema({}), {'field-errors': ['flag']})
-        self.assertInvalid(FlagSchema({'flag': ''}), {'field-errors': ['flag']})
-
-        self.assertValid(OptionalFlagSchema({'flag': True}), {'flag': True})
-        self.assertValid(OptionalFlagSchema({'flag': False}), {'flag': False})
-        self.assertValid(OptionalFlagSchema({'flag': None}), {'flag': False})
         self.assertValid(OptionalFlagSchema({}), {'flag': False})
-        self.assertInvalid(OptionalFlagSchema({'flag': ''}), {'field-errors': ['flag']})
 
     def test_regex(self):
         class RegexSchema(Schema):
