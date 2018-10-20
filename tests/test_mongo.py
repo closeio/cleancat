@@ -30,7 +30,7 @@ class TestMongoReferenceField:
         field = MongoReference(person_cls)
         with pytest.raises(ValidationError) as e:
             field.clean(str(ObjectId()))
-        assert unicode(e.value) == 'Object does not exist.'
+        assert e.value.args[0] == 'Object does not exist.'
 
     def test_it_can_be_optional(self, person_cls):
         field = MongoReference(person_cls, required=False)

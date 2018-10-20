@@ -24,7 +24,7 @@ class TestField:
 
         with pytest.raises(ValidationError) as e:
             assert IntOrStrField().clean(4.5)
-        assert unicode(e.value) == 'Value must be of int or str type.'
+        assert e.value.args[0] == 'Value must be of int or str type.'
 
 
 class TestStringField:
@@ -37,7 +37,7 @@ class TestStringField:
     def test_it_enforces_the_required_flag(self, value):
         with pytest.raises(ValidationError) as e:
             String().clean(value)
-        assert unicode(e.value) == 'This field is required.'
+        assert e.value.args[0] == 'This field is required.'
 
     def test_it_accepts_valid_input_if_not_required(self):
         value = 'hello world'
@@ -52,7 +52,11 @@ class TestStringField:
     def test_it_enforces_valid_data_type(self):
         with pytest.raises(ValidationError) as e:
             String().clean(True)
-        assert unicode(e.value) == 'Value must be of basestring type.'
+        assert e.value.args[0] in (
+            # TODO this should be consistent and say the same thing for both.
+            'Value must be of basestring type.',  # Py2
+            'Value must be of str type.',  # Py3
+        )
 
     @pytest.mark.parametrize('value,valid', [
         ('long enough', True),
@@ -65,7 +69,7 @@ class TestStringField:
         else:
             with pytest.raises(ValidationError) as e:
                 field.clean(value)
-            assert unicode(e.value) == (
+            assert e.value.args[0] == (
                 'The value must be at least 10 characters long.'
             )
 
@@ -80,7 +84,7 @@ class TestStringField:
         else:
             with pytest.raises(ValidationError) as e:
                 field.clean(value)
-            assert unicode(e.value) == (
+            assert e.value.args[0] == (
                 'The value must be no longer than 12 characters.'
             )
 
@@ -96,7 +100,7 @@ class TestStringField:
         else:
             with pytest.raises(ValidationError) as e:
                 field.clean(value)
-            assert unicode(e.value) in (
+            assert e.value.args[0] in (
                 'The value must be at least 10 characters long.',
                 'The value must be no longer than 20 characters.',
             )
@@ -120,7 +124,7 @@ class TestTrimmedStringField:
     def test_it_enforces_required_flag(self, value):
         with pytest.raises(ValidationError) as e:
             TrimmedString().clean(value)
-        assert unicode(e.value) == 'This field is required.'
+        assert e.value.args[0] == 'This field is required.'
 
     @pytest.mark.parametrize('value', ['', '   ', '\t\n\r', None])
     def test_it_can_be_optional(self, value):
@@ -131,7 +135,10 @@ class TestTrimmedStringField:
     def test_it_enforces_valid_data_type(self):
         with pytest.raises(ValidationError) as e:
             TrimmedString().clean(True)
-        assert unicode(e.value) == 'Value must be of basestring type.'
+        assert e.value.args[0] in (
+            'Value must be of basestring type.',
+            'Value must be of str type.',
+        )
 
     @pytest.mark.parametrize('value,expected', [
         ('      valid      ', 'valid'),
@@ -145,7 +152,7 @@ class TestTrimmedStringField:
         else:
             with pytest.raises(ValidationError) as e:
                 field.clean(value)
-            assert unicode(e.value) in (
+            assert e.value.args[0] in (
                 'The value must be at least 3 characters long.',
                 'The value must be no longer than 10 characters.',
             )
@@ -161,7 +168,7 @@ class TestChoicesField:
     def test_it_rejects_invalid_choices(self, value):
         with pytest.raises(ValidationError) as e:
             Choices(choices=['Hello', 'World']).clean(value)
-        assert unicode(e.value) == 'Not a valid choice.'
+        assert e.value.args[0] == 'Not a valid choice.'
 
     def test_it_supports_case_insensitiveness(self):
         field = Choices(choices=['Hello', 'WORLD'], case_insensitive=True)
@@ -178,12 +185,12 @@ class TestBoolField:
     def test_it_enforces_required_flag(self):
         with pytest.raises(ValidationError) as e:
             Bool().clean(None)
-        assert unicode(e.value) == 'This field is required.'
+        assert e.value.args[0] == 'This field is required.'
 
     def test_it_enforces_valid_data_type(self):
         with pytest.raises(ValidationError) as e:
             Bool().clean('')
-        assert unicode(e.value) == 'Value must be of bool type.'
+        assert e.value.args[0] == 'Value must be of bool type.'
 
     def test_it_can_be_optional(self):
         with pytest.raises(StopValidation) as e:
@@ -202,7 +209,7 @@ class TestRegexField:
     def test_it_rejects_invalid_input(self, value):
         with pytest.raises(ValidationError) as e:
             Regex('^[a-z]$').clean(value)
-        assert unicode(e.value) == 'Invalid input.'
+        assert e.value.args[0] == 'Invalid input.'
 
     @pytest.mark.parametrize('value', ['A', 'M', 'Z'])
     def test_it_accepts_case_insensitive_input(self, value):
@@ -212,13 +219,13 @@ class TestRegexField:
         err_msg = 'Not a lowercase letter.'
         with pytest.raises(ValidationError) as e:
             Regex('^[a-z]$', regex_message=err_msg).clean('aa')
-        assert unicode(e.value) == err_msg
+        assert e.value.args[0] == err_msg
 
     @pytest.mark.parametrize('value', ['', None])
     def test_it_enforces_required_flag(self, value):
         with pytest.raises(ValidationError) as e:
             Regex('^[a-z]$').clean(value)
-        assert unicode(e.value) == 'This field is required.'
+        assert e.value.args[0] == 'This field is required.'
 
     @pytest.mark.parametrize('value', ['', None])
     def test_it_can_be_optional(self, value):
@@ -229,7 +236,10 @@ class TestRegexField:
     def test_it_enforces_valid_data_type(self):
         with pytest.raises(ValidationError) as e:
             Regex('^[a-z]$').clean(True)
-        assert unicode(e.value) == 'Value must be of basestring type.'
+        assert e.value.args[0] in (
+            'Value must be of basestring type.',
+            'Value must be of str type.',
+        )
 
 
 class TestDateTimeField:
@@ -249,7 +259,11 @@ class TestDateTimeField:
     def test_it_rejects_invalid_year_range(self):
         with pytest.raises(ValidationError) as e:
             DateTime().clean('0000-01-01T00:00:00-08:00')
-        assert unicode(e.value) == 'Could not parse date: year is out of range'
+        assert e.value.args[0] in (
+            # TODO this should be consistent and say the same thing for both.
+            'Could not parse date: year is out of range',  # Py2
+            'Could not parse date: year 0 is out of range',  # Py3
+        )
 
     @pytest.mark.parametrize('value', [
         '2012a', 'alksdjf', '111111111'
@@ -257,13 +271,13 @@ class TestDateTimeField:
     def test_it_rejects_invalid_dates(self, value):
         with pytest.raises(ValidationError) as e:
             DateTime().clean(value)
-        assert unicode(e.value) == 'Invalid ISO 8601 datetime.'
+        assert e.value.args[0] == 'Invalid ISO 8601 datetime.'
 
     @pytest.mark.parametrize('value', ['', None])
     def test_it_enforces_required_flag(self, value):
         with pytest.raises(ValidationError) as e:
             DateTime().clean(value)
-        assert unicode(e.value) == 'This field is required.'
+        assert e.value.args[0] == 'This field is required.'
 
     @pytest.mark.parametrize('value', ['', None])
     def test_it_can_be_optional(self, value):
@@ -274,7 +288,10 @@ class TestDateTimeField:
     def test_it_enforces_valid_data_type(self):
         with pytest.raises(ValidationError) as e:
             DateTime().clean(True)
-        assert unicode(e.value) == 'Value must be of basestring type.'
+        assert e.value.args[0] in (
+            'Value must be of basestring type.',
+            'Value must be of str type.',
+        )
 
 
 class TestEmailField:
@@ -290,7 +307,7 @@ class TestEmailField:
     def test_it_rejects_invalid_email_addresses(self, value):
         with pytest.raises(ValidationError) as e:
             Email().clean(value)
-        assert unicode(e.value) == 'Invalid email address.'
+        assert e.value.args[0] == 'Invalid email address.'
 
     def test_it_autotrims_input(self):
         assert Email().clean('   test@example.com   ') == 'test@example.com'
@@ -309,13 +326,13 @@ class TestEmailField:
             with pytest.raises(ValidationError) as e:
                 field.clean(value)
             err_msg = 'The value must be no longer than 254 characters.'
-            assert unicode(e.value) == err_msg
+            assert e.value.args[0] == err_msg
 
     @pytest.mark.parametrize('value', ['', None])
     def test_it_enforces_required_flag(self, value):
         with pytest.raises(ValidationError) as e:
             Email().clean(value)
-        assert unicode(e.value) == 'This field is required.'
+        assert e.value.args[0] == 'This field is required.'
 
     @pytest.mark.parametrize('value', ['', None])
     def test_it_can_be_optional(self, value):
@@ -326,7 +343,10 @@ class TestEmailField:
     def test_it_enforces_valid_data_type(self):
         with pytest.raises(ValidationError) as e:
             Email().clean(True)
-        assert unicode(e.value) == 'Value must be of basestring type.'
+        assert e.value.args[0] in (
+            'Value must be of basestring type.',
+            'Value must be of str type.',
+        )
 
 
 class TestIntegerField:
@@ -347,7 +367,7 @@ class TestIntegerField:
         else:
             with pytest.raises(ValidationError) as e:
                 field.clean(value)
-            assert unicode(e.value) == 'The value must be at least 0.'
+            assert e.value.args[0] == 'The value must be at least 0.'
 
     @pytest.mark.parametrize('value, valid', [
         (-1, True),
@@ -362,7 +382,7 @@ class TestIntegerField:
         else:
             with pytest.raises(ValidationError) as e:
                 field.clean(value)
-            assert unicode(e.value) == 'The value must not be larger than 100.'
+            assert e.value.args[0] == 'The value must not be larger than 100.'
 
     @pytest.mark.parametrize('value, valid', [
         (-1, False),
@@ -378,7 +398,7 @@ class TestIntegerField:
         else:
             with pytest.raises(ValidationError) as e:
                 field.clean(value)
-            assert unicode(e.value) in (
+            assert e.value.args[0] in (
                 'The value must be at least 0.',
                 'The value must not be larger than 100.',
             )
@@ -386,7 +406,7 @@ class TestIntegerField:
     def test_it_enforces_required_flag(self):
         with pytest.raises(ValidationError) as e:
             Integer().clean(None)
-        assert unicode(e.value) == 'This field is required.'
+        assert e.value.args[0] == 'This field is required.'
 
     def test_it_can_be_optional(self):
         with pytest.raises(StopValidation) as e:
@@ -397,7 +417,7 @@ class TestIntegerField:
     def test_it_enforces_valid_data_type(self, value):
         with pytest.raises(ValidationError) as e:
             Integer().clean(value)
-        assert unicode(e.value) == 'Value must be of int type.'
+        assert e.value.args[0] == 'Value must be of int type.'
 
 
 class TestListField:
@@ -409,12 +429,13 @@ class TestListField:
     def test_it_validates_each_value(self):
         with pytest.raises(ValidationError) as e:
             List(String(max_length=3)).clean(['a', 2, 'c', 'long'])
-        assert e.value.args[0] == {
-            'errors': {
-                1: 'Value must be of basestring type.',
-                3: 'The value must be no longer than 3 characters.',
-            }
-        }
+        assert e.value.args[0]['errors'][1] in (
+            'Value must be of basestring type.',
+            'Value must be of str type.',
+        )
+        assert e.value.args[0]['errors'][3] == (
+            'The value must be no longer than 3 characters.'
+        )
 
     @pytest.mark.parametrize('value, valid', [
         (['a', 'b'], True),
@@ -428,13 +449,13 @@ class TestListField:
         else:
             with pytest.raises(ValidationError) as e:
                 field.clean(value)
-            assert unicode(e.value) == 'List is too long.'
+            assert e.value.args[0] == 'List is too long.'
 
     @pytest.mark.parametrize('value', [None, []])
     def test_it_enforces_required_flag(self, value):
         with pytest.raises(ValidationError) as e:
             List(String()).clean(value)
-        assert unicode(e.value) == 'This field is required.'
+        assert e.value.args[0] == 'This field is required.'
 
     @pytest.mark.parametrize('value', [None, []])
     def test_it_can_be_optional(self, value):
@@ -454,7 +475,7 @@ class TestSortedSetField:
     def test_it_enforces_required_flag(self):
         with pytest.raises(ValidationError) as e:
             SortedSet(String()).clean(None)
-        assert unicode(e.value) == 'This field is required.'
+        assert e.value.args[0] == 'This field is required.'
 
     def test_it_can_be_optional(self):
         with pytest.raises(StopValidation) as e:
@@ -465,7 +486,7 @@ class TestSortedSetField:
     def test_it_enforces_valid_data_type(self, value):
         with pytest.raises(ValidationError) as e:
             SortedSet(String()).clean(value)
-        assert unicode(e.value) == 'Value must be of list type.'
+        assert e.value.args[0] == 'Value must be of list type.'
 
 
 class TestEnumField:
@@ -487,7 +508,7 @@ class TestEnumField:
     def test_it_rejects_invalid_choices(self, enum_cls):
         with pytest.raises(ValidationError) as e:
             Enum(enum_cls).clean('d')
-        assert unicode(e.value) == 'Not a valid choice.'
+        assert e.value.args[0] == 'Not a valid choice.'
 
     def test_it_accepts_a_sublist_of_choices(self, enum_cls):
         field = Enum([enum_cls.A, enum_cls.B])
@@ -495,7 +516,7 @@ class TestEnumField:
         assert field.clean('b') == enum_cls.B
         with pytest.raises(ValidationError) as e:
             field.clean('c')
-        assert unicode(e.value) == 'Not a valid choice.'
+        assert e.value.args[0] == 'Not a valid choice.'
 
 
 class TestURLField:
@@ -535,7 +556,7 @@ class TestURLField:
     def test_it_rejects_invalid_urls(self, value):
         with pytest.raises(ValidationError) as e:
             URL().clean(value)
-        assert unicode(e.value) == 'Invalid URL.'
+        assert e.value.args[0] == 'Invalid URL.'
 
     @pytest.mark.parametrize('value, expected', [
         ('http://example.com/a?b=c', 'http://example.com/a?b=c'),
@@ -563,7 +584,7 @@ class TestURLField:
         else:
             with pytest.raises(ValidationError) as e:
                 field.clean(value)
-            assert unicode(e.value) == (
+            assert e.value.args[0] == (
                 "This URL uses a scheme that's not allowed. You can only "
                 "use https://."
             )
@@ -581,7 +602,7 @@ class TestURLField:
     def test_it_enforces_required_flag(self, value):
         with pytest.raises(ValidationError) as e:
             URL().clean(value)
-        assert unicode(e.value) == 'This field is required.'
+        assert e.value.args[0] == 'This field is required.'
 
     @pytest.mark.parametrize('value', ['', None])
     def test_it_can_be_optional(self, value):
@@ -593,7 +614,10 @@ class TestURLField:
     def test_it_enforces_valid_data_type(self, value):
         with pytest.raises(ValidationError) as e:
             URL().clean(value)
-        assert unicode(e.value) == 'Value must be of basestring type.'
+        assert e.value.args[0] in (
+            'Value must be of basestring type.',
+            'Value must be of str type.',
+        )
 
 
 class TestRelaxedURLField:
@@ -624,13 +648,16 @@ class TestRelaxedURLField:
         else:
             with pytest.raises(ValidationError) as e:
                 field.clean(value)
-            assert unicode(e.value) == 'Invalid URL.'
+            assert e.value.args[0] == 'Invalid URL.'
 
     @pytest.mark.parametrize('value', [23.0, True])
     def test_it_enforces_valid_data_type(self, value):
         with pytest.raises(ValidationError) as e:
             RelaxedURL().clean(value)
-        assert unicode(e.value) == 'Value must be of basestring type.'
+        assert e.value.args[0] in (
+            'Value must be of basestring type.',
+            'Value must be of str type.',
+        )
 
 
 class TestEmbeddedField:
@@ -660,7 +687,7 @@ class TestEmbeddedField:
     def test_it_enforces_required_flag(self, value, schema_cls):
         with pytest.raises(ValidationError) as e:
             Embedded(schema_cls).clean(value)
-        assert unicode(e.value) == 'This field is required.'
+        assert e.value.args[0] == 'This field is required.'
 
 
 class TestSchemaExternalClean:
