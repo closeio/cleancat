@@ -12,7 +12,6 @@ from cleancat import (
     List, Regex, RelaxedURL, Schema, SortedSet, StopValidation, String,
     TrimmedString, URL, ValidationError
 )
-from cleancat.utils import ValidationTestCase
 
 
 class TestField:
@@ -635,45 +634,39 @@ class TestRelaxedURLField:
         assert unicode(e.value) == 'Value must be of basestring type.'
 
 
+class TestEmbeddedField:
+
+    @pytest.fixture
+    def schema_cls(self):
+        class UserSchema(Schema):
+            email = Email()
+        return UserSchema
+
+    def test_it_accepts_valid_input(self, schema_cls):
+        value = {'email': 'valid@example.com'}
+        assert Embedded(schema_cls).clean(value) == value
+
+    def test_it_performs_validation_of_embedded_schema(self, schema_cls):
+        value = {'email': 'invalid'}
+        with pytest.raises(ValidationError) as e:
+            Embedded(schema_cls).clean(value)
+        assert e.value.args[0] == {
+            'errors': [],
+            'field-errors': {
+                'email': 'Invalid email address.'
+            }
+        }
+
+    @pytest.mark.parametrize('value', [{}, None])
+    def test_it_enforces_required_flag(self, value, schema_cls):
+        with pytest.raises(ValidationError) as e:
+            Embedded(schema_cls).clean(value)
+        assert unicode(e.value) == 'This field is required.'
+
+
 # TODO for schema-level tests: test empty dict
 # TODO for schema-level tests: test blank values beyond StopValidation
 # TODO for schema-level tests: test no new data and orig_data keeps old values
-
-
-class FieldTestCase(ValidationTestCase):
-    def test_embedded(self):
-        class UserSchema(Schema):
-            email = Email()
-
-        class MemberSchema(Schema):
-            user = Embedded(UserSchema)
-
-        self.assertValid(MemberSchema({
-            'user': {'email': 'a@example.com'}
-        }), {
-            'user': {'email': 'a@example.com'}
-        })
-
-        self.assertInvalid(MemberSchema({
-            'user': {'email': 'invalid'}
-        }), error_obj={
-            'field-errors': {
-                'user': {
-                    'errors': [],
-                    'field-errors': {
-                        'email': 'Invalid email address.'
-                    }
-                }
-            }
-        })
-
-        self.assertInvalid(MemberSchema({
-            'user': {}
-        }), error_obj={
-            'field-errors': {
-                'user': 'This field is required.'
-            }
-        })
 
 
 class ExternalCleanTestCase(unittest.TestCase):
