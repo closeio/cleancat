@@ -369,35 +369,55 @@ class TestIntegerField:
             Integer().clean(value)
         assert unicode(e.value) == 'Value must be of int type.'
 
+
+class TestListField:
+
+    def test_it_accepts_a_list_of_values(self):
+        values = ['a', 'b', 'c']
+        assert List(String()).clean(values) == values
+
+    def test_it_validates_each_value(self):
+        with pytest.raises(ValidationError) as e:
+            List(String(max_length=3)).clean(['a', 2, 'c', 'long'])
+        assert e.value.args[0] == {
+            'errors': {
+                1: 'Value must be of basestring type.',
+                3: 'The value must be no longer than 3 characters.',
+            }
+        }
+
+    @pytest.mark.parametrize('value, valid', [
+        (['a', 'b'], True),
+        (['a', 'b', 'c'], True),
+        (['a', 'b', 'c', 'd'], False),
+    ])
+    def test_it_enforces_max_length(self, value, valid):
+        field = List(String(), max_length=3)
+        if valid:
+            assert field.clean(value) == value
+        else:
+            with pytest.raises(ValidationError) as e:
+                field.clean(value)
+            assert unicode(e.value) == 'List is too long.'
+
+    @pytest.mark.parametrize('value', [None, []])
+    def test_it_enforces_required_flag(self, value):
+        with pytest.raises(ValidationError) as e:
+            List(String()).clean(value)
+        assert unicode(e.value) == 'This field is required.'
+
+    @pytest.mark.parametrize('value', [None, []])
+    def test_it_can_be_optional(self, value):
+        with pytest.raises(StopValidation) as e:
+            List(String(), required=False).clean(value)
+        assert e.value.args[0] == []
+
+
 # TODO for schema-level tests: test empty dict
 # TODO for schema-level tests: test blank values beyond StopValidation
 
 
 class FieldTestCase(ValidationTestCase):
-
-    def test_list(self):
-        class TagsSchema(Schema):
-            tags = List(String())
-
-        class OptionalTagsSchema(Schema):
-            tags = List(String(), required=False)
-
-        class SmallTagsSchema(Schema):
-            tags = List(String(), max_length=2)
-
-        self.assertValid(TagsSchema({'tags': ['python', 'ruby']}), {'tags': ['python', 'ruby']})
-        self.assertInvalid(TagsSchema({'tags': []}), {'field-errors': ['tags']})
-        self.assertInvalid(TagsSchema({'tags': None}), {'field-errors': ['tags']})
-        self.assertInvalid(TagsSchema({}), {'field-errors': ['tags']})
-
-        self.assertValid(OptionalTagsSchema({'tags': ['python', 'ruby']}), {'tags': ['python', 'ruby']})
-        self.assertValid(OptionalTagsSchema({'tags': []}), {'tags': []})
-        self.assertValid(OptionalTagsSchema({'tags': None}), {'tags': []})
-        self.assertValid(OptionalTagsSchema({}), {'tags': []})
-
-        self.assertValid(SmallTagsSchema({'tags': ['python', 'ruby']}), {'tags': ['python', 'ruby']})
-        self.assertInvalid(SmallTagsSchema({'tags': []}), {'field-errors': ['tags']})
-        self.assertInvalid(SmallTagsSchema({'tags': ['python', 'ruby', 'go']}), {'field-errors': ['tags']})
 
     def test_sorted_set(self):
         class TagsSchema(Schema):
