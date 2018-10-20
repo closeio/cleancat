@@ -153,6 +153,24 @@ class TestTrimmedStringField:
             )
 
 
+class TestChoicesField:
+
+    @pytest.mark.parametrize('value', ['Hello', 'World'])
+    def test_it_accepts_valid_choices(self, value):
+        assert Choices(choices=['Hello', 'World']).clean(value) == value
+
+    @pytest.mark.parametrize('value', ['hello', 'Invalid'])
+    def test_it_rejects_invalid_choices(self, value):
+        with pytest.raises(ValidationError) as e:
+            Choices(choices=['Hello', 'World']).clean(value)
+        assert unicode(e.value) == 'Not a valid choice.'
+
+    def test_it_supports_case_insensitiveness(self):
+        field = Choices(choices=['Hello', 'WORLD'], case_insensitive=True)
+        assert field.clean('HeLlO') == 'Hello'
+        assert field.clean('woRlD') == 'WORLD'
+
+
 class TestBoolField:
 
     @pytest.mark.parametrize('value', [True, False])
@@ -458,23 +476,6 @@ class TestSortedSetField:
 
 
 class FieldTestCase(ValidationTestCase):
-
-    def test_choice(self):
-        class ChoiceSchema(Schema):
-            choice = Choices(choices=['Hello', 'world'])
-
-        self.assertValid(ChoiceSchema({'choice': 'Hello'}), {'choice': 'Hello'})
-        self.assertInvalid(ChoiceSchema({'choice': 'World'}), {'field-errors': ['choice']})
-        self.assertInvalid(ChoiceSchema({'choice': 'invalid'}), {'field-errors': ['choice']})
-
-        class CaseInsensitiveChoiceSchema(Schema):
-            choice = Choices(choices=['Hello', 'world'], case_insensitive=True)
-
-        self.assertValid(CaseInsensitiveChoiceSchema({'choice': 'Hello'}), {'choice': 'Hello'})
-        self.assertValid(CaseInsensitiveChoiceSchema({'choice': 'hello'}), {'choice': 'Hello'})
-        self.assertValid(CaseInsensitiveChoiceSchema({'choice': 'wOrLd'}), {'choice': 'world'})
-        self.assertInvalid(CaseInsensitiveChoiceSchema({'choice': 'world '}), {'field-errors': ['choice']})
-        self.assertInvalid(CaseInsensitiveChoiceSchema({'choice': 'invalid'}), {'field-errors': ['choice']})
 
     def test_enum(self):
         class MyChoices(enum.Enum):
