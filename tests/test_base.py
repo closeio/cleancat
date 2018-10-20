@@ -5,6 +5,7 @@ import re
 import unittest
 
 import pytest
+from pytz import utc
 
 from cleancat import (
     Bool, Choices, DateTime, Dict, Email, Embedded, Enum, Field, Integer,
@@ -201,51 +202,56 @@ class TestRegexField:
         assert unicode(e.value) == 'Value must be of basestring type.'
 
 
+class TestDateTimeField:
+
+    def test_it_accepts_date_string(self):
+        assert DateTime().clean('2012-10-09') == datetime.date(2012, 10, 9)
+
+    def test_it_accepts_datetime_string(self):
+        expected = datetime.datetime(2012, 10, 9, 13, 10, 4)
+        assert DateTime().clean('2012-10-09 13:10:04') == expected
+
+    def test_it_supports_tzinfo(self):
+        raw = '2013-03-27T01:02:01.137000+00:00'
+        expected = datetime.datetime(2013, 3, 27, 1, 2, 1, 137000, tzinfo=utc)
+        assert DateTime().clean(raw) == expected
+
+    def test_it_rejects_invalid_year_range(self):
+        with pytest.raises(ValidationError) as e:
+            DateTime().clean('0000-01-01T00:00:00-08:00')
+        assert unicode(e.value) == 'Could not parse date: year is out of range'
+
+    @pytest.mark.parametrize('value', [
+        '2012a', 'alksdjf', '111111111'
+    ])
+    def test_it_rejects_invalid_dates(self, value):
+        with pytest.raises(ValidationError) as e:
+            DateTime().clean(value)
+        assert unicode(e.value) == 'Invalid ISO 8601 datetime.'
+
+    @pytest.mark.parametrize('value', ['', None])
+    def test_it_enforces_required_flag(self, value):
+        with pytest.raises(ValidationError) as e:
+            DateTime().clean(value)
+        assert unicode(e.value) == 'This field is required.'
+
+    @pytest.mark.parametrize('value', ['', None])
+    def test_it_can_be_optional(self, value):
+        with pytest.raises(StopValidation) as e:
+            DateTime(required=False).clean(value)
+        assert e.value.args[0] is None
+
+    def test_it_enforces_valid_data_type(self):
+        with pytest.raises(ValidationError) as e:
+            DateTime().clean(True)
+        assert unicode(e.value) == 'Value must be of basestring type.'
+
+
 # TODO for schema-level tests: test empty dict
 # TODO for schema-level tests: test blank values beyond StopValidation
 
 
 class FieldTestCase(ValidationTestCase):
-
-    def test_datetime(self):
-        class DateTimeSchema(Schema):
-            dt = DateTime()
-
-        from pytz import utc
-
-        self.assertValid(
-            DateTimeSchema({'dt': '2012-10-09'}),
-            {'dt': datetime.date(2012, 10, 9)}
-        )
-        self.assertValid(
-            DateTimeSchema({'dt': '2012-10-09 13:10:04'}),
-            {'dt': datetime.datetime(2012, 10, 9, 13, 10, 4)}
-        )
-        self.assertValid(
-            DateTimeSchema({'dt': '2013-03-27T01:24:50.137000+00:00'}),
-            {'dt': datetime.datetime(2013, 3, 27, 1, 24, 50, 137000, tzinfo=utc)}
-        )
-        self.assertInvalid(
-            DateTimeSchema({'dt': '0000-01-01T00:00:00-08:00'}),
-            {'field-errors': ['dt']}
-        )
-        self.assertInvalid(
-            DateTimeSchema({'dt': '2012a'}),
-            {'field-errors': ['dt']}
-        )
-        self.assertInvalid(
-            DateTimeSchema({'dt': ''}),
-            {'field-errors': ['dt']}
-        )
-        self.assertInvalid(
-            DateTimeSchema({'dt': None}),
-            {'field-errors': ['dt']}
-        )
-
-        class OptionalDateTimeSchema(Schema):
-            dt = DateTime(required=False)
-
-        self.assertValid(OptionalDateTimeSchema({'dt': ''}), {'dt': None})
 
     def test_email(self):
         class EmailSchema(Schema):
