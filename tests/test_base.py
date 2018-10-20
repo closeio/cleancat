@@ -500,115 +500,147 @@ class TestEnumField:
         assert unicode(e.value) == 'Not a valid choice.'
 
 
+class TestURLField:
+
+    @pytest.mark.parametrize('value', [
+        'http://x.com',
+        u'http://♡.com',
+        'http://example.com/a?b=c',
+        'ftp://ftp.example.com',
+        'http://example.com?params=without&path',
+
+        # Russian unicode URL (IDN, unicode path and query params)
+        u'http://пример.com',
+        u'http://пример.рф',
+        u'http://пример.рф/путь/?параметр=значение',
+
+        # Punicode stuff
+        u'http://test.XN--11B4C3D',
+
+        # http://stackoverflow.com/questions/9238640/how-long-can-a-tld-possibly-be
+        # Longest to date (Feb 2017) TLD in punicode format is 24 chars long
+        u'http://test.xn--vermgensberatung-pwb',
+    ])
+    def test_in_accepts_valid_urls(self, value):
+        assert URL().clean(value) == value
+
+    @pytest.mark.parametrize('value', [
+        'www.example.com',
+        'http:// invalid.com',
+        'http://!nvalid.com',
+        'http://.com',
+        'http://',
+        'http://.',
+        'invalid',
+        u'http://ＧＯＯＧＬＥ.com',  # full-width chars are disallowed
+    ])
+    def test_it_rejects_invalid_urls(self, value):
+        with pytest.raises(ValidationError) as e:
+            URL().clean(value)
+        assert unicode(e.value) == 'Invalid URL.'
+
+    @pytest.mark.parametrize('value, expected', [
+        ('http://example.com/a?b=c', 'http://example.com/a?b=c'),
+        ('ftp://ftp.example.com', 'ftp://ftp.example.com'),
+        ('www.example.com', 'http://www.example.com'),
+        ('invalid', None),
+        (True, None),
+    ])
+    def test_it_supports_a_default_scheme(self, value, expected):
+        field = URL(default_scheme='http://')
+        if expected:
+            assert field.clean(value) == expected
+        else:
+            pytest.raises(ValidationError, field.clean, value)
+
+    @pytest.mark.parametrize('value, expected', [
+        ('https://example.com/', 'https://example.com/'),
+        ('example.com/', 'https://example.com/'),
+        ('http://example.com', None),
+    ])
+    def test_it_enforces_allowed_schemes(self, value, expected):
+        field = URL(default_scheme='https://', allowed_schemes=['https://'])
+        if expected:
+            assert field.clean(value) == expected
+        else:
+            with pytest.raises(ValidationError) as e:
+                field.clean(value)
+            assert unicode(e.value) == (
+                "This URL uses a scheme that's not allowed. You can only "
+                "use https://."
+            )
+
+    @pytest.mark.parametrize('value, expected', [
+        ('https://example.com/', 'https://example.com/'),
+        ('example.com/', 'https://example.com/'),
+        ('ftps://storage.example.com', 'ftps://storage.example.com'),
+    ])
+    def test_it_supports_simpler_allowed_scheme_values(self, value, expected):
+        field = URL(default_scheme='https', allowed_schemes=['https', 'ftps'])
+        assert field.clean(value) == expected
+
+    @pytest.mark.parametrize('value', ['', None])
+    def test_it_enforces_required_flag(self, value):
+        with pytest.raises(ValidationError) as e:
+            URL().clean(value)
+        assert unicode(e.value) == 'This field is required.'
+
+    @pytest.mark.parametrize('value', ['', None])
+    def test_it_can_be_optional(self, value):
+        with pytest.raises(StopValidation) as e:
+            URL(required=False).clean(value)
+        assert e.value.args[0] is None
+
+    @pytest.mark.parametrize('value', [23.0, True])
+    def test_it_enforces_valid_data_type(self, value):
+        with pytest.raises(ValidationError) as e:
+            URL().clean(value)
+        assert unicode(e.value) == 'Value must be of basestring type.'
+
+
+class TestRelaxedURLField:
+
+    @pytest.mark.parametrize('value', [
+        'http://example.com/a?b=c',
+        'ftp://ftp.example.com',
+        u'http://пример.рф',
+    ])
+    def test_it_accepts_valid_urls(self, value):
+        RelaxedURL().clean(value) == value
+
+    @pytest.mark.parametrize('value, is_required, valid', [
+        ('http://', True, False),
+        ('http://', False, True),
+
+        ('ftp://', True, False),
+        ('ftp://', False, True),
+
+        ('invalid', True, False),
+        ('invalid', False, False),
+    ])
+    def test_it_accepts_scheme_only_urls_if_not_required(self, value,
+                                                         is_required, valid):
+        field = RelaxedURL(default_scheme=value, required=is_required)
+        if valid:
+            assert field.clean(value) is None
+        else:
+            with pytest.raises(ValidationError) as e:
+                field.clean(value)
+            assert unicode(e.value) == 'Invalid URL.'
+
+    @pytest.mark.parametrize('value', [23.0, True])
+    def test_it_enforces_valid_data_type(self, value):
+        with pytest.raises(ValidationError) as e:
+            RelaxedURL().clean(value)
+        assert unicode(e.value) == 'Value must be of basestring type.'
+
+
 # TODO for schema-level tests: test empty dict
 # TODO for schema-level tests: test blank values beyond StopValidation
 # TODO for schema-level tests: test no new data and orig_data keeps old values
 
 
 class FieldTestCase(ValidationTestCase):
-
-    def test_url(self):
-        class URLSchema(Schema):
-            url = URL()
-
-        self.assertValid(URLSchema({'url': 'http://x.com'}), {'url': 'http://x.com'})
-        self.assertValid(URLSchema({'url': u'http://♡.com'}), {'url': u'http://♡.com'})
-        self.assertValid(URLSchema({'url': 'http://example.com/a?b=c'}), {'url': 'http://example.com/a?b=c'})
-        self.assertValid(URLSchema({'url': 'ftp://ftp.example.com'}), {'url': 'ftp://ftp.example.com'})
-        self.assertValid(URLSchema({'url': 'http://example.com?params=without&path'}), {'url': 'http://example.com?params=without&path'})
-        self.assertInvalid(URLSchema({'url': 'www.example.com'}), {'field-errors': ['url']})
-        self.assertInvalid(URLSchema({'url': 'http:// invalid.com'}), {'field-errors': ['url']})
-        self.assertInvalid(URLSchema({'url': 'http://!nvalid.com'}), {'field-errors': ['url']})
-        self.assertInvalid(URLSchema({'url': 'http://.com'}), {'field-errors': ['url']})
-        self.assertInvalid(URLSchema({'url': 'http://'}), {'field-errors': ['url']})
-        self.assertInvalid(URLSchema({'url': 'http://.'}), {'field-errors': ['url']})
-        self.assertInvalid(URLSchema({'url': 'invalid'}), {'field-errors': ['url']})
-
-        # full-width chars disallowed
-        self.assertInvalid(URLSchema({'url': u'http://ＧＯＯＧＬＥ.com'}), {'field-errors': ['url']})
-
-        # Russian unicode URL (IDN, unicode path and query params)
-        self.assertValid(URLSchema({'url': u'http://пример.com'}), {'url': u'http://пример.com'})
-        self.assertValid(URLSchema({'url': u'http://пример.рф'}), {'url': u'http://пример.рф'})
-        self.assertValid(URLSchema({'url': u'http://пример.рф/путь/?параметр=значение'}), {'url': u'http://пример.рф/путь/?параметр=значение'})
-
-        # Punicode stuff
-        self.assertValid(URLSchema({'url': u'http://test.XN--11B4C3D'}), {'url': u'http://test.XN--11B4C3D'})
-
-        # http://stackoverflow.com/questions/9238640/how-long-can-a-tld-possibly-be
-        # Longest to date (Feb 2017) TLD in punicode format is 24 chars long
-        self.assertValid(URLSchema({'url': u'http://test.xn--vermgensberatung-pwb'}), {'url': u'http://test.xn--vermgensberatung-pwb'})
-
-    def test_url_required_flag(self):
-        class URLSchema(Schema):
-            url = URL()
-
-        for value in (None, ''):
-            schema = URLSchema({'url': value})
-            self.assertInvalid(schema, {'field-errors': ['url']})
-            assert schema.field_errors['url'] == 'This field is required.'
-
-    def test_url_bad_data_type(self):
-        class URLSchema(Schema):
-            url = URL()
-
-        schema = URLSchema({'url': 23.0})
-        self.assertInvalid(schema, {'field-errors': ['url']})
-        assert schema.field_errors['url'] == 'Value must be of basestring type.'
-
-    def test_url_with_default_schema(self):
-        class DefaultURLSchema(Schema):
-            url = URL(default_scheme='http://')
-
-        self.assertValid(DefaultURLSchema({'url': 'http://example.com/a?b=c'}), {'url': 'http://example.com/a?b=c'})
-        self.assertValid(DefaultURLSchema({'url': 'ftp://ftp.example.com'}), {'url': 'ftp://ftp.example.com'})
-        self.assertValid(DefaultURLSchema({'url': 'www.example.com'}), {'url': 'http://www.example.com'})
-        self.assertInvalid(DefaultURLSchema({'url': 'invalid'}), {'field-errors': ['url']})
-        self.assertInvalid(DefaultURLSchema({'url': True}), {'field-errors': ['url']})
-
-    def test_relaxed_url(self):
-        class RelaxedURLSchema(Schema):
-            url = RelaxedURL(default_scheme='http://')
-
-        self.assertValid(RelaxedURLSchema({'url': 'http://example.com/a?b=c'}), {'url': 'http://example.com/a?b=c'})
-        self.assertValid(RelaxedURLSchema({'url': 'ftp://ftp.example.com'}), {'url': 'ftp://ftp.example.com'})
-        self.assertValid(RelaxedURLSchema({'url': 'www.example.com'}), {'url': 'http://www.example.com'})
-        self.assertValid(RelaxedURLSchema({'url': u'http://пример.рф'}), {'url': u'http://пример.рф'})
-        self.assertInvalid(RelaxedURLSchema({'url': 'http:// invalid.com'}), {'field-errors': ['url']})
-        self.assertInvalid(RelaxedURLSchema({'url': 'http://!nvalid.com'}), {'field-errors': ['url']})
-        self.assertInvalid(RelaxedURLSchema({'url': 'http://'}), {'field-errors': ['url']})
-        self.assertInvalid(RelaxedURLSchema({'url': 'invalid'}), {'field-errors': ['url']})
-        self.assertInvalid(RelaxedURLSchema({'url': True}), {'field-errors': ['url']})
-
-    def test_optional_relaxed_url(self):
-        class OptionalRelaxedURLSchema(Schema):
-            url = RelaxedURL(required=False, default_scheme='http://')
-
-        self.assertValid(OptionalRelaxedURLSchema({'url': 'http://example.com/a?b=c'}), {'url': 'http://example.com/a?b=c'})
-        self.assertValid(OptionalRelaxedURLSchema({'url': 'ftp://ftp.example.com'}), {'url': 'ftp://ftp.example.com'})
-        self.assertValid(OptionalRelaxedURLSchema({'url': 'www.example.com'}), {'url': 'http://www.example.com'})
-        self.assertValid(OptionalRelaxedURLSchema({'url': 'http://'}), {'url': None})
-        self.assertInvalid(OptionalRelaxedURLSchema({'url': 'invalid'}), {'field-errors': ['url']})
-        self.assertInvalid(OptionalRelaxedURLSchema({'url': True}), {'field-errors': ['url']})
-
-    def test_url_with_allowed_schemes(self):
-        class OnlyHTTPSURLSchema(Schema):
-            url = URL(default_scheme='https://', allowed_schemes=['https://'])
-
-        self.assertValid(OnlyHTTPSURLSchema({'url': 'https://example.com/'}), {'url': 'https://example.com/'})
-        self.assertValid(OnlyHTTPSURLSchema({'url': 'example.com/'}), {'url': 'https://example.com/'})
-        self.assertInvalid(OnlyHTTPSURLSchema({'url': 'http://example.com'}), {'field-errors': ['url']})
-        self.assertInvalid(OnlyHTTPSURLSchema({'url': True}), {'field-errors': ['url']})
-
-        class ShortSchemeURLSchema(Schema):
-            url = URL(default_scheme='https', allowed_schemes=['https', 'ftps'])
-
-        self.assertValid(ShortSchemeURLSchema({'url': 'https://example.com/'}), {'url': 'https://example.com/'})
-        self.assertValid(ShortSchemeURLSchema({'url': 'example.com/'}), {'url': 'https://example.com/'})
-        self.assertValid(ShortSchemeURLSchema({'url': 'ftps://storage.example.com/'}), {'url': 'ftps://storage.example.com/'})
-        self.assertInvalid(ShortSchemeURLSchema({'url': 'http://example.com'}), {'field-errors': ['url']})
-        self.assertInvalid(ShortSchemeURLSchema({'url': True}), {'field-errors': ['url']})
-
     def test_embedded(self):
         class UserSchema(Schema):
             email = Email()
