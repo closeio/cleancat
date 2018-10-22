@@ -49,9 +49,9 @@ class TestSQLAReferenceField:
         assert clean_val.id == steve.id
 
     def test_updating_missing_instance_fails(self):
-        with pytest.raises(ValidationError) as e:
+        expected_err_msg = 'Object does not exist.'
+        with pytest.raises(ValidationError, match=expected_err_msg):
             SQLAReference(Person).clean('id-that-does-not-exist')
-        assert e.value.args[0] == 'Object does not exist.'
 
     def test_it_can_be_optional(self):
         field = SQLAReference(Person, required=False)

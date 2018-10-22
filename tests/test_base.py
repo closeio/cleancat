@@ -22,9 +22,9 @@ class TestField:
         assert IntOrStrField().clean(5) == 5
         assert IntOrStrField().clean('five') == 'five'
 
-        with pytest.raises(ValidationError) as e:
+        expected_err_msg = 'Value must be of int or str type.'
+        with pytest.raises(ValidationError, match=expected_err_msg):
             assert IntOrStrField().clean(4.5)
-        assert e.value.args[0] == 'Value must be of int or str type.'
 
 
 class TestStringField:
@@ -35,9 +35,9 @@ class TestStringField:
 
     @pytest.mark.parametrize('value', ['', None])
     def test_it_enforces_the_required_flag(self, value):
-        with pytest.raises(ValidationError) as e:
+        expected_err_msg = 'This field is required.'
+        with pytest.raises(ValidationError, match=expected_err_msg):
             String().clean(value)
-        assert e.value.args[0] == 'This field is required.'
 
     def test_it_accepts_valid_input_if_not_required(self):
         value = 'hello world'
@@ -56,13 +56,10 @@ class TestStringField:
         assert e.value.args[0] == 'default'
 
     def test_it_enforces_valid_data_type(self):
-        with pytest.raises(ValidationError) as e:
+        # TODO make this consistent between Py2 & Py3
+        expected_err_msg = 'Value must be of (str|basestring) type.'
+        with pytest.raises(ValidationError, match=expected_err_msg):
             String().clean(True)
-        assert e.value.args[0] in (
-            # TODO this should be consistent and say the same thing for both.
-            'Value must be of basestring type.',  # Py2
-            'Value must be of str type.',  # Py3
-        )
 
     @pytest.mark.parametrize('value,valid', [
         ('long enough', True),
@@ -73,11 +70,9 @@ class TestStringField:
         if valid:
             assert field.clean(value) == value
         else:
-            with pytest.raises(ValidationError) as e:
+            err_msg = 'The value must be at least 10 characters long.'
+            with pytest.raises(ValidationError, match=err_msg):
                 field.clean(value)
-            assert e.value.args[0] == (
-                'The value must be at least 10 characters long.'
-            )
 
     @pytest.mark.parametrize('value,valid', [
         ('short is ok', True),
@@ -88,11 +83,9 @@ class TestStringField:
         if valid:
             assert field.clean(value) == value
         else:
-            with pytest.raises(ValidationError) as e:
+            err_msg = 'The value must be no longer than 12 characters.'
+            with pytest.raises(ValidationError, match=err_msg):
                 field.clean(value)
-            assert e.value.args[0] == (
-                'The value must be no longer than 12 characters.'
-            )
 
     @pytest.mark.parametrize('value,valid', [
         ('right in the middle', True),
@@ -128,9 +121,9 @@ class TestTrimmedStringField:
 
     @pytest.mark.parametrize('value', ['', '   ', '\t\n\r', None])
     def test_it_enforces_required_flag(self, value):
-        with pytest.raises(ValidationError) as e:
+        expected_err_msg = 'This field is required.'
+        with pytest.raises(ValidationError, match=expected_err_msg):
             TrimmedString().clean(value)
-        assert e.value.args[0] == 'This field is required.'
 
     @pytest.mark.parametrize('value', ['', '   ', '\t\n\r', None])
     def test_it_can_be_optional(self, value):
@@ -139,12 +132,10 @@ class TestTrimmedStringField:
         assert e.value.args[0] == ''
 
     def test_it_enforces_valid_data_type(self):
-        with pytest.raises(ValidationError) as e:
+        # TODO make this consistent between Py2 & Py3
+        expected_err_msg = 'Value must be of (str|basestring) type.'
+        with pytest.raises(ValidationError, match=expected_err_msg):
             TrimmedString().clean(True)
-        assert e.value.args[0] in (
-            'Value must be of basestring type.',
-            'Value must be of str type.',
-        )
 
     @pytest.mark.parametrize('value,expected', [
         ('      valid      ', 'valid'),
@@ -172,9 +163,9 @@ class TestChoicesField:
 
     @pytest.mark.parametrize('value', ['hello', 'Invalid'])
     def test_it_rejects_invalid_choices(self, value):
-        with pytest.raises(ValidationError) as e:
+        expected_err_msg = 'Not a valid choice.'
+        with pytest.raises(ValidationError, match=expected_err_msg):
             Choices(choices=['Hello', 'World']).clean(value)
-        assert e.value.args[0] == 'Not a valid choice.'
 
     def test_it_supports_case_insensitiveness(self):
         field = Choices(choices=['Hello', 'WORLD'], case_insensitive=True)
@@ -189,14 +180,14 @@ class TestBoolField:
         assert Bool().clean(value) == value
 
     def test_it_enforces_required_flag(self):
-        with pytest.raises(ValidationError) as e:
+        expected_err_msg = 'This field is required.'
+        with pytest.raises(ValidationError, match=expected_err_msg):
             Bool().clean(None)
-        assert e.value.args[0] == 'This field is required.'
 
     def test_it_enforces_valid_data_type(self):
-        with pytest.raises(ValidationError) as e:
+        expected_err_msg = 'Value must be of bool type.'
+        with pytest.raises(ValidationError, match=expected_err_msg):
             Bool().clean('')
-        assert e.value.args[0] == 'Value must be of bool type.'
 
     def test_it_can_be_optional(self):
         with pytest.raises(StopValidation) as e:
@@ -213,9 +204,9 @@ class TestRegexField:
 
     @pytest.mark.parametrize('value', ['A', 'M', 'Z', 'aa', 'mm', 'zz'])
     def test_it_rejects_invalid_input(self, value):
-        with pytest.raises(ValidationError) as e:
+        expected_err_msg = 'Invalid input.'
+        with pytest.raises(ValidationError, match=expected_err_msg):
             Regex('^[a-z]$').clean(value)
-        assert e.value.args[0] == 'Invalid input.'
 
     @pytest.mark.parametrize('value', ['A', 'M', 'Z'])
     def test_it_accepts_case_insensitive_input(self, value):
@@ -223,15 +214,14 @@ class TestRegexField:
 
     def test_it_supports_custom_error_messaging(self):
         err_msg = 'Not a lowercase letter.'
-        with pytest.raises(ValidationError) as e:
+        with pytest.raises(ValidationError, match=err_msg):
             Regex('^[a-z]$', regex_message=err_msg).clean('aa')
-        assert e.value.args[0] == err_msg
 
     @pytest.mark.parametrize('value', ['', None])
     def test_it_enforces_required_flag(self, value):
-        with pytest.raises(ValidationError) as e:
+        expected_err_msg = 'This field is required.'
+        with pytest.raises(ValidationError, match=expected_err_msg):
             Regex('^[a-z]$').clean(value)
-        assert e.value.args[0] == 'This field is required.'
 
     @pytest.mark.parametrize('value', ['', None])
     def test_it_can_be_optional(self, value):
@@ -240,12 +230,10 @@ class TestRegexField:
         assert e.value.args[0] == ''
 
     def test_it_enforces_valid_data_type(self):
-        with pytest.raises(ValidationError) as e:
+        # TODO make this consistent between Py2 & Py3
+        expected_err_msg = 'Value must be of (str|basestring) type.'
+        with pytest.raises(ValidationError, match=expected_err_msg):
             Regex('^[a-z]$').clean(True)
-        assert e.value.args[0] in (
-            'Value must be of basestring type.',
-            'Value must be of str type.',
-        )
 
 
 class TestDateTimeField:
@@ -266,7 +254,7 @@ class TestDateTimeField:
         with pytest.raises(ValidationError) as e:
             DateTime().clean('0000-01-01T00:00:00-08:00')
         assert e.value.args[0] in (
-            # TODO this should be consistent and say the same thing for both.
+            # TODO make this consistent between Py2 & Py3
             'Could not parse date: year is out of range',  # Py2
             'Could not parse date: year 0 is out of range',  # Py3
         )
@@ -275,15 +263,15 @@ class TestDateTimeField:
         '2012a', 'alksdjf', '111111111'
     ])
     def test_it_rejects_invalid_dates(self, value):
-        with pytest.raises(ValidationError) as e:
+        expected_err_msg = 'Invalid ISO 8601 datetime.'
+        with pytest.raises(ValidationError, match=expected_err_msg):
             DateTime().clean(value)
-        assert e.value.args[0] == 'Invalid ISO 8601 datetime.'
 
     @pytest.mark.parametrize('value', ['', None])
     def test_it_enforces_required_flag(self, value):
-        with pytest.raises(ValidationError) as e:
+        expected_err_msg = 'This field is required.'
+        with pytest.raises(ValidationError, match=expected_err_msg):
             DateTime().clean(value)
-        assert e.value.args[0] == 'This field is required.'
 
     @pytest.mark.parametrize('value', ['', None])
     def test_it_can_be_optional(self, value):
@@ -292,12 +280,10 @@ class TestDateTimeField:
         assert e.value.args[0] is None
 
     def test_it_enforces_valid_data_type(self):
-        with pytest.raises(ValidationError) as e:
+        # TODO make this consistent between Py2 & Py3
+        expected_err_msg = 'Value must be of (str|basestring) type.'
+        with pytest.raises(ValidationError, match=expected_err_msg):
             DateTime().clean(True)
-        assert e.value.args[0] in (
-            'Value must be of basestring type.',
-            'Value must be of str type.',
-        )
 
 
 class TestEmailField:
@@ -311,9 +297,9 @@ class TestEmailField:
         'test.example.com',
     ])
     def test_it_rejects_invalid_email_addresses(self, value):
-        with pytest.raises(ValidationError) as e:
+        expected_err_msg = 'Invalid email address.'
+        with pytest.raises(ValidationError, match=expected_err_msg):
             Email().clean(value)
-        assert e.value.args[0] == 'Invalid email address.'
 
     def test_it_autotrims_input(self):
         assert Email().clean('   test@example.com   ') == 'test@example.com'
@@ -329,16 +315,15 @@ class TestEmailField:
         if valid:
             assert field.clean(value) == value
         else:
-            with pytest.raises(ValidationError) as e:
-                field.clean(value)
             err_msg = 'The value must be no longer than 254 characters.'
-            assert e.value.args[0] == err_msg
+            with pytest.raises(ValidationError, match=err_msg):
+                field.clean(value)
 
     @pytest.mark.parametrize('value', ['', None])
     def test_it_enforces_required_flag(self, value):
-        with pytest.raises(ValidationError) as e:
+        expected_err_msg = 'This field is required.'
+        with pytest.raises(ValidationError, match=expected_err_msg):
             Email().clean(value)
-        assert e.value.args[0] == 'This field is required.'
 
     @pytest.mark.parametrize('value', ['', None])
     def test_it_can_be_optional(self, value):
@@ -347,12 +332,10 @@ class TestEmailField:
         assert e.value.args[0] == ''
 
     def test_it_enforces_valid_data_type(self):
-        with pytest.raises(ValidationError) as e:
+        # TODO make this consistent between Py2 & Py3
+        expected_err_msg = 'Value must be of (str|basestring) type.'
+        with pytest.raises(ValidationError, match=expected_err_msg):
             Email().clean(True)
-        assert e.value.args[0] in (
-            'Value must be of basestring type.',
-            'Value must be of str type.',
-        )
 
 
 class TestIntegerField:
@@ -371,9 +354,9 @@ class TestIntegerField:
         if valid:
             assert field.clean(value) == value
         else:
-            with pytest.raises(ValidationError) as e:
+            expected_err_msg = 'The value must be at least 0.'
+            with pytest.raises(ValidationError, match=expected_err_msg):
                 field.clean(value)
-            assert e.value.args[0] == 'The value must be at least 0.'
 
     @pytest.mark.parametrize('value, valid', [
         (-1, True),
@@ -386,9 +369,9 @@ class TestIntegerField:
         if valid:
             assert field.clean(value) == value
         else:
-            with pytest.raises(ValidationError) as e:
+            expected_err_msg = 'The value must not be larger than 100.'
+            with pytest.raises(ValidationError, match=expected_err_msg):
                 field.clean(value)
-            assert e.value.args[0] == 'The value must not be larger than 100.'
 
     @pytest.mark.parametrize('value, valid', [
         (-1, False),
@@ -410,9 +393,9 @@ class TestIntegerField:
             )
 
     def test_it_enforces_required_flag(self):
-        with pytest.raises(ValidationError) as e:
+        expected_err_msg = 'This field is required.'
+        with pytest.raises(ValidationError, match=expected_err_msg):
             Integer().clean(None)
-        assert e.value.args[0] == 'This field is required.'
 
     def test_it_can_be_optional(self):
         with pytest.raises(StopValidation) as e:
@@ -421,9 +404,9 @@ class TestIntegerField:
 
     @pytest.mark.parametrize('value', ['', '0', 23.0])
     def test_it_enforces_valid_data_type(self, value):
-        with pytest.raises(ValidationError) as e:
+        expected_err_msg = 'Value must be of int type.'
+        with pytest.raises(ValidationError, match=expected_err_msg):
             Integer().clean(value)
-        assert e.value.args[0] == 'Value must be of int type.'
 
 
 class TestListField:
@@ -453,15 +436,15 @@ class TestListField:
         if valid:
             assert field.clean(value) == value
         else:
-            with pytest.raises(ValidationError) as e:
+            expected_err_msg = 'List is too long.'
+            with pytest.raises(ValidationError, match=expected_err_msg):
                 field.clean(value)
-            assert e.value.args[0] == 'List is too long.'
 
     @pytest.mark.parametrize('value', [None, []])
     def test_it_enforces_required_flag(self, value):
-        with pytest.raises(ValidationError) as e:
+        expected_err_msg = 'This field is required.'
+        with pytest.raises(ValidationError, match=expected_err_msg):
             List(String()).clean(value)
-        assert e.value.args[0] == 'This field is required.'
 
     @pytest.mark.parametrize('value', [None, []])
     def test_it_can_be_optional(self, value):
@@ -479,9 +462,9 @@ class TestSortedSetField:
         assert SortedSet(String()).clean(['b', 'a']) == ['a', 'b']
 
     def test_it_enforces_required_flag(self):
-        with pytest.raises(ValidationError) as e:
+        expected_err_msg = 'This field is required.'
+        with pytest.raises(ValidationError, match=expected_err_msg):
             SortedSet(String()).clean(None)
-        assert e.value.args[0] == 'This field is required.'
 
     def test_it_can_be_optional(self):
         with pytest.raises(StopValidation) as e:
@@ -490,9 +473,9 @@ class TestSortedSetField:
 
     @pytest.mark.parametrize('value', [23.0, True])
     def test_it_enforces_valid_data_type(self, value):
-        with pytest.raises(ValidationError) as e:
+        expected_err_msg = 'Value must be of list type.'
+        with pytest.raises(ValidationError, match=expected_err_msg):
             SortedSet(String()).clean(value)
-        assert e.value.args[0] == 'Value must be of list type.'
 
 
 class TestEnumField:
@@ -512,17 +495,18 @@ class TestEnumField:
         assert Enum(enum_cls).clean('c') == enum_cls.C
 
     def test_it_rejects_invalid_choices(self, enum_cls):
-        with pytest.raises(ValidationError) as e:
+        expected_err_msg = 'Not a valid choice.'
+        with pytest.raises(ValidationError, match=expected_err_msg):
             Enum(enum_cls).clean('d')
-        assert e.value.args[0] == 'Not a valid choice.'
 
     def test_it_accepts_a_sublist_of_choices(self, enum_cls):
         field = Enum([enum_cls.A, enum_cls.B])
         assert field.clean('a') == enum_cls.A
         assert field.clean('b') == enum_cls.B
-        with pytest.raises(ValidationError) as e:
+
+        expected_err_msg = 'Not a valid choice.'
+        with pytest.raises(ValidationError, match=expected_err_msg):
             field.clean('c')
-        assert e.value.args[0] == 'Not a valid choice.'
 
 
 class TestURLField:
@@ -560,9 +544,9 @@ class TestURLField:
         u'http://ＧＯＯＧＬＥ.com',  # full-width chars are disallowed
     ])
     def test_it_rejects_invalid_urls(self, value):
-        with pytest.raises(ValidationError) as e:
+        expected_err_msg = 'Invalid URL.'
+        with pytest.raises(ValidationError, match=expected_err_msg):
             URL().clean(value)
-        assert e.value.args[0] == 'Invalid URL.'
 
     @pytest.mark.parametrize('value, expected', [
         ('http://example.com/a?b=c', 'http://example.com/a?b=c'),
@@ -588,12 +572,12 @@ class TestURLField:
         if expected:
             assert field.clean(value) == expected
         else:
-            with pytest.raises(ValidationError) as e:
-                field.clean(value)
-            assert e.value.args[0] == (
+            expected_err_msg = (
                 "This URL uses a scheme that's not allowed. You can only "
                 "use https://."
             )
+            with pytest.raises(ValidationError, match=expected_err_msg):
+                field.clean(value)
 
     @pytest.mark.parametrize('value, expected', [
         ('https://example.com/', 'https://example.com/'),
@@ -606,9 +590,9 @@ class TestURLField:
 
     @pytest.mark.parametrize('value', ['', None])
     def test_it_enforces_required_flag(self, value):
-        with pytest.raises(ValidationError) as e:
+        expected_err_msg = 'This field is required.'
+        with pytest.raises(ValidationError, match=expected_err_msg):
             URL().clean(value)
-        assert e.value.args[0] == 'This field is required.'
 
     @pytest.mark.parametrize('value', ['', None])
     def test_it_can_be_optional(self, value):
@@ -618,12 +602,10 @@ class TestURLField:
 
     @pytest.mark.parametrize('value', [23.0, True])
     def test_it_enforces_valid_data_type(self, value):
-        with pytest.raises(ValidationError) as e:
+        # TODO make this consistent between Py2 & Py3
+        expected_err_msg = 'Value must be of (str|basestring) type.'
+        with pytest.raises(ValidationError, match=expected_err_msg):
             URL().clean(value)
-        assert e.value.args[0] in (
-            'Value must be of basestring type.',
-            'Value must be of str type.',
-        )
 
 
 class TestRelaxedURLField:
@@ -652,18 +634,16 @@ class TestRelaxedURLField:
         if valid:
             assert field.clean(value) is None
         else:
-            with pytest.raises(ValidationError) as e:
+            expected_err_msg = 'Invalid URL.'
+            with pytest.raises(ValidationError, match=expected_err_msg):
                 field.clean(value)
-            assert e.value.args[0] == 'Invalid URL.'
 
     @pytest.mark.parametrize('value', [23.0, True])
     def test_it_enforces_valid_data_type(self, value):
-        with pytest.raises(ValidationError) as e:
+        # TODO make this consistent between Py2 & Py3
+        expected_err_msg = 'Value must be of (str|basestring) type.'
+        with pytest.raises(ValidationError, match=expected_err_msg):
             RelaxedURL().clean(value)
-        assert e.value.args[0] in (
-            'Value must be of basestring type.',
-            'Value must be of str type.',
-        )
 
 
 class TestEmbeddedField:
@@ -691,9 +671,9 @@ class TestEmbeddedField:
 
     @pytest.mark.parametrize('value', [{}, None])
     def test_it_enforces_required_flag(self, value, schema_cls):
-        with pytest.raises(ValidationError) as e:
+        expected_err_msg = 'This field is required.'
+        with pytest.raises(ValidationError, match=expected_err_msg):
             Embedded(schema_cls).clean(value)
-        assert e.value.args[0] == 'This field is required.'
 
 
 class TestSchemaExternalClean:

@@ -60,9 +60,9 @@ class TestMongoReferenceField:
 
     def test_it_rejects_a_missing_doc(self, person_cls):
         field = MongoReference(person_cls)
-        with pytest.raises(ValidationError) as e:
+        expected_err_msg = 'Object does not exist.'
+        with pytest.raises(ValidationError, match=expected_err_msg):
             field.clean(str(ObjectId()))
-        assert e.value.args[0] == 'Object does not exist.'
 
     def test_it_can_be_optional(self, person_cls):
         field = MongoReference(person_cls, required=False)
