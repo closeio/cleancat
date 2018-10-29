@@ -17,7 +17,7 @@ if sys.version_info[:2] < (3, 4):
 
 setup(
     name='cleancat',
-    version='0.7.6',
+    version='0.7.7',
     url='http://github.com/elasticsales/cleancat',
     license='MIT',
     author='Thomas Steinacher',
