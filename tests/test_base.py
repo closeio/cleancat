@@ -11,6 +11,7 @@ from cleancat import (
     List, Regex, RelaxedURL, Schema, SortedSet, StopValidation, String,
     TrimmedString, URL, ValidationError
 )
+from cleancat.base import PolymorphicField, EmbeddedFactory, LazyField
 
 
 class TestField:
@@ -925,3 +926,58 @@ class TestSchema:
         assert schema.field_errors == {
             'value_id': 'Value must be of int type.'
         }
+
+
+def test_polymorphic_field():
+    class Option1(Dict):
+        def clean(self, value):
+            value = super(Option1, self).clean(value)
+            if 'option-1' not in value:
+                raise ValidationError('option-1 not in data')
+            return value['option-1']
+
+    class Option2(Dict):
+        def clean(self, value):
+            value = super(Option2, self).clean(value)
+            if 'option-2' not in value:
+                raise ValidationError('option-2 not in data')
+            return value['option-2']
+
+    poly_field = PolymorphicField(type_map={'1': Option1(), '2': Option2()})
+
+    assert poly_field.clean({'type': '1', 'option-1': 'data'}) == 'data'
+    assert poly_field.clean({'type': '2', 'option-2': 'data'}) == 'data'
+
+    with pytest.raises(ValidationError):
+        poly_field.clean({'type': '0'})
+
+    with pytest.raises(ValidationError):
+        poly_field.clean({'type': '1', 'option-0': 'data'})
+
+
+def test_embedded_factory():
+    class SumTwoInts(Schema):
+        a = Integer(required=True)
+        b = Integer(required=True)
+
+    field = EmbeddedFactory(factory=(lambda a, b: a + b), schema_class=SumTwoInts)
+
+    assert field.clean({'a': 1, 'b': 2}) == 3
+
+
+def test_lazy_field():
+    side_effects = []
+
+    class SideEffectingInteger(Integer):
+        def __init__(self, *args, **kwargs):
+            side_effects.append(1)
+            super(SideEffectingInteger, self).__init__(*args, **kwargs)
+
+    class TestSchema(Schema):
+        lazy_side_effect = LazyField(SideEffectingInteger, required=True)
+
+    assert side_effects == []
+    TestSchema({'lazy_side_effect': 1})
+    assert side_effects == [1]
+    TestSchema({'lazy_side_effect': 1})
+    assert side_effects == [1]
