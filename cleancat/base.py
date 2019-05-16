@@ -799,3 +799,93 @@ class Schema(object):
             value = self.data[field_name]
             data[raw_field_name] = field.serialize(value)
         return data
+
+
+DEFAULT_TYPE_FIELD = 'type'
+
+
+class PolymorphicField(Dict):
+    """A field that can be validated with one of multiple schemas,
+    depending on type provided in input values.
+
+    Requires a dictionary-shaped value.
+
+    Actual schema is taken from provided mapping and selected using
+    a field in the input dictionary, for example:
+
+    PolymorphicField(type_map={'my_type': MySchema})
+
+    {'type': 'my_type', 'more': 'data', ...} will be validated with
+    MySchema based on 'my_type' value.
+    """
+
+    base_type = dict
+
+    def __init__(self, type_map={}, type_field=DEFAULT_TYPE_FIELD, *args, **kwargs):
+        super(PolymorphicField, self).__init__(*args, **kwargs)
+        self.type_map = type_map
+        self.type_field = type_field
+
+    def clean(self, value):
+        clean = super(PolymorphicField, self).clean(value)
+        field_type = clean.get(self.type_field)
+        if field_type not in self.type_map:
+            raise ValidationError(
+                '{} must be one of {}'.format(
+                    self.type_field, ','.join(self.type_map.keys())
+                )
+            )
+
+        return self.type_map[field_type].clean(
+            {k: v for k, v in value.items() if k != field_type}
+        )
+
+
+class EmbeddedFactory(Embedded):
+    """Schema field for arbitrary embedded object.
+
+    It generates the object using provided factory function.
+    Kwargs for the factory function is the input dict, validated
+    validated with schema_class (from Embedded field).
+    """
+
+    def __init__(self, factory, *args, **kwargs):
+        self.factory = factory
+        super(EmbeddedFactory, self).__init__(*args, **kwargs)
+
+    def clean(self, value):
+        """Clean the provided dict of values and then return an
+        an object created using a factory.
+        """
+        value = super(EmbeddedFactory, self).clean(value)
+        return self.factory(**value)
+
+
+class LazyField(Field):
+    """A field which is instantiated later.
+
+    Useful for resolving circular dependencies in code.
+    """
+    def __init__(self, fn, *args, **kwargs):
+        self.fn = fn
+        self.args = args
+        self.kwargs = kwargs
+        self.real_field = None
+
+    def get_real_field(self):
+        if self.real_field is None:
+            self.real_field = self.fn(*self.args, **self.kwargs)
+            assert self.real_field
+        return self.real_field
+
+    def __getattr__(self, item):
+        return getattr(self.get_real_field(), item)
+
+    def has_value(self, value):
+        return self.get_real_field().has_value(value)
+
+    def clean(self, value):
+        return self.get_real_field().clean(value)
+
+    def serialize(self, value):
+        return self.get_real_field().serialize(value)
