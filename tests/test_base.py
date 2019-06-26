@@ -289,18 +289,25 @@ class TestDateTimeField:
 
 class TestEmailField:
 
-    def test_it_accepts_valid_email_addresses(self):
-        value = 'test@example.com'
+    @pytest.mark.parametrize('value', [
+        't@e.com',
+        'test@example.com',
+        'test.test@example.com',
+    ])
+    def test_it_accepts_valid_email_addresses(self, value):
         assert Email().clean(value) == value
 
     @pytest.mark.parametrize('value', [
         'test@example',
         'test.example.com',
         'test@@example.com',
-        'test@!example.com',
-        'test....test@example.com',
         'test@example..com',
+        'test.@example.com',
+        '.test@example.com',
+        'test..test@example.com',
         'test @example.com',
+        'test@ example.com',
+        'test@example .com',
     ])
     def test_it_rejects_invalid_email_addresses(self, value):
         expected_err_msg = 'Invalid email address.'

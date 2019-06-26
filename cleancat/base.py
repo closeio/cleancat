@@ -216,7 +216,8 @@ class DateTime(Regex):
 
 
 class Email(Regex):
-    regex = r'^.+@[^.].*\.[a-z]{2,63}$'
+    regex = (r'^(?:[^\.@\s]|[^\.@\s]\.(?!\.))*[^.@\s]@'
+             r'[^.@\s](?:[^\.@\s]|\.(?!\.))*\.[a-z]{2,63}$')
     regex_flags = re.IGNORECASE
     regex_message = 'Invalid email address.'
     max_length = 254
