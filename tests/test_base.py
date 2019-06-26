@@ -299,6 +299,7 @@ class TestEmailField:
         'test@@example.com',
         'test@!example.com',
         'test....test@example.com',
+        'test@example..com',
         'test @example.com',
     ])
     def test_it_rejects_invalid_email_addresses(self, value):
