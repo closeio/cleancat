@@ -43,3 +43,5 @@ __all__ = [
     'URL',
     'ValidationError',
 ]
+
+__version__ = '0.7.9'
