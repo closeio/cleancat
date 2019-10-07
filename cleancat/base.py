@@ -248,8 +248,14 @@ class URL(Regex):
         require_tld=True,
         default_scheme=None,
         allowed_schemes=None,
+        disallowed_schemes=None,
         **kwargs
     ):
+        def normalize_scheme(sch):
+            if sch.endswith('://') or sch.endswith(':'):
+                return sch
+            return sch + '://'
+
         # FQDN validation similar to https://github.com/chriso/validator.js/blob/master/src/lib/isFQDN.js
 
         # ff01-ff5f -> full-width chars, not allowed
@@ -262,8 +268,8 @@ class URL(Regex):
         )
         scheme_part = '[a-z]+://'
         self.default_scheme = default_scheme
-        if self.default_scheme and not self.default_scheme.endswith('://'):
-            self.default_scheme += '://'
+        if self.default_scheme:
+            self.default_scheme = normalize_scheme(self.default_scheme)
         self.scheme_regex = re.compile('^' + scheme_part, re.IGNORECASE)
         if default_scheme:
             scheme_part = '(%s)?' % scheme_part
@@ -278,14 +284,21 @@ class URL(Regex):
             **kwargs
         )
 
+        def compile_schemes_to_regexes(schemes):
+            return [
+                re.compile('^' + normalize_scheme(sch) + '.*', re.IGNORECASE)
+                for sch in schemes
+            ]
+
         self.allowed_schemes = allowed_schemes or []
-        self.allowed_schemes_regexes = []
-        for sch in self.allowed_schemes:
-            if not sch.endswith('://'):
-                sch += '://'
-            self.allowed_schemes_regexes.append(
-                re.compile('^' + sch + '.*', re.IGNORECASE)
-            )
+        self.allowed_schemes_regexes = compile_schemes_to_regexes(
+            self.allowed_schemes
+        )
+
+        self.disallowed_schemes = disallowed_schemes or []
+        self.disallowed_schemes_regexes = compile_schemes_to_regexes(
+            self.disallowed_schemes
+        )
 
     def clean(self, value):
         value = super(URL, self).clean(value)
@@ -293,19 +306,23 @@ class URL(Regex):
             value = self.default_scheme + value
 
         if self.allowed_schemes:
-            allowed = False
-
-            for allowed_regex in self.allowed_schemes_regexes:
-                if allowed_regex.match(value):
-                    allowed = True
-                    break
-
-            if not allowed:
+            if not any(
+                allowed_regex.match(value)
+                for allowed_regex in self.allowed_schemes_regexes
+            ):
                 allowed_schemes_text = ' or '.join(self.allowed_schemes)
                 err_msg = (
                     "This URL uses a scheme that's not allowed. You can only "
                     "use %s." % allowed_schemes_text
                 )
+                raise ValidationError(err_msg)
+
+        if self.disallowed_schemes:
+            if any(
+                disallowed_regex.match(value)
+                for disallowed_regex in self.disallowed_schemes_regexes
+            ):
+                err_msg = "This URL uses a scheme that's not allowed."
                 raise ValidationError(err_msg)
 
         return value
