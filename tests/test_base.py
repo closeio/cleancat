@@ -7,15 +7,30 @@ import pytest
 from pytz import utc
 
 from cleancat import (
-    Bool, Choices, DateTime, Dict, Email, Embedded, Enum, Field, Integer,
-    List, Regex, RelaxedURL, Schema, SortedSet, StopValidation, String,
-    TrimmedString, URL, ValidationError
+    Bool,
+    Choices,
+    DateTime,
+    Dict,
+    Email,
+    Embedded,
+    Enum,
+    Field,
+    Integer,
+    List,
+    Regex,
+    RelaxedURL,
+    Schema,
+    SortedSet,
+    StopValidation,
+    String,
+    TrimmedString,
+    URL,
+    ValidationError,
 )
 from cleancat.base import PolymorphicField, EmbeddedFactory, LazyField
 
 
 class TestField:
-
     def test_it_supports_multiple_base_types(self):
         class IntOrStrField(Field):
             base_type = (int, str)
@@ -29,7 +44,6 @@ class TestField:
 
 
 class TestStringField:
-
     def test_it_accepts_valid_input(self):
         value = 'hello world'
         assert String().clean(value) == value
@@ -62,10 +76,9 @@ class TestStringField:
         with pytest.raises(ValidationError, match=expected_err_msg):
             String().clean(True)
 
-    @pytest.mark.parametrize('value,valid', [
-        ('long enough', True),
-        ('short', False),
-    ])
+    @pytest.mark.parametrize(
+        'value,valid', [('long enough', True), ('short', False)]
+    )
     def test_it_enforces_min_length(self, value, valid):
         field = String(min_length=10)
         if valid:
@@ -75,10 +88,10 @@ class TestStringField:
             with pytest.raises(ValidationError, match=err_msg):
                 field.clean(value)
 
-    @pytest.mark.parametrize('value,valid', [
-        ('short is ok', True),
-        ('this is way too long enough', False),
-    ])
+    @pytest.mark.parametrize(
+        'value,valid',
+        [('short is ok', True), ('this is way too long enough', False)],
+    )
     def test_it_enforces_max_length(self, value, valid):
         field = String(max_length=12)
         if valid:
@@ -88,11 +101,14 @@ class TestStringField:
             with pytest.raises(ValidationError, match=err_msg):
                 field.clean(value)
 
-    @pytest.mark.parametrize('value,valid', [
-        ('right in the middle', True),
-        ('too short', False),
-        ('way too long to be valid', False),
-    ])
+    @pytest.mark.parametrize(
+        'value,valid',
+        [
+            ('right in the middle', True),
+            ('too short', False),
+            ('way too long to be valid', False),
+        ],
+    )
     def test_it_enforces_min_and_max_length(self, value, valid):
         field = String(min_length=10, max_length=20)
         if valid:
@@ -107,16 +123,18 @@ class TestStringField:
 
 
 class TestTrimmedStringField:
-
     def test_it_accepts_valid_input(self):
         value = 'hello world'
         assert TrimmedString().clean(value) == value
 
-    @pytest.mark.parametrize('value,expected', [
-        ('   hello world    ', 'hello world'),
-        ('   hello   world', 'hello   world'),
-        ('\rhello\tworld \n', 'hello\tworld'),
-    ])
+    @pytest.mark.parametrize(
+        'value,expected',
+        [
+            ('   hello world    ', 'hello world'),
+            ('   hello   world', 'hello   world'),
+            ('\rhello\tworld \n', 'hello\tworld'),
+        ],
+    )
     def test_it_trims_input_surrounded_by_whitespace(self, value, expected):
         assert TrimmedString().clean(value) == expected
 
@@ -138,11 +156,14 @@ class TestTrimmedStringField:
         with pytest.raises(ValidationError, match=expected_err_msg):
             TrimmedString().clean(True)
 
-    @pytest.mark.parametrize('value,expected', [
-        ('      valid      ', 'valid'),
-        ('        x        ', None),
-        ('   way too long  ', None),
-    ])
+    @pytest.mark.parametrize(
+        'value,expected',
+        [
+            ('      valid      ', 'valid'),
+            ('        x        ', None),
+            ('   way too long  ', None),
+        ],
+    )
     def test_it_enforces_min_and_max_length(self, value, expected):
         field = TrimmedString(min_length=3, max_length=10)
         if expected:
@@ -157,7 +178,6 @@ class TestTrimmedStringField:
 
 
 class TestChoicesField:
-
     @pytest.mark.parametrize('value', ['Hello', 'World'])
     def test_it_accepts_valid_choices(self, value):
         assert Choices(choices=['Hello', 'World']).clean(value) == value
@@ -175,7 +195,6 @@ class TestChoicesField:
 
 
 class TestBoolField:
-
     @pytest.mark.parametrize('value', [True, False])
     def test_it_accepts_valid_input(self, value):
         assert Bool().clean(value) == value
@@ -198,7 +217,6 @@ class TestBoolField:
 
 
 class TestRegexField:
-
     @pytest.mark.parametrize('value', ['a', 'm', 'z'])
     def test_it_accepts_valid_input(self, value):
         assert Regex('^[a-z]$').clean(value) == value
@@ -238,7 +256,6 @@ class TestRegexField:
 
 
 class TestDateTimeField:
-
     def test_it_accepts_date_string(self):
         assert DateTime().clean('2012-10-09') == datetime.date(2012, 10, 9)
 
@@ -260,9 +277,7 @@ class TestDateTimeField:
             'Could not parse date: year 0 is out of range',  # Py3
         )
 
-    @pytest.mark.parametrize('value', [
-        '2012a', 'alksdjf', '111111111'
-    ])
+    @pytest.mark.parametrize('value', ['2012a', 'alksdjf', '111111111'])
     def test_it_rejects_invalid_dates(self, value):
         expected_err_msg = 'Invalid ISO 8601 datetime.'
         with pytest.raises(ValidationError, match=expected_err_msg):
@@ -288,27 +303,27 @@ class TestDateTimeField:
 
 
 class TestEmailField:
-
-    @pytest.mark.parametrize('value', [
-        't@e.com',
-        'test@example.com',
-        'test.test@example.com',
-    ])
+    @pytest.mark.parametrize(
+        'value', ['t@e.com', 'test@example.com', 'test.test@example.com']
+    )
     def test_it_accepts_valid_email_addresses(self, value):
         assert Email().clean(value) == value
 
-    @pytest.mark.parametrize('value', [
-        'test@example',
-        'test.example.com',
-        'test@@example.com',
-        'test@example..com',
-        'test.@example.com',
-        '.test@example.com',
-        'test..test@example.com',
-        'test @example.com',
-        'test@ example.com',
-        'test@example .com',
-    ])
+    @pytest.mark.parametrize(
+        'value',
+        [
+            'test@example',
+            'test.example.com',
+            'test@@example.com',
+            'test@example..com',
+            'test.@example.com',
+            '.test@example.com',
+            'test..test@example.com',
+            'test @example.com',
+            'test@ example.com',
+            'test@example .com',
+        ],
+    )
     def test_it_rejects_invalid_email_addresses(self, value):
         expected_err_msg = 'Invalid email address.'
         with pytest.raises(ValidationError, match=expected_err_msg):
@@ -317,12 +332,14 @@ class TestEmailField:
     def test_it_autotrims_input(self):
         assert Email().clean('   test@example.com   ') == 'test@example.com'
 
-    @pytest.mark.parametrize('value, valid', [
-        ('{u}@{d}.{d}.{d}.example'.format(u='u' * 54, d='d' * 63), True),
-
-        # Emails must not be longer than 254 characters.
-        ('{u}@{d}.{d}.{d}.example'.format(u='u' * 55, d='d' * 63), False),
-    ])
+    @pytest.mark.parametrize(
+        'value, valid',
+        [
+            ('{u}@{d}.{d}.{d}.example'.format(u='u' * 54, d='d' * 63), True),
+            # Emails must not be longer than 254 characters.
+            ('{u}@{d}.{d}.{d}.example'.format(u='u' * 55, d='d' * 63), False),
+        ],
+    )
     def test_it_enforces_max_email_address_length(self, value, valid):
         field = Email()
         if valid:
@@ -352,16 +369,13 @@ class TestEmailField:
 
 
 class TestIntegerField:
-
     @pytest.mark.parametrize('value', [-1, 0, 100, 1000000])
     def test_it_accepts_valid_integers(self, value):
         assert Integer().clean(value) == value
 
-    @pytest.mark.parametrize('value, valid', [
-        (10, True),
-        (0, True),
-        (-1, False),
-    ])
+    @pytest.mark.parametrize(
+        'value, valid', [(10, True), (0, True), (-1, False)]
+    )
     def test_it_enforces_min_value(self, value, valid):
         field = Integer(min_value=0)
         if valid:
@@ -371,12 +385,9 @@ class TestIntegerField:
             with pytest.raises(ValidationError, match=expected_err_msg):
                 field.clean(value)
 
-    @pytest.mark.parametrize('value, valid', [
-        (-1, True),
-        (0, True),
-        (100, True),
-        (101, False),
-    ])
+    @pytest.mark.parametrize(
+        'value, valid', [(-1, True), (0, True), (100, True), (101, False)]
+    )
     def test_it_enforces_max_value(self, value, valid):
         field = Integer(max_value=100)
         if valid:
@@ -386,13 +397,10 @@ class TestIntegerField:
             with pytest.raises(ValidationError, match=expected_err_msg):
                 field.clean(value)
 
-    @pytest.mark.parametrize('value, valid', [
-        (-1, False),
-        (0, True),
-        (50, True),
-        (100, True),
-        (101, False),
-    ])
+    @pytest.mark.parametrize(
+        'value, valid',
+        [(-1, False), (0, True), (50, True), (100, True), (101, False)],
+    )
     def test_it_enforces_min_and_max_value(self, value, valid):
         field = Integer(min_value=0, max_value=100)
         if valid:
@@ -423,7 +431,6 @@ class TestIntegerField:
 
 
 class TestListField:
-
     def test_it_accepts_a_list_of_values(self):
         values = ['a', 'b', 'c']
         assert List(String()).clean(values) == values
@@ -439,11 +446,14 @@ class TestListField:
             'The value must be no longer than 3 characters.'
         )
 
-    @pytest.mark.parametrize('value, valid', [
-        (['a', 'b'], True),
-        (['a', 'b', 'c'], True),
-        (['a', 'b', 'c', 'd'], False),
-    ])
+    @pytest.mark.parametrize(
+        'value, valid',
+        [
+            (['a', 'b'], True),
+            (['a', 'b', 'c'], True),
+            (['a', 'b', 'c', 'd'], False),
+        ],
+    )
     def test_it_enforces_max_length(self, value, valid):
         field = List(String(), max_length=3)
         if valid:
@@ -467,7 +477,6 @@ class TestListField:
 
 
 class TestSortedSetField:
-
     def test_it_dedupes_valid_values(self):
         assert SortedSet(String()).clean(['a', 'b', 'a']) == ['a', 'b']
 
@@ -492,7 +501,6 @@ class TestSortedSetField:
 
 
 class TestEnumField:
-
     @pytest.fixture
     def enum_cls(self):
         class MyChoices(enum.Enum):
@@ -523,51 +531,56 @@ class TestEnumField:
 
 
 class TestURLField:
-
-    @pytest.mark.parametrize('value', [
-        'http://x.com',
-        u'http://♡.com',
-        'http://example.com/a?b=c',
-        'ftp://ftp.example.com',
-        'http://example.com?params=without&path',
-
-        # Russian unicode URL (IDN, unicode path and query params)
-        u'http://пример.com',
-        u'http://пример.рф',
-        u'http://пример.рф/путь/?параметр=значение',
-
-        # Punicode stuff
-        u'http://test.XN--11B4C3D',
-
-        # http://stackoverflow.com/questions/9238640/how-long-can-a-tld-possibly-be
-        # Longest to date (Feb 2017) TLD in punicode format is 24 chars long
-        u'http://test.xn--vermgensberatung-pwb',
-    ])
+    @pytest.mark.parametrize(
+        'value',
+        [
+            'http://x.com',
+            u'http://♡.com',
+            'http://example.com/a?b=c',
+            'ftp://ftp.example.com',
+            'http://example.com?params=without&path',
+            # Russian unicode URL (IDN, unicode path and query params)
+            u'http://пример.com',
+            u'http://пример.рф',
+            u'http://пример.рф/путь/?параметр=значение',
+            # Punicode stuff
+            u'http://test.XN--11B4C3D',
+            # http://stackoverflow.com/questions/9238640/how-long-can-a-tld-possibly-be
+            # Longest to date (Feb 2017) TLD in punicode format is 24 chars long
+            u'http://test.xn--vermgensberatung-pwb',
+        ],
+    )
     def test_in_accepts_valid_urls(self, value):
         assert URL().clean(value) == value
 
-    @pytest.mark.parametrize('value', [
-        'www.example.com',
-        'http:// invalid.com',
-        'http://!nvalid.com',
-        'http://.com',
-        'http://',
-        'http://.',
-        'invalid',
-        u'http://ＧＯＯＧＬＥ.com',  # full-width chars are disallowed
-    ])
+    @pytest.mark.parametrize(
+        'value',
+        [
+            'www.example.com',
+            'http:// invalid.com',
+            'http://!nvalid.com',
+            'http://.com',
+            'http://',
+            'http://.',
+            'invalid',
+            u'http://ＧＯＯＧＬＥ.com',  # full-width chars are disallowed
+        ],
+    )
     def test_it_rejects_invalid_urls(self, value):
         expected_err_msg = 'Invalid URL.'
         with pytest.raises(ValidationError, match=expected_err_msg):
             URL().clean(value)
 
-    @pytest.mark.parametrize('value, expected', [
-        ('http://example.com/a?b=c', 'http://example.com/a?b=c'),
-        ('ftp://ftp.example.com', 'ftp://ftp.example.com'),
-        ('www.example.com', 'http://www.example.com'),
-        ('invalid', None),
-        (True, None),
-    ])
+    @pytest.mark.parametrize(
+        'value, expected',
+        [
+            ('http://example.com/a?b=c', 'http://example.com/a?b=c'),
+            ('ftp://ftp.example.com', 'ftp://ftp.example.com'),
+            ('www.example.com', 'http://www.example.com'),
+            ('invalid', None),
+            (True, None),
+        ],
+    )
     def test_it_supports_a_default_scheme(self, value, expected):
         field = URL(default_scheme='http://')
         if expected:
@@ -575,11 +588,14 @@ class TestURLField:
         else:
             pytest.raises(ValidationError, field.clean, value)
 
-    @pytest.mark.parametrize('value, expected', [
-        ('https://example.com/', 'https://example.com/'),
-        ('example.com/', 'https://example.com/'),
-        ('http://example.com', None),
-    ])
+    @pytest.mark.parametrize(
+        'value, expected',
+        [
+            ('https://example.com/', 'https://example.com/'),
+            ('example.com/', 'https://example.com/'),
+            ('http://example.com', None),
+        ],
+    )
     def test_it_enforces_allowed_schemes(self, value, expected):
         field = URL(default_scheme='https://', allowed_schemes=['https://'])
         if expected:
@@ -592,11 +608,14 @@ class TestURLField:
             with pytest.raises(ValidationError, match=expected_err_msg):
                 field.clean(value)
 
-    @pytest.mark.parametrize('value, expected', [
-        ('https://example.com/', 'https://example.com/'),
-        ('example.com/', 'https://example.com/'),
-        ('ftps://storage.example.com', 'ftps://storage.example.com'),
-    ])
+    @pytest.mark.parametrize(
+        'value, expected',
+        [
+            ('https://example.com/', 'https://example.com/'),
+            ('example.com/', 'https://example.com/'),
+            ('ftps://storage.example.com', 'ftps://storage.example.com'),
+        ],
+    )
     def test_it_supports_simpler_allowed_scheme_values(self, value, expected):
         field = URL(default_scheme='https', allowed_schemes=['https', 'ftps'])
         assert field.clean(value) == expected
@@ -622,27 +641,31 @@ class TestURLField:
 
 
 class TestRelaxedURLField:
-
-    @pytest.mark.parametrize('value', [
-        'http://example.com/a?b=c',
-        'ftp://ftp.example.com',
-        u'http://пример.рф',
-    ])
+    @pytest.mark.parametrize(
+        'value',
+        [
+            'http://example.com/a?b=c',
+            'ftp://ftp.example.com',
+            u'http://пример.рф',
+        ],
+    )
     def test_it_accepts_valid_urls(self, value):
         RelaxedURL().clean(value) == value
 
-    @pytest.mark.parametrize('value, is_required, valid', [
-        ('http://', True, False),
-        ('http://', False, True),
-
-        ('ftp://', True, False),
-        ('ftp://', False, True),
-
-        ('invalid', True, False),
-        ('invalid', False, False),
-    ])
-    def test_it_accepts_scheme_only_urls_if_not_required(self, value,
-                                                         is_required, valid):
+    @pytest.mark.parametrize(
+        'value, is_required, valid',
+        [
+            ('http://', True, False),
+            ('http://', False, True),
+            ('ftp://', True, False),
+            ('ftp://', False, True),
+            ('invalid', True, False),
+            ('invalid', False, False),
+        ],
+    )
+    def test_it_accepts_scheme_only_urls_if_not_required(
+        self, value, is_required, valid
+    ):
         field = RelaxedURL(default_scheme=value, required=is_required)
         if valid:
             assert field.clean(value) is None
@@ -660,11 +683,11 @@ class TestRelaxedURLField:
 
 
 class TestEmbeddedField:
-
     @pytest.fixture
     def schema_cls(self):
         class UserSchema(Schema):
             email = Email()
+
         return UserSchema
 
     def test_it_accepts_valid_input(self, schema_cls):
@@ -677,9 +700,7 @@ class TestEmbeddedField:
             Embedded(schema_cls).clean(value)
         assert e.value.args[0] == {
             'errors': [],
-            'field-errors': {
-                'email': 'Invalid email address.'
-            }
+            'field-errors': {'email': 'Invalid email address.'},
         }
 
     @pytest.mark.parametrize('value', [{}, None])
@@ -707,8 +728,10 @@ class TestSchemaExternalClean:
                 orig_status = self.orig_data and self.orig_data['status']
                 new_status = self.data['status']
 
-                if (orig_status == 'sent' and new_status == 'inbox'):
-                    self.field_errors['status'] = "Can't change from sent to inbox"
+                if orig_status == 'sent' and new_status == 'inbox':
+                    self.field_errors[
+                        'status'
+                    ] = "Can't change from sent to inbox"
 
                 self.data['message_cleaned'] = True
 
@@ -757,7 +780,6 @@ class TestSchemaExternalClean:
 
 
 class TestSchema:
-
     def test_empty_data_dict_with_required_fields(self):
         class RequiredSchema(Schema):
             text = String()
@@ -773,11 +795,7 @@ class TestSchema:
             number = Integer(required=False)
 
         data = OptionalSchema({}).full_clean()
-        assert data == {
-            'text': '',
-            'boolean': False,
-            'number': None,
-        }
+        assert data == {'text': '', 'boolean': False, 'number': None}
 
     def test_it_preserves_orig_data_if_no_new_data_given(self):
         class OptionalSchema(Schema):
@@ -787,15 +805,18 @@ class TestSchema:
         data = OptionalSchema({}, orig_data).full_clean()
         assert data == orig_data
 
-    @pytest.mark.parametrize('old_data, new_data, is_valid', [
-        (None, {'text': 'hello'}, True),
-        ({}, {'text': 'hello'}, True),
-        ({'text': 'existing'}, {'text': 'existing'}, True),
-        ({'text': 'existing'}, {}, True),
-        ({'text': 'existing'}, {'text': 'new'}, False),
-        ({'text': ''}, {'text': 'new'}, False),
-        ({'text': None}, {'text': 'new'}, False),
-    ])
+    @pytest.mark.parametrize(
+        'old_data, new_data, is_valid',
+        [
+            (None, {'text': 'hello'}, True),
+            ({}, {'text': 'hello'}, True),
+            ({'text': 'existing'}, {'text': 'existing'}, True),
+            ({'text': 'existing'}, {}, True),
+            ({'text': 'existing'}, {'text': 'new'}, False),
+            ({'text': ''}, {'text': 'new'}, False),
+            ({'text': None}, {'text': 'new'}, False),
+        ],
+    )
     def test_it_enforces_mutability(self, old_data, new_data, is_valid):
         class UnmutableSchema(Schema):
             text = String(mutable=False)
@@ -812,9 +833,7 @@ class TestSchema:
                 schema.full_clean()
             assert e.value.args[0] == {
                 'errors': [],
-                'field-errors': {
-                    'text': 'Value cannot be changed.'
-                }
+                'field-errors': {'text': 'Value cannot be changed.'},
             }
 
     def test_serialization(self):
@@ -829,15 +848,19 @@ class TestSchema:
             lst = List(DateTime())
             embedded = Embedded(EmbeddedSchema)
 
-        schema = TestSchema(data={
-            'string': 'foo',
-            'boolean': True,
-            'date_time': datetime.datetime(2016, 1, 2, 3, 4, 5),
-            'integer': 1234,
-            'lst': [datetime.datetime(2016, 1, 2, 3, 4, 5),
-                    datetime.datetime(2016, 1, 3)],
-            'embedded': {'date_time': datetime.datetime(2000, 1, 1)},
-        })
+        schema = TestSchema(
+            data={
+                'string': 'foo',
+                'boolean': True,
+                'date_time': datetime.datetime(2016, 1, 2, 3, 4, 5),
+                'integer': 1234,
+                'lst': [
+                    datetime.datetime(2016, 1, 2, 3, 4, 5),
+                    datetime.datetime(2016, 1, 3),
+                ],
+                'embedded': {'date_time': datetime.datetime(2000, 1, 1)},
+            }
+        )
 
         serialized = schema.serialize()
         assert serialized == {
@@ -865,18 +888,20 @@ class TestSchema:
             sorted_set = SortedSet(String(), required=False)
             dictionary = Dict(required=False)
 
-        schema = TestSchema(data={
-            'name': 'One Required Field',
-            'string': None,
-            'choice': None,
-            'boolean': None,
-            'date_time': None,
-            'integer': None,
-            'embedded': None,
-            'lst': None,
-            'sorted_set': None,
-            'dictionary': None,
-        })
+        schema = TestSchema(
+            data={
+                'name': 'One Required Field',
+                'string': None,
+                'choice': None,
+                'boolean': None,
+                'date_time': None,
+                'integer': None,
+                'embedded': None,
+                'lst': None,
+                'sorted_set': None,
+                'dictionary': None,
+            }
+        )
         serialized = schema.serialize()
         assert serialized == {
             'name': 'One Required Field',
@@ -901,11 +926,13 @@ class TestSchema:
             optional_enum = Enum(MyChoices, required=False)
             lst = List(Enum(MyChoices))
 
-        schema = TestSchema(data={
-            'enum': MyChoices.A,
-            'optional_enum': None,
-            'lst': [MyChoices.A, MyChoices.B],
-        })
+        schema = TestSchema(
+            data={
+                'enum': MyChoices.A,
+                'optional_enum': None,
+                'lst': [MyChoices.A, MyChoices.B],
+            }
+        )
 
         serialized = schema.serialize()
         assert serialized == {
@@ -972,7 +999,9 @@ def test_embedded_factory():
         a = Integer(required=True)
         b = Integer(required=True)
 
-    field = EmbeddedFactory(factory=(lambda a, b: a + b), schema_class=SumTwoInts)
+    field = EmbeddedFactory(
+        factory=(lambda a, b: a + b), schema_class=SumTwoInts
+    )
 
     assert field.clean({'a': 1, 'b': 2}) == 3
 

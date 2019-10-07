@@ -7,8 +7,11 @@ them via `from cleancat.mongo import ...`.
 from mongoengine import ValidationError as MongoValidationError
 
 from .base import (
-    Embedded, EmbeddedReference, Reference, ReferenceNotFoundError,
-    ValidationError
+    Embedded,
+    EmbeddedReference,
+    Reference,
+    ReferenceNotFoundError,
+    ValidationError,
 )
 
 
@@ -17,6 +20,7 @@ class MongoEmbedded(Embedded):
     Represents MongoEngine's EmbeddedDocument. Expects the document's
     contents as an input dict.
     """
+
     def __init__(self, document_class=None, *args, **kwargs):
         self.document_class = document_class
         super(MongoEmbedded, self).__init__(*args, **kwargs)

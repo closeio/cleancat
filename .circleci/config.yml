@@ -8,6 +8,8 @@ workflows:
       - test-3.4
       - test-3.5
       - test-3.6
+      - test-3.7
+      - black
 
 defaults: &defaults
   working_directory: ~/code
@@ -44,3 +46,19 @@ jobs:
     docker:
     - image: circleci/python:3.6
     - image: mongo:3
+  test-3.7:
+    <<: *defaults
+    docker:
+    - image: circleci/python:3.7
+    - image: mongo:3
+  black:
+    docker:
+    - image: circleci/python:3.7
+    steps:
+    - checkout
+    - run:
+        name: Install dependencies
+        command: sudo -E pip install black
+    - run:
+        name: Test
+        command: black --check .

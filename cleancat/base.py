@@ -32,8 +32,15 @@ class Field(object):
     # field and the field is not required.
     blank_value = None
 
-    def __init__(self, required=True, default=None, field_name=None,
-                 raw_field_name=None, mutable=True, read_only=False):
+    def __init__(
+        self,
+        required=True,
+        default=None,
+        field_name=None,
+        raw_field_name=None,
+        mutable=True,
+        read_only=False,
+    ):
         """
         By default, the field name is derived from the schema model, but in
         certain cases it can be overridden. Specifying field_name overrides
@@ -54,9 +61,9 @@ class Field(object):
     def clean(self, value):
         """Take a dirty value and clean it."""
         if (
-            self.base_type is not None and
-            value is not None and
-            not isinstance(value, self.base_type)
+            self.base_type is not None
+            and value is not None
+            and not isinstance(value, self.base_type)
         ):
             if isinstance(self.base_type, tuple):
                 allowed_types = [typ.__name__ for typ in self.base_type]
@@ -149,8 +156,9 @@ class Regex(String):
     regex_flags = 0
     regex_message = 'Invalid input.'
 
-    def __init__(self, regex=None, regex_flags=None, regex_message=None,
-                 **kwargs):
+    def __init__(
+        self, regex=None, regex_flags=None, regex_message=None, **kwargs
+    ):
         super(Regex, self).__init__(**kwargs)
         if regex is not None:
             self.regex = regex
@@ -175,6 +183,7 @@ class Regex(String):
 
 class DateTime(Regex):
     """ISO 8601 from http://www.pelagodesign.com/blog/2009/05/20/iso-8601-date-validation-that-doesnt-suck/"""
+
     regex = "^([\\+-]?\\d{4}(?!\\d{2}\\b))((-?)((0[1-9]|1[0-2])(\\3([12]\\d|0[1-9]|3[01]))?|W([0-4]\\d|5[0-2])(-?[1-7])?|(00[1-9]|0[1-9]\\d|[12]\\d{2}|3([0-5]\\d|6[1-6])))([T\\s]((([01]\\d|2[0-3])((:?)[0-5]\\d)?|24\\:?00)([\\.,]\\d+(?!:))?)?(\\17[0-5]\\d([\\.,]\\d+)?)?([zZ]|([\\+-])([01]\\d|2[0-3]):?([0-5]\\d)?)?)?)?$"
     regex_message = 'Invalid ISO 8601 datetime.'
     blank_value = None
@@ -216,8 +225,10 @@ class DateTime(Regex):
 
 
 class Email(Regex):
-    regex = (r'^(?:[^\.@\s]|[^\.@\s]\.(?!\.))*[^.@\s]@'
-             r'[^.@\s](?:[^\.@\s]|\.(?!\.))*\.[a-z]{2,63}$')
+    regex = (
+        r'^(?:[^\.@\s]|[^\.@\s]\.(?!\.))*[^.@\s]@'
+        r'[^.@\s](?:[^\.@\s]|\.(?!\.))*\.[a-z]{2,63}$'
+    )
     regex_flags = re.IGNORECASE
     regex_message = 'Invalid email address.'
     max_length = 254
@@ -232,14 +243,23 @@ class Email(Regex):
 class URL(Regex):
     blank_value = None
 
-    def __init__(self, require_tld=True, default_scheme=None,
-                 allowed_schemes=None, **kwargs):
+    def __init__(
+        self,
+        require_tld=True,
+        default_scheme=None,
+        allowed_schemes=None,
+        **kwargs
+    ):
         # FQDN validation similar to https://github.com/chriso/validator.js/blob/master/src/lib/isFQDN.js
 
         # ff01-ff5f -> full-width chars, not allowed
         alpha_numeric_and_symbols_ranges = u'0-9a-z\u00a1-\uff00\uff5f-\uffff'
 
-        tld_part = (require_tld and r'\.[%s-]{2,63}' % alpha_numeric_and_symbols_ranges or '')
+        tld_part = (
+            require_tld
+            and r'\.[%s-]{2,63}' % alpha_numeric_and_symbols_ranges
+            or ''
+        )
         scheme_part = '[a-z]+://'
         self.default_scheme = default_scheme
         if self.default_scheme and not self.default_scheme.endswith('://'):
@@ -247,7 +267,10 @@ class URL(Regex):
         self.scheme_regex = re.compile('^' + scheme_part, re.IGNORECASE)
         if default_scheme:
             scheme_part = '(%s)?' % scheme_part
-        regex = r'^%s([-%s@:%%_+.~#?&/\\=]{1,256}%s|([0-9]{1,3}\.){3}[0-9]{1,3})(:[0-9]+)?([/?].*)?$' % (scheme_part, alpha_numeric_and_symbols_ranges, tld_part)
+        regex = (
+            r'^%s([-%s@:%%_+.~#?&/\\=]{1,256}%s|([0-9]{1,3}\.){3}[0-9]{1,3})(:[0-9]+)?([/?].*)?$'
+            % (scheme_part, alpha_numeric_and_symbols_ranges, tld_part)
+        )
         super(URL, self).__init__(
             regex=regex,
             regex_flags=re.IGNORECASE | re.UNICODE,
@@ -292,6 +315,7 @@ class RelaxedURL(URL):
     """Like URL but will just ignore values like "http://" and treat them
     as blank.
     """
+
     def clean(self, value):
         if not self.required and value == self.default_scheme:
             return None
@@ -355,9 +379,7 @@ class List(Field):
                 data.append(cleaned_data)
 
         if errors:
-            raise ValidationError({
-                'errors': errors
-            })
+            raise ValidationError({'errors': errors})
 
         return data
 
@@ -543,12 +565,20 @@ class Choices(Field):
     """
     A field that accepts the given choices.
     """
-    def __init__(self, choices, case_insensitive=False,
-                 error_invalid_choice=None, **kwargs):
+
+    def __init__(
+        self,
+        choices,
+        case_insensitive=False,
+        error_invalid_choice=None,
+        **kwargs
+    ):
         super(Choices, self).__init__(**kwargs)
         self.choices = choices
         self.case_insensitive = case_insensitive
-        self.error_invalid_choice = error_invalid_choice or 'Not a valid choice.'
+        self.error_invalid_choice = (
+            error_invalid_choice or 'Not a valid choice.'
+        )
 
     def get_choices(self):
         return self.choices
@@ -613,6 +643,7 @@ class Enum(Choices):
 
 class SortedSet(List):
     """Sorted, unique set of values represented as a list."""
+
     def clean(self, value):
         return list(sorted(set(super(SortedSet, self).clean(value))))
 
@@ -709,13 +740,21 @@ class Schema(object):
         return data
 
     def __init__(self, raw_data=None, data=None):
-        conflicting_fields = set([
-            'raw_data', 'orig_data', 'data', 'errors', 'field_errors', 'fields'
-        ]).intersection(dir(self))
+        conflicting_fields = set(
+            [
+                'raw_data',
+                'orig_data',
+                'data',
+                'errors',
+                'field_errors',
+                'fields',
+            ]
+        ).intersection(dir(self))
         if conflicting_fields:
             raise Exception(
                 'The following field names are reserved and need to be renamed: %s. '
-                'Please use the field_name keyword to use them.' % list(conflicting_fields)
+                'Please use the field_name keyword to use them.'
+                % list(conflicting_fields)
             )
 
         self.raw_data = raw_data or {}
@@ -730,9 +769,9 @@ class Schema(object):
 
     def full_clean(self):
         if not isinstance(self.raw_data, dict):
-            raise ValidationError({
-                'errors': ['Invalid request: JSON dictionary expected.']
-            })
+            raise ValidationError(
+                {'errors': ['Invalid request: JSON dictionary expected.']}
+            )
 
         for field_name, field in self.fields.items():
             if field.read_only:
@@ -741,16 +780,30 @@ class Schema(object):
             try:
                 # Validate a field if it's posted in raw_data, or if we don't
                 # have a value for it in case it's required.
-                if raw_field_name in self.raw_data or not field.has_value(self.data.get(field_name, None)):
+                if raw_field_name in self.raw_data or not field.has_value(
+                    self.data.get(field_name, None)
+                ):
                     value = field.clean(self.raw_data.get(raw_field_name))
-                    if not field.mutable and self.orig_data and field_name in self.orig_data:
+                    if (
+                        not field.mutable
+                        and self.orig_data
+                        and field_name in self.orig_data
+                    ):
 
                         old_value = self.orig_data[field_name]
 
                         # compare datetimes properly, regardless of whether they're offset-naive or offset-aware
-                        if isinstance(value, datetime.datetime) and isinstance(old_value, datetime.datetime):
-                            value = value.replace(tzinfo=None) + (value.utcoffset() or datetime.timedelta(seconds=0))
-                            old_value = old_value.replace(tzinfo=None) + (old_value.utcoffset() or datetime.timedelta(seconds=0))
+                        if isinstance(value, datetime.datetime) and isinstance(
+                            old_value, datetime.datetime
+                        ):
+                            value = value.replace(tzinfo=None) + (
+                                value.utcoffset()
+                                or datetime.timedelta(seconds=0)
+                            )
+                            old_value = old_value.replace(tzinfo=None) + (
+                                old_value.utcoffset()
+                                or datetime.timedelta(seconds=0)
+                            )
 
                         if value != old_value:
                             raise ValidationError('Value cannot be changed.')
@@ -772,10 +825,9 @@ class Schema(object):
 
     def raise_on_errors(self):
         if self.field_errors or self.errors:
-            raise ValidationError({
-                'field-errors': self.field_errors,
-                'errors': self.errors,
-            })
+            raise ValidationError(
+                {'field-errors': self.field_errors, 'errors': self.errors}
+            )
 
     def external_clean(self, cls, raise_on_errors=True):
         try:
@@ -822,7 +874,9 @@ class PolymorphicField(Dict):
 
     base_type = dict
 
-    def __init__(self, type_map={}, type_field=DEFAULT_TYPE_FIELD, *args, **kwargs):
+    def __init__(
+        self, type_map={}, type_field=DEFAULT_TYPE_FIELD, *args, **kwargs
+    ):
         super(PolymorphicField, self).__init__(*args, **kwargs)
         self.type_map = type_map
         self.type_field = type_field
@@ -867,6 +921,7 @@ class LazyField(Field):
 
     Useful for resolving circular dependencies in code.
     """
+
     def __init__(self, fn, *args, **kwargs):
         self.fn = fn
         self.args = args
