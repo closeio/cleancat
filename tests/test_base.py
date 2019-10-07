@@ -564,6 +564,7 @@ class TestURLField:
             'http://.',
             'invalid',
             u'http://ＧＯＯＧＬＥ.com',  # full-width chars are disallowed
+            'javascript:alert()',  # TODO "javascript" is a valid scheme. "//" is not a part of some URIs.
         ],
     )
     def test_it_rejects_invalid_urls(self, value):
@@ -605,6 +606,26 @@ class TestURLField:
                 "This URL uses a scheme that's not allowed. You can only "
                 "use https://."
             )
+            with pytest.raises(ValidationError, match=expected_err_msg):
+                field.clean(value)
+
+    @pytest.mark.parametrize(
+        'value, expected',
+        [
+            ('https://example.com/', 'https://example.com/'),
+            ('ftp://ftp.example.com', 'ftp://ftp.example.com'),
+            ('example.com/', 'https://example.com/'),
+            ('javascript://www.example.com/#%0aalert(document.cookie)', None),
+        ],
+    )
+    def test_it_enforces_disallowed_schemes(self, value, expected):
+        field = URL(
+            default_scheme='https://', disallowed_schemes=['javascript:']
+        )
+        if expected:
+            assert field.clean(value) == expected
+        else:
+            expected_err_msg = "This URL uses a scheme that's not allowed."
             with pytest.raises(ValidationError, match=expected_err_msg):
                 field.clean(value)
 
