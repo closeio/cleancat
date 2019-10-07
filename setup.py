@@ -1,15 +1,12 @@
 import sys
 from setuptools import setup
 
-install_requirements = [
-    'python-dateutil',
-    'pytz',
-]
+install_requirements = ['python-dateutil', 'pytz']
 test_requirements = install_requirements + [
     'pytest',
     'coverage',
     'mongoengine',
-    'sqlalchemy'
+    'sqlalchemy',
 ]
 
 if sys.version_info[:2] < (3, 4):
@@ -26,9 +23,7 @@ setup(
     maintainer_email='engineering@close.io',
     description='Validation library for Python designed to be used with JSON REST frameworks',
     long_description=__doc__,
-    packages=[
-        'cleancat',
-    ],
+    packages=['cleancat'],
     zip_safe=False,
     platforms='any',
     install_requires=install_requirements,
@@ -48,6 +43,6 @@ setup(
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Topic :: Internet :: WWW/HTTP :: Dynamic Content',
-        'Topic :: Software Development :: Libraries :: Python Modules'
-    ]
+        'Topic :: Software Development :: Libraries :: Python Modules',
+    ],
 )

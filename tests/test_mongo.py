@@ -4,7 +4,9 @@ from mongoengine import Document, EmbeddedDocument, StringField, connect
 
 from cleancat import Schema, StopValidation, String, ValidationError
 from cleancat.mongo import (
-    MongoEmbedded, MongoEmbeddedReference, MongoReference
+    MongoEmbedded,
+    MongoEmbeddedReference,
+    MongoReference,
 )
 
 
@@ -17,42 +19,44 @@ def mongodb():
 def person_cls(mongodb):
     class Person(Document):
         name = StringField()
+
     Person.drop_collection()
     return Person
 
 
 class TestMongoEmbedded:
-
     @pytest.fixture
     def doc_cls(self):
         class EmbeddedPerson(EmbeddedDocument):
             name = StringField()
+
         return EmbeddedPerson
 
     @pytest.fixture
     def schema_cls(self):
         class EmbeddedPersonSchema(Schema):
             name = String(min_length=2)
+
         return EmbeddedPersonSchema
 
     def test_it_accepts_valid_input(self, doc_cls, schema_cls):
         value = {'name': 'Jon'}
         MongoEmbedded(doc_cls, schema_cls).clean(value) == value
 
-    def test_it_enforces_validation_of_embedded_schema(self, doc_cls,
-                                                       schema_cls):
+    def test_it_enforces_validation_of_embedded_schema(
+        self, doc_cls, schema_cls
+    ):
         with pytest.raises(ValidationError) as e:
             MongoEmbedded(doc_cls, schema_cls).clean({'name': 'X'})
         assert e.value.args[0] == {
             'errors': [],
             'field-errors': {
                 'name': 'The value must be at least 2 characters long.'
-            }
+            },
         }
 
 
 class TestMongoReferenceField:
-
     def test_it_accepts_an_existing_doc(self, person_cls):
         field = MongoReference(person_cls)
         doc = person_cls.objects.create(name='Steve')
@@ -76,13 +80,10 @@ class TestMongoReferenceField:
 
         schema = BookSchema({'author_id': str(ObjectId())})
         pytest.raises(ValidationError, schema.full_clean)
-        assert schema.field_errors == {
-            'author_id': 'Object does not exist.'
-        }
+        assert schema.field_errors == {'author_id': 'Object does not exist.'}
 
 
 class TestSchemaWithMongoEmbeddedReferenceField:
-
     @pytest.fixture
     def schema_cls(self, person_cls):
         class PersonSchema(Schema):
@@ -95,11 +96,7 @@ class TestSchemaWithMongoEmbeddedReferenceField:
         return BookSchema
 
     def test_it_creates_a_new_instance(self, schema_cls, person_cls):
-        schema = schema_cls({
-            'author': {
-                'name': 'New Author'
-            }
-        })
+        schema = schema_cls({'author': {'name': 'New Author'}})
         data = schema.full_clean()
         author = data['author']
         assert isinstance(author, person_cls)
@@ -108,12 +105,7 @@ class TestSchemaWithMongoEmbeddedReferenceField:
 
     def test_it_updates_an_existing_instance(self, schema_cls, person_cls):
         doc = person_cls.objects.create(name='Steve')
-        schema = schema_cls({
-            'author': {
-                'id': str(doc.pk),
-                'name': 'Updated'
-            }
-        })
+        schema = schema_cls({'author': {'id': str(doc.pk), 'name': 'Updated'}})
         data = schema.full_clean()
         author = data['author']
         assert isinstance(author, person_cls)
@@ -121,23 +113,21 @@ class TestSchemaWithMongoEmbeddedReferenceField:
         assert author.name == 'Updated'
 
     def test_updating_missing_instance_fails(self, schema_cls):
-        schema = schema_cls({
-            'author': {
-                'id': str(ObjectId()),
-                'name': 'Arbitrary Non-existent Object ID'
+        schema = schema_cls(
+            {
+                'author': {
+                    'id': str(ObjectId()),
+                    'name': 'Arbitrary Non-existent Object ID',
+                }
             }
-        })
+        )
         pytest.raises(ValidationError, schema.full_clean)
         assert schema.field_errors == {'author': 'Object does not exist.'}
 
     def test_it_can_be_optional(self, schema_cls):
         schema_cls.author.required = False
-        schema = schema_cls({
-            'title': 'Book without an author',
-            'author': None
-        })
+        schema = schema_cls(
+            {'title': 'Book without an author', 'author': None}
+        )
         data = schema.full_clean()
-        assert data == {
-            'title': 'Book without an author',
-            'author': None
-        }
+        assert data == {'title': 'Book without an author', 'author': None}

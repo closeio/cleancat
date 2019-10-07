@@ -29,16 +29,11 @@ def sqla_session():
 
 def test_object_as_dict():
     steve = Person(name='Steve', age=30)
-    assert object_as_dict(steve) == {
-        'id': None,
-        'age': 30,
-        'name': 'Steve'
-    }
+    assert object_as_dict(steve) == {'id': None, 'age': 30, 'name': 'Steve'}
 
 
 @pytest.mark.usefixtures('sqla_session')
 class TestSQLAReferenceField:
-
     def test_it_updates_an_existing_instance(self, sqla_session):
         steve = Person(name='Steve', age=30)
         sqla_session.add(steve)
@@ -62,7 +57,6 @@ class TestSQLAReferenceField:
 
 @pytest.mark.usefixtures('sqla_session')
 class TestSchemaWithSQLAEmbeddedReference:
-
     @pytest.fixture
     def book_schema_cls(self):
         class PersonSchema(Schema):
@@ -70,19 +64,15 @@ class TestSchemaWithSQLAEmbeddedReference:
             age = Integer()
 
         class BookSchema(Schema):
-            author = SQLAEmbeddedReference(Person, PersonSchema,
-                                           required=False)
+            author = SQLAEmbeddedReference(
+                Person, PersonSchema, required=False
+            )
             title = String(required=False)
 
         return BookSchema
 
     def test_it_creates_a_new_instance(self, book_schema_cls):
-        schema = book_schema_cls({
-            'author': {
-                'name': 'New Author',
-                'age': 30
-            }
-        })
+        schema = book_schema_cls({'author': {'name': 'New Author', 'age': 30}})
         data = schema.full_clean()
         author = data['author']
         assert isinstance(author, Person)
@@ -90,19 +80,16 @@ class TestSchemaWithSQLAEmbeddedReference:
         assert author.name == 'New Author'
         assert author.age == 30
 
-    def test_it_updates_an_existing_instance(self, book_schema_cls,
-                                             sqla_session):
+    def test_it_updates_an_existing_instance(
+        self, book_schema_cls, sqla_session
+    ):
         steve = Person(name='Steve', age=30)
         sqla_session.add(steve)
         sqla_session.commit()
 
-        schema = book_schema_cls({
-            'author': {
-                'id': str(steve.id),
-                'name': 'Updated',
-                'age': 50
-            }
-        })
+        schema = book_schema_cls(
+            {'author': {'id': str(steve.id), 'name': 'Updated', 'age': 50}}
+        )
         data = schema.full_clean()
         author = data['author']
         assert isinstance(author, Person)
@@ -111,22 +98,15 @@ class TestSchemaWithSQLAEmbeddedReference:
         assert author.age == 50
 
     def test_updating_missing_instance_fails(self, book_schema_cls):
-        schema = book_schema_cls({
-            'author': {
-                'id': 123456789,
-                'name': 'Arbitrary Non-existent ID'
-            }
-        })
+        schema = book_schema_cls(
+            {'author': {'id': 123456789, 'name': 'Arbitrary Non-existent ID'}}
+        )
         pytest.raises(ValidationError, schema.full_clean)
         assert schema.field_errors == {'author': 'Object does not exist.'}
 
     def test_it_can_be_optional(self, book_schema_cls):
-        schema = book_schema_cls({
-            'title': 'Book without an author',
-            'author': None
-        })
+        schema = book_schema_cls(
+            {'title': 'Book without an author', 'author': None}
+        )
         data = schema.full_clean()
-        assert data == {
-            'title': 'Book without an author',
-            'author': None
-        }
+        assert data == {'title': 'Book without an author', 'author': None}

@@ -14,8 +14,9 @@ def object_as_dict(obj):
 
     Based on https://stackoverflow.com/a/37350445/1579058
     """
-    return {c.key: getattr(obj, c.key)
-            for c in inspect(obj).mapper.column_attrs}
+    return {
+        c.key: getattr(obj, c.key) for c in inspect(obj).mapper.column_attrs
+    }
 
 
 class SQLAEmbeddedReference(EmbeddedReference):
