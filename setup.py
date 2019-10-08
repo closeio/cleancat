@@ -1,3 +1,5 @@
+import io
+import re
 import sys
 from setuptools import setup
 
@@ -12,9 +14,13 @@ test_requirements = install_requirements + [
 if sys.version_info[:2] < (3, 4):
     test_requirements += ['enum34']
 
+VERSION_FILE = "cleancat/__init__.py"
+with io.open(VERSION_FILE, "rt", encoding="utf8") as f:
+    version = re.search(r'__version__ = ([\'"])(.*?)\1', f.read()).group(2)
+
 setup(
     name='cleancat',
-    version='0.7.9',
+    version=version,
     url='http://github.com/elasticsales/cleancat',
     license='MIT',
     author='Thomas Steinacher',
@@ -42,6 +48,8 @@ setup(
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
         'Topic :: Internet :: WWW/HTTP :: Dynamic Content',
         'Topic :: Software Development :: Libraries :: Python Modules',
     ],
