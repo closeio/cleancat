@@ -2,6 +2,7 @@
 import datetime
 import enum
 import re
+from uuid import UUID as PythonUUID
 
 import pytest
 from pytz import utc
@@ -27,7 +28,13 @@ from cleancat import (
     URL,
     ValidationError,
 )
-from cleancat.base import PolymorphicField, EmbeddedFactory, LazyField
+from cleancat.base import (
+    PolymorphicField,
+    EmbeddedFactory,
+    LazyField,
+    UUID,
+    CleanDict,
+)
 
 
 class TestField:
@@ -1043,3 +1050,56 @@ def test_lazy_field():
     assert side_effects == [1]
     TestSchema({'lazy_side_effect': 1})
     assert side_effects == [1]
+
+
+def test_uuid_field():
+    my_id = '1a4c0351-3621-4860-b528-5ada0003fbda'
+
+    with pytest.raises(ValidationError) as exc_info:
+        UUID().clean('x')
+    assert exc_info.value.args[0] == 'Not a UUID.'
+
+    with pytest.raises(ValidationError) as exc_info:
+        assert UUID().clean(None)
+    assert exc_info.value.args[0] == 'This field is required.'
+
+    assert UUID().clean(my_id) == PythonUUID(my_id)
+    assert UUID().serialize(PythonUUID(my_id)) == my_id
+
+
+def test_clean_dict():
+    f = CleanDict(key_schema=Regex(r'^k*$'), value_schema=Regex(r'^v*$'))
+    assert f.clean({'k': 'v'}) == {'k': 'v'}
+    assert f.clean({'kkk': 'vvv', 'k': 'v'}) == {'kkk': 'vvv', 'k': 'v'}
+
+    with pytest.raises(ValidationError):
+        f.clean({'a': 'v'})
+
+    with pytest.raises(ValidationError):
+        f.clean({'k': 'a'})
+
+    with pytest.raises(ValidationError):
+        f.clean({'a': 'a'})
+
+    with pytest.raises(ValidationError):
+        f.clean({'a': 1})
+
+    with pytest.raises(ValidationError):
+        f.clean({'a': [1]})
+
+
+def test_optional_clean_dict():
+    class TestSchema(Schema):
+        f_opt = CleanDict(
+            key_schema=Regex(r'^k*$'), value_schema=Integer(), required=False
+        )
+
+    assert TestSchema({'f_opt': {}}).full_clean() == {'f_opt': None}
+    assert TestSchema({'f_opt': {'k': 1}}).full_clean() == {'f_opt': {'k': 1}}
+    assert TestSchema({}).full_clean() == {'f_opt': None}
+
+    with pytest.raises(ValidationError):
+        assert TestSchema({'f_opt': {'x': 1}}).full_clean()
+
+    with pytest.raises(ValidationError):
+        assert TestSchema({'f_opt': {'k': 1.1}}).full_clean()

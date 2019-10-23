@@ -2,6 +2,7 @@ import datetime
 import inspect
 import re
 import sys
+from uuid import UUID as PythonUUID
 
 import pytz
 from dateutil import parser
@@ -911,6 +912,71 @@ class PolymorphicField(Dict):
         return self.type_map[field_type].clean(
             {k: v for k, v in value.items() if k != field_type}
         )
+
+
+class UUID(String):
+    """Schema field for UUIDs.
+
+    It handles deserialization from a string to a Python UUID object
+    and serialization from a Python UUID object to a string.
+    """
+
+    blank_value = None
+
+    def clean(self, value):
+        value = super(UUID, self).clean(value)
+        try:
+            return PythonUUID(value)
+        except ValueError:
+            raise ValidationError('Not a UUID.')
+
+    def serialize(self, value):
+        return str(value)
+
+
+class CleanDict(Dict):
+    """A dictionary in which both keys and values are validated with separate schema fields."""
+
+    def __init__(self, key_schema, value_schema, max_length=None, **kwargs):
+        super(CleanDict, self).__init__(**kwargs)
+        self.key_schema = key_schema
+        self.value_schema = value_schema
+        self.max_length = max_length
+
+    def clean(self, value):
+        value = super(CleanDict, self).clean(value)
+
+        if self.max_length and len(value) > self.max_length:
+            raise ValidationError('Dict is too long.')
+
+        errors = {}
+        data = {}
+        for key, value in value.items():
+            try:
+                cleaned_key = self.key_schema.clean(key)
+            except ValidationError as e:
+                errors[key] = e.args and e.args[0]
+            else:
+                try:
+                    cleaned_value = self.value_schema.clean(value)
+                except ValidationError as e:
+                    errors[key] = e.args and e.args[0]
+                else:
+                    data[cleaned_key] = cleaned_value
+
+        if errors:
+            raise ValidationError({'errors': errors})
+
+        return data
+
+    def serialize(self, value):
+        # Serialize all falsy values as an empty dict.
+        if not value:
+            return {}
+        return {
+            self.key_schema.serialize(key): self.value_schema.serialize(value)
+            for key, value in value.items()
+        }
 
 
 class EmbeddedFactory(Embedded):
