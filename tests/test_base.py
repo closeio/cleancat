@@ -470,17 +470,23 @@ class TestListField:
             with pytest.raises(ValidationError, match=expected_err_msg):
                 field.clean(value)
 
-    @pytest.mark.parametrize('value', [None, []])
-    def test_it_enforces_required_flag(self, value):
+    def test_it_enforces_required_flag(self):
         expected_err_msg = 'This field is required.'
         with pytest.raises(ValidationError, match=expected_err_msg):
-            List(String()).clean(value)
+            List(String()).clean(None)
 
-    @pytest.mark.parametrize('value', [None, []])
-    def test_it_can_be_optional(self, value):
+    def test_it_enforces_allow_empty_flag(self):
+        expected_err_msg = 'List must not be empty.'
+        with pytest.raises(ValidationError, match=expected_err_msg):
+            List(String()).clean([])
+
+    def test_it_can_be_optional(self):
         with pytest.raises(StopValidation) as e:
-            List(String(), required=False).clean(value)
+            List(String(), required=False).clean(None)
         assert e.value.args[0] == []
+
+    def test_it_can_be_empty(self):
+        assert List(String(), allow_empty=True).clean([]) == []
 
 
 class TestSortedSetField:
