@@ -5,8 +5,8 @@ import sys
 from uuid import UUID as PythonUUID
 
 import pytz
+import six
 from dateutil import parser
-
 
 if sys.version_info[0] == 3:
     str_type = str
@@ -122,7 +122,15 @@ class String(Field):
             raise ValidationError(err_msg)
 
     def clean(self, value):
-        value = super(String, self).clean(value)
+        try:
+            value = super(String, self).clean(value)
+        except ValidationError as exc:
+            # This is a layer to keep the external API unchanged once we
+            # migrate to Python 3.
+            if six.PY3 and str(exc) == 'Value must be of str type.':
+                raise ValidationError('Value must be of basestring type.')
+            raise
+
         self._check_length(value)
         return value
 
@@ -137,7 +145,15 @@ class TrimmedString(String):
     def clean(self, value):
         # XXX we skip a level of inheritance so that we can perform length
         # checks *after* trimming.
-        value = super(String, self).clean(value)
+        try:
+            value = super(String, self).clean(value)
+        except ValidationError as exc:
+            # This is a layer to keep the external API unchanged once we
+            # migrate to Python 3.
+            if six.PY3 and str(exc) == 'Value must be of str type.':
+                raise ValidationError('Value must be of basestring type.')
+            raise
+
         if value:
             value = value.strip()
         self._check_length(value)
@@ -203,7 +219,12 @@ class DateTime(Regex):
         try:
             dt = parser.parse(value)
         except Exception as e:
-            raise ValidationError('Could not parse date: %s' % str(e))
+            # This is a layer to keep the external API unchanged once we
+            # migrate to Python 3.
+            error_message = str(e)
+            if six.PY3 and error_message.startswith('year 0 is out of range'):
+                error_message = 'year is out of range'
+            raise ValidationError('Could not parse date: %s' % error_message)
         if self.min_date:
             if dt.tzinfo is not None and self.min_date.tzinfo is None:
                 min_date = self.min_date.replace(tzinfo=pytz.utc)
