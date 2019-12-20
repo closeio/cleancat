@@ -5,8 +5,8 @@ import sys
 from uuid import UUID as PythonUUID
 
 import pytz
+import six
 from dateutil import parser
-
 
 if sys.version_info[0] == 3:
     str_type = str
@@ -122,7 +122,14 @@ class String(Field):
             raise ValidationError(err_msg)
 
     def clean(self, value):
-        value = super(String, self).clean(value)
+        try:
+            value = super(String, self).clean(value)
+        except ValidationError as exc:
+            # Standardize messages between Python 2 and 3.
+            if six.PY2 and str(exc) == 'Value must be of basestring type.':
+                raise ValidationError('Value must be of str type.')
+            raise
+
         self._check_length(value)
         return value
 
@@ -135,9 +142,16 @@ class TrimmedString(String):
     blank_value = ''
 
     def clean(self, value):
-        # XXX we skip a level of inheritance so that we can perform length
-        # checks *after* trimming.
-        value = super(String, self).clean(value)
+        try:
+            # XXX we skip a level of inheritance so that we can perform length
+            # checks *after* trimming.
+            value = super(String, self).clean(value)
+        except ValidationError as exc:
+            # Standardize messages between Python 2 and 3.
+            if six.PY2 and str(exc) == 'Value must be of basestring type.':
+                raise ValidationError('Value must be of str type.')
+            raise
+
         if value:
             value = value.strip()
         self._check_length(value)
@@ -202,8 +216,8 @@ class DateTime(Regex):
             raise ValidationError(self.regex_message)
         try:
             dt = parser.parse(value)
-        except Exception as e:
-            raise ValidationError('Could not parse date: %s' % str(e))
+        except parser.ParserError:
+            raise ValidationError('Could not parse datetime')
         if self.min_date:
             if dt.tzinfo is not None and self.min_date.tzinfo is None:
                 min_date = self.min_date.replace(tzinfo=pytz.utc)

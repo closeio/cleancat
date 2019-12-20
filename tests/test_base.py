@@ -8,6 +8,7 @@ import pytest
 from pytz import utc
 
 from cleancat import (
+    URL,
     Bool,
     Choices,
     DateTime,
@@ -25,15 +26,14 @@ from cleancat import (
     StopValidation,
     String,
     TrimmedString,
-    URL,
     ValidationError,
 )
 from cleancat.base import (
-    PolymorphicField,
-    EmbeddedFactory,
-    LazyField,
     UUID,
     CleanDict,
+    EmbeddedFactory,
+    LazyField,
+    PolymorphicField,
 )
 
 
@@ -78,8 +78,7 @@ class TestStringField:
         assert e.value.args[0] == 'default'
 
     def test_it_enforces_valid_data_type(self):
-        # TODO make this consistent between Py2 & Py3
-        expected_err_msg = 'Value must be of (str|basestring) type.'
+        expected_err_msg = 'Value must be of str type.'
         with pytest.raises(ValidationError, match=expected_err_msg):
             String().clean(True)
 
@@ -158,8 +157,7 @@ class TestTrimmedStringField:
         assert e.value.args[0] == ''
 
     def test_it_enforces_valid_data_type(self):
-        # TODO make this consistent between Py2 & Py3
-        expected_err_msg = 'Value must be of (str|basestring) type.'
+        expected_err_msg = 'Value must be of str type.'
         with pytest.raises(ValidationError, match=expected_err_msg):
             TrimmedString().clean(True)
 
@@ -256,8 +254,7 @@ class TestRegexField:
         assert e.value.args[0] == ''
 
     def test_it_enforces_valid_data_type(self):
-        # TODO make this consistent between Py2 & Py3
-        expected_err_msg = 'Value must be of (str|basestring) type.'
+        expected_err_msg = 'Value must be of str type.'
         with pytest.raises(ValidationError, match=expected_err_msg):
             Regex('^[a-z]$').clean(True)
 
@@ -276,13 +273,8 @@ class TestDateTimeField:
         assert DateTime().clean(raw) == expected
 
     def test_it_rejects_invalid_year_range(self):
-        with pytest.raises(ValidationError) as e:
+        with pytest.raises(ValidationError, match='Could not parse datetime'):
             DateTime().clean('0000-01-01T00:00:00-08:00')
-        assert e.value.args[0] in (
-            # TODO make this consistent between Py2 & Py3
-            'Could not parse date: year is out of range',  # Py2
-            'Could not parse date: year 0 is out of range',  # Py3
-        )
 
     @pytest.mark.parametrize('value', ['2012a', 'alksdjf', '111111111'])
     def test_it_rejects_invalid_dates(self, value):
@@ -303,8 +295,7 @@ class TestDateTimeField:
         assert e.value.args[0] is None
 
     def test_it_enforces_valid_data_type(self):
-        # TODO make this consistent between Py2 & Py3
-        expected_err_msg = 'Value must be of (str|basestring) type.'
+        expected_err_msg = 'Value must be of str type.'
         with pytest.raises(ValidationError, match=expected_err_msg):
             DateTime().clean(True)
 
@@ -369,8 +360,7 @@ class TestEmailField:
         assert e.value.args[0] == ''
 
     def test_it_enforces_valid_data_type(self):
-        # TODO make this consistent between Py2 & Py3
-        expected_err_msg = 'Value must be of (str|basestring) type.'
+        expected_err_msg = 'Value must be of str type.'
         with pytest.raises(ValidationError, match=expected_err_msg):
             Email().clean(True)
 
@@ -662,8 +652,7 @@ class TestURLField:
 
     @pytest.mark.parametrize('value', [23.0, True])
     def test_it_enforces_valid_data_type(self, value):
-        # TODO make this consistent between Py2 & Py3
-        expected_err_msg = 'Value must be of (str|basestring) type.'
+        expected_err_msg = 'Value must be of str type.'
         with pytest.raises(ValidationError, match=expected_err_msg):
             URL().clean(value)
 
@@ -704,8 +693,7 @@ class TestRelaxedURLField:
 
     @pytest.mark.parametrize('value', [23.0, True])
     def test_it_enforces_valid_data_type(self, value):
-        # TODO make this consistent between Py2 & Py3
-        expected_err_msg = 'Value must be of (str|basestring) type.'
+        expected_err_msg = 'Value must be of str type.'
         with pytest.raises(ValidationError, match=expected_err_msg):
             RelaxedURL().clean(value)
 
