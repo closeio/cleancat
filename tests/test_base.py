@@ -473,12 +473,36 @@ class TestListField:
         assert e.value.args[0] == []
 
 
+class ClassWithID(object):
+    id = None
+
+    def __init__(self, id_):
+        self.id = id_
+
+    def __eq__(self, other):
+        return type(self) is type(other) and self.id == other.id
+
+    def __hash__(self):
+        return hash(self.id)
+
+
+class ClassWithIDField(Field):
+    def clean(self, value):
+        return ClassWithID(int(value['id']))
+
+
 class TestSortedSetField:
     def test_it_dedupes_valid_values(self):
         assert SortedSet(String()).clean(['a', 'b', 'a']) == ['a', 'b']
 
     def test_it_sorts_valid_values(self):
         assert SortedSet(String()).clean(['b', 'a']) == ['a', 'b']
+
+    def test_it_sorts_objects(self):
+        sorted_set = SortedSet(ClassWithIDField(), key=lambda o: o.id).clean(
+            [{'id': '2'}, {'id': '1'}]
+        )
+        assert sorted_set == [ClassWithID(1), ClassWithID(2)]
 
     def test_it_enforces_required_flag(self):
         expected_err_msg = 'This field is required.'

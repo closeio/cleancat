@@ -676,8 +676,14 @@ class Enum(Choices):
 class SortedSet(List):
     """Sorted, unique set of values represented as a list."""
 
+    def __init__(self, field_instance, max_length=None, key=None, **kwargs):
+        super(SortedSet, self).__init__(field_instance, max_length, **kwargs)
+        self.key = key
+
     def clean(self, value):
-        return list(sorted(set(super(SortedSet, self).clean(value))))
+        return list(
+            sorted(set(super(SortedSet, self).clean(value)), key=self.key)
+        )
 
 
 class Schema(object):
