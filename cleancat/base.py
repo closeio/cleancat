@@ -216,7 +216,7 @@ class DateTime(Regex):
             raise ValidationError(self.regex_message)
         try:
             dt = parser.parse(value)
-        except parser.ParserError:
+        except ValueError:
             raise ValidationError('Could not parse datetime')
         if self.min_date:
             if dt.tzinfo is not None and self.min_date.tzinfo is None:
