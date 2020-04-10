@@ -1034,6 +1034,18 @@ def test_polymorphic_field():
         poly_field.clean({'type': '1', 'option-0': 'data'})
 
 
+def test_polymorphic_field_2():
+    class Option(Dict):
+        def clean(self, value):
+            value = super(Option, self).clean(value)
+            if 'option' not in value:
+                raise ValidationError('option not in data')
+            return value['option']
+
+    poly_field = PolymorphicField(type_map={'option': Option()})
+    assert poly_field.clean({'type': 'option', 'option': 1}) == 1
+
+
 def test_embedded_factory():
     class SumTwoInts(Schema):
         a = Integer(required=True)
