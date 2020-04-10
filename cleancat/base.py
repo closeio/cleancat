@@ -930,7 +930,7 @@ class PolymorphicField(Dict):
             )
 
         return self.type_map[field_type].clean(
-            {k: v for k, v in value.items() if k != field_type}
+            {k: v for k, v in value.items() if k != self.type_field}
         )
 
 
