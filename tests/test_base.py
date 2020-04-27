@@ -1007,10 +1007,12 @@ class TestSchema:
         }
 
 
-def test_polymorphic_field():
+@pytest.mark.parametrize('keep_type_field', [False, True])
+def test_polymorphic_field(keep_type_field):
     class Option1(Dict):
         def clean(self, value):
             value = super(Option1, self).clean(value)
+            assert ('type' in value) == keep_type_field
             if 'option-1' not in value:
                 raise ValidationError('option-1 not in data')
             return value['option-1']
@@ -1018,11 +1020,15 @@ def test_polymorphic_field():
     class Option2(Dict):
         def clean(self, value):
             value = super(Option2, self).clean(value)
+            assert ('type' in value) == keep_type_field
             if 'option-2' not in value:
                 raise ValidationError('option-2 not in data')
             return value['option-2']
 
-    poly_field = PolymorphicField(type_map={'1': Option1(), '2': Option2()})
+    poly_field = PolymorphicField(
+        type_map={'1': Option1(), '2': Option2()},
+        keep_type_field=keep_type_field,
+    )
 
     assert poly_field.clean({'type': '1', 'option-1': 'data'}) == 'data'
     assert poly_field.clean({'type': '2', 'option-2': 'data'}) == 'data'
