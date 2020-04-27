@@ -908,16 +908,25 @@ class PolymorphicField(Dict):
 
     {'type': 'my_type', 'more': 'data', ...} will be validated with
     MySchema based on 'my_type' value.
+
+    keep_type_field (default no) allows keeping the type-dispatching field
+    in dispatched schemas' data.
     """
 
     base_type = dict
 
     def __init__(
-        self, type_map={}, type_field=DEFAULT_TYPE_FIELD, *args, **kwargs
+        self,
+        type_map={},
+        type_field=DEFAULT_TYPE_FIELD,
+        keep_type_field=False,
+        *args,
+        **kwargs
     ):
         super(PolymorphicField, self).__init__(*args, **kwargs)
         self.type_map = type_map
         self.type_field = type_field
+        self.keep_type_field = keep_type_field
 
     def clean(self, value):
         clean = super(PolymorphicField, self).clean(value)
@@ -930,7 +939,11 @@ class PolymorphicField(Dict):
             )
 
         return self.type_map[field_type].clean(
-            {k: v for k, v in value.items() if k != self.type_field}
+            {
+                k: v
+                for k, v in value.items()
+                if self.keep_type_field or k != self.type_field
+            }
         )
 
 
