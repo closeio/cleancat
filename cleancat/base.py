@@ -615,6 +615,11 @@ class Choices(Field):
     def get_choices(self):
         return self.choices
 
+    def format_invalid_choice_msg(self, value):
+        return self.error_invalid_choice.format(
+            value=value, valid_choices=', '.join(self.get_choices())
+        )
+
     def clean(self, value):
         value = super(Choices, self).clean(value)
 
@@ -627,13 +632,13 @@ class Choices(Field):
                 raise ValidationError(u'Value needs to be a string.')
 
             if value.lower() not in choices:
-                err_msg = self.error_invalid_choice.format(value=value)
+                err_msg = self.format_invalid_choice_msg(value)
                 raise ValidationError(err_msg)
 
             return choices[value.lower()]
 
         if value not in choices:
-            err_msg = self.error_invalid_choice.format(value=value)
+            err_msg = self.format_invalid_choice_msg(value)
             raise ValidationError(err_msg)
 
         return value
