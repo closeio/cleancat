@@ -541,6 +541,14 @@ class TestEnumField:
         with pytest.raises(ValidationError, match=expected_err_msg):
             Enum(enum_cls).clean('d')
 
+    def test_it_has_custom_message(self, enum_cls):
+        expected_err_msg = 'Invalid choice d. Valid choices: a, b, c'
+        with pytest.raises(ValidationError, match=expected_err_msg):
+            Enum(
+                enum_cls,
+                error_invalid_choice='Invalid choice {value}. Valid choices: {valid_choices}',
+            ).clean('d')
+
     def test_it_accepts_a_sublist_of_choices(self, enum_cls):
         field = Enum([enum_cls.A, enum_cls.B])
         assert field.clean('a') == enum_cls.A
