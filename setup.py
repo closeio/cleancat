@@ -1,6 +1,5 @@
 import io
 import re
-import sys
 from setuptools import setup
 
 install_requirements = ['python-dateutil', 'pytz']
@@ -10,9 +9,6 @@ test_requirements = install_requirements + [
     'mongoengine',
     'sqlalchemy',
 ]
-
-if sys.version_info[:2] < (3, 4):
-    test_requirements += ['enum34']
 
 VERSION_FILE = "cleancat/__init__.py"
 with io.open(VERSION_FILE, "rt", encoding="utf8") as f:
@@ -43,10 +39,7 @@ setup(
         'License :: OSI Approved :: MIT License',
         'Operating System :: OS Independent',
         'Programming Language :: Python',
-        'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
