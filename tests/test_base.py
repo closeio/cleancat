@@ -839,11 +839,19 @@ class TestSchema:
     def test_blank_values_for_optional_fields(self):
         class OptionalSchema(Schema):
             text = String(required=False)
+            nullable_text = Bool(required=False, blank_value=None)
             boolean = Bool(required=False)
+            nullable_boolean = Bool(required=False, blank_value=None)
             number = Integer(required=False)
 
         data = OptionalSchema({}).full_clean()
-        assert data == {'text': '', 'boolean': False, 'number': None}
+        assert data == {
+            'text': '',
+            'nullable_text': None,
+            'boolean': False,
+            'nullable_boolean': None,
+            'number': None,
+        }
 
     def test_it_preserves_orig_data_if_no_new_data_given(self):
         class OptionalSchema(Schema):
