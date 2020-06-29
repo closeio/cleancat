@@ -7,6 +7,10 @@ import pytz
 from dateutil import parser
 
 
+# Sentinel value which means "pick the default value" when encountered.
+default_sentinel = object()
+
+
 class ValidationError(Exception):
     pass
 
@@ -34,6 +38,7 @@ class Field(object):
         raw_field_name=None,
         mutable=True,
         read_only=False,
+        blank_value=default_sentinel,
     ):
         """
         By default, the field name is derived from the schema model, but in
@@ -48,6 +53,8 @@ class Field(object):
         self.field_name = field_name
         self.raw_field_name = raw_field_name or field_name
         self.read_only = read_only
+        if blank_value is not default_sentinel:
+            self.blank_value = blank_value
 
     def has_value(self, value):
         return value is not None
