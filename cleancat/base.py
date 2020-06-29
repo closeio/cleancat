@@ -1,17 +1,10 @@
 import datetime
 import inspect
 import re
-import sys
 from uuid import UUID as PythonUUID
 
 import pytz
-import six
 from dateutil import parser
-
-if sys.version_info[0] == 3:
-    str_type = str
-else:
-    str_type = basestring  # noqa: F821
 
 
 class ValidationError(Exception):
@@ -96,7 +89,7 @@ class Field(object):
 
 
 class String(Field):
-    base_type = str_type
+    base_type = str
     blank_value = ''
     min_length = None
     max_length = None
@@ -122,14 +115,7 @@ class String(Field):
             raise ValidationError(err_msg)
 
     def clean(self, value):
-        try:
-            value = super(String, self).clean(value)
-        except ValidationError as exc:
-            # Standardize messages between Python 2 and 3.
-            if six.PY2 and str(exc) == 'Value must be of basestring type.':
-                raise ValidationError('Value must be of str type.')
-            raise
-
+        value = super(String, self).clean(value)
         self._check_length(value)
         return value
 
@@ -138,19 +124,13 @@ class String(Field):
 
 
 class TrimmedString(String):
-    base_type = str_type
+    base_type = str
     blank_value = ''
 
     def clean(self, value):
-        try:
-            # XXX we skip a level of inheritance so that we can perform length
-            # checks *after* trimming.
-            value = super(String, self).clean(value)
-        except ValidationError as exc:
-            # Standardize messages between Python 2 and 3.
-            if six.PY2 and str(exc) == 'Value must be of basestring type.':
-                raise ValidationError('Value must be of str type.')
-            raise
+        # XXX we skip a level of inheritance so that we can perform length
+        # checks *after* trimming.
+        value = super(String, self).clean(value)
 
         if value:
             value = value.strip()
@@ -250,7 +230,7 @@ class Email(Regex):
 
     def clean(self, value):
         # trim any leading/trailing whitespace before validating the email
-        if isinstance(value, str_type):
+        if isinstance(value, str):
             value = value.strip()
         return super(Email, self).clean(value)
 
@@ -565,7 +545,7 @@ class Reference(Field):
     # The ID is assumed to be supplied as a string. However, subclasses can
     # change this field if need be (e.g. it's common for objects persisted in
     # relational databases to use integers as IDs).
-    base_type = str_type
+    base_type = str
 
     def __init__(self, object_class, **kwargs):
         self.object_class = object_class
@@ -628,7 +608,7 @@ class Choices(Field):
         if self.case_insensitive:
             choices = {choice.lower(): choice for choice in choices}
 
-            if not isinstance(value, str_type):
+            if not isinstance(value, str):
                 raise ValidationError(u'Value needs to be a string.')
 
             if value.lower() not in choices:
