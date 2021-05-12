@@ -678,6 +678,12 @@ class SortedSet(List):
         )
 
 
+class SchemaOptions:
+    def __init__(self, factory=None, serializer=None):
+        self.factory = factory
+        self.serializer = serializer
+
+
 class Schema(object):
     """
     Base Schema class. Provides core behavior like fields declaration
@@ -744,6 +750,10 @@ class Schema(object):
                 field_name = field.field_name or field_name
                 fields[field_name] = field
         return fields
+
+    @classmethod
+    def _get_options(cls):
+        return getattr(cls, '__options__', SchemaOptions())
 
     @classmethod
     def obj_to_dict(cls, obj):
@@ -851,7 +861,10 @@ class Schema(object):
             self.errors = [e.args and e.args[0]]
 
         self.raise_on_errors()
-        return self.data
+        factory = self._get_options().factory
+        if factory is None:
+            return self.data
+        return factory(**self.data)
 
     def raise_on_errors(self):
         if self.field_errors or self.errors:
@@ -877,9 +890,14 @@ class Schema(object):
 
     def serialize(self):
         data = {}
+        serializer = self._get_options().serializer
+        if serializer is None:
+            original_data = self.data
+        else:
+            original_data = serializer(self.data)
         for field_name, field in self.fields.items():
             raw_field_name = field.raw_field_name or field_name
-            value = self.data[field_name]
+            value = original_data[field_name]
             data[raw_field_name] = field.serialize(value)
         return data
 
