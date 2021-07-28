@@ -1,4 +1,4 @@
-cleancat
+CleanCat
 ========
 
 [![Build Status](https://travis-ci.org/closeio/cleancat.svg?branch=master)](https://travis-ci.org/closeio/cleancat)
