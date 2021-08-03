@@ -38,18 +38,7 @@ class Required(Nullability):
 class Nullable(Nullability):
     null_value: Any = omitted
 
-def intfield(
-    value: Any,
-    *,
-    nullability: Nullability = Required()
-) -> Union[Value[int], Error]:
-    # handle nullability
-    if value is omitted:
-        if isinstance(nullability, Required):
-            return Error(msg='Value is required.')
-        elif isinstance(nullability, Nullable):
-            return Value(nullability.null_value)
-
+def intfield(value: Any) -> Union[Value[int], Error]:
     # coerce from string if needed
     if isinstance(value, int):
         return Value(value=value)
@@ -89,8 +78,21 @@ class Field:
     """If provided overrides the name of the field during seiralialization."""
 
     serialize_func: Optional[Callable]
+    """If provided, will be used when serializing this field."""
+
+    nullability: Nullability
 
     def run_validators(self, field: Tuple[str, ...], value: Any) -> Union[Value, Error]:
+        # handle nullability
+        if value is omitted:
+            if isinstance(self.nullability, Required):
+                return wrap_result(
+                    field=field,
+                    result=Error(msg='Value is required.')
+                )
+            elif isinstance(self.nullability, Nullable):
+                return Value(self.nullability.null_value)
+
         result = Value(value=value)
         for validator in self.validators:
             result = validator(value=result.value)
@@ -108,10 +110,12 @@ def field(
     accepts: Tuple[str, ...] = tuple(),
     serialize_to: Optional[str] = None,
     serialize_func: Callable = noop,
+    nullability: Nullability = Required(),
 ):
     def _outer_field(inner_func: Callable):
 
         field_def = Field(
+            nullability=nullability,
             validators=parents + (inner_func,),
             accepts=accepts,
             serialize_to=serialize_to,
@@ -127,6 +131,7 @@ def field(
     return _outer_field
 
 def simple_field(**kwargs):
+    """Passthrough to make defining simple fields cleaner."""
     def _simple(value):
         return value
     return field(**kwargs)(_simple)
@@ -163,12 +168,14 @@ def schema(cls: SchemaCls, getter=getter, autodef=True):
     """
     # auto define simple annotations
     if autodef:
+        existing_fields = get_fields(cls)
         for field, f_type in getattr(cls, '__annotations__', {}).items():
-            setattr(
-                cls,
-                field,
-                simple_field(parents=(FIELD_TYPE_MAP[f_type],)),
-            )
+            if field not in existing_fields:
+                setattr(
+                    cls,
+                    field,
+                    simple_field(parents=(FIELD_TYPE_MAP[f_type],)),
+                )
 
     def _clean(data: Any) -> Union[SchemaCls, ValidationError]:
         # how to iterate over all methods?
@@ -305,4 +312,15 @@ def test_required():
     result = clean(MySchema, {})
     assert isinstance(result, ValidationError)
     assert result.errors == [Error(msg='Value is required.', field=('myint',))]
+
+def test_nullable():
+    @schema
+    class MySchema:
+        myint: Optional[int] = simple_field(
+            parents=(intfield,), nullability=Nullable(null_value=None)
+        )
+
+    result = clean(MySchema, {})
+    assert isinstance(result, MySchema)
+    assert result.myint == None
 
