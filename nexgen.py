@@ -46,9 +46,15 @@ def intfield(value: Any) -> Union[Value[int], Error]:
         try:
             value = int(value)
         except (ValueError, TypeError):
-            return Error(msg='unable to parse int')
+            return Error(msg='Unable to parse int from given string.')
 
-    return Error(msg='unhandled type, counld not coerce')
+    return Error(msg='Unhandled type, could not coerce.')
+
+def strfield(value: Any) -> Union[Value[str], Error]:
+    if isinstance(value, str):
+        return Value(value=value)
+
+    return Error(msg='Unhandled type')
 
 
 
@@ -155,7 +161,8 @@ def get_fields(cls: SchemaCls) -> Dict[str, Callable]:
     }
 
 FIELD_TYPE_MAP = {
-    int: intfield
+    int: intfield,
+    str: strfield,
 }
 
 def schema(cls: SchemaCls, getter=getter, autodef=True):
@@ -214,9 +221,6 @@ def schema(cls: SchemaCls, getter=getter, autodef=True):
             for field_name, field_def in get_fields(cls).items()
         }
     cls.__serialize = _serialize
-
-
-    # TODO some annotations magic
 
     return cls
 
@@ -323,4 +327,14 @@ def test_nullable():
     result = clean(MySchema, {})
     assert isinstance(result, MySchema)
     assert result.myint == None
+
+def test_strfield():
+    @schema
+    class UserSchema:
+        name: str
+
+    result = clean(UserSchema, {'name': 'John'})
+    assert isinstance(result, UserSchema)
+    assert result.name == 'John'
+
 
