@@ -46,7 +46,7 @@ def intfield(
     # handle nullability
     if value is omitted:
         if isinstance(nullability, Required):
-            return Error(field=field, msg='value is required')
+            return Error(msg='Value is required.')
         elif isinstance(nullability, Nullable):
             return Value(nullability.null_value)
 
@@ -296,4 +296,13 @@ def test_autodef():
     assert isinstance(result, MySchema)
     assert result.myint == 100
     assert serialize(result) == {'myint': 100}
+
+def test_required():
+    @schema
+    class MySchema:
+        myint: int
+
+    result = clean(MySchema, {})
+    assert isinstance(result, ValidationError)
+    assert result.errors == [Error(msg='Value is required.', field=('myint',))]
 
