@@ -39,7 +39,6 @@ class Nullable(Nullability):
     null_value: Any = omitted
 
 def intfield(
-    field: Tuple[str, ...],
     value: Any,
     *,
     nullability: Nullability = Required()
@@ -78,19 +77,30 @@ def wrap_result(field: Tuple[str, ...], result) -> ValueOrError:
     return result
 
 
+@attr.frozen
+class Field:
+    validators: Tuple[Callable, ...]
+
+    def run_validators(self, field: Tuple[str, ...], value: Any) -> Union[Value, Error]:
+        result = Value(value=value)
+        for validator in self.validators:
+            result = validator(value=result.value)
+            if isinstance(result, Error):
+                return wrap_result(field=field, result=result)
+
+        return wrap_result(field=field, result=result)
+
+
 def field(*, parents: Tuple[Callable, ...] =tuple()):
     def _outer_field(inner_func: Callable):
+
+        field_def = Field(validators=parents + (inner_func,))
+
         @functools.wraps(inner_func)
         def _field(field: Tuple[str, ...], value: Any) -> Union[Value, Error]:
-            result = Value(value=value)
-            for parent in parents:
-                result = parent(field=field, value=result.value)
-                if isinstance(result, Error):
-                    return wrap_result(field=field, result=result)
+            return field_def.run_validators(field, value)
 
-            return wrap_result(field=field, result=inner_func(result.value))
-
-        _field.__field = True
+        _field.__field = field_def
         return _field
     return _outer_field
 
