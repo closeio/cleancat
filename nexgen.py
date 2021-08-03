@@ -1,6 +1,6 @@
 import pytest
 import attr
-from typing import Generic, TypeVar, Type, Union, Dict, List, Tuple, Any, Callable
+from typing import Generic, TypeVar, Type, Union, Dict, List, Tuple, Any, Callable, Optional
 import functools
 
 @attr.frozen
@@ -105,8 +105,8 @@ class Field:
 def field(
     *,
     parents: Tuple[Callable, ...] = tuple(),
-    accepts: Tuple[str, ...] = tuple()
-    serialize_to: Optional[str] = None
+    accepts: Tuple[str, ...] = tuple(),
+    serialize_to: Optional[str] = None,
 ):
     def _outer_field(inner_func: Callable):
 
@@ -204,7 +204,7 @@ def serialize(schema: SchemaCls) -> Dict:
 class ExampleSchema:
     myint = simple_field(parents=(intfield,), accepts=('myint', 'deprecated_int'))
 
-    @field(parents=(intfield,), serialize_to='low_int')
+    @field(parents=(intfield,))
     def mylowint(value: int) -> Union[Value[int], Error]:
         if value < 5:
             return Value(value=value)
@@ -244,7 +244,6 @@ def test_serialize_to():
             serialize_to='my_new_int',
         )
 
-    test_data =
     result = clean(MySchema, {'myint': 100})
     assert isinstance(result, MySchema)
     assert result.myint == 100
