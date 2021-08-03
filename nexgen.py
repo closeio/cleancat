@@ -92,6 +92,8 @@ class Field:
     serialize_to: Optional[str]
     """If provided overrides the name of the field during seiralialization."""
 
+    serialize_func: Optional[Callable]
+
     def run_validators(self, field: Tuple[str, ...], value: Any) -> Union[Value, Error]:
         result = Value(value=value)
         for validator in self.validators:
@@ -101,19 +103,23 @@ class Field:
 
         return wrap_result(field=field, result=result)
 
+def noop(value):
+    return value
 
 def field(
     *,
     parents: Tuple[Callable, ...] = tuple(),
     accepts: Tuple[str, ...] = tuple(),
     serialize_to: Optional[str] = None,
+    serialize_func: Callable = noop,
 ):
     def _outer_field(inner_func: Callable):
 
         field_def = Field(
             validators=parents + (inner_func,),
             accepts=accepts,
-            serialize_to=serialize_to
+            serialize_to=serialize_to,
+            serialize_func=serialize_func,
         )
 
         @functools.wraps(inner_func)
@@ -128,10 +134,6 @@ def simple_field(**kwargs):
     def _simple(value):
         return value
     return field(**kwargs)(_simple)
-
-# @schema
-# class NestedSchema:
-#     anotherstring: str
 
 def getter(dict_or_obj, field, default):
     if isinstance(dict_or_obj, dict):
@@ -183,7 +185,9 @@ def schema(cls: SchemaCls, getter=getter):
     def _serialize(self):
         # very simple serialize
         return {
-            field_def.serialize_to or field_name: getattr(self, field_name)
+            field_def.serialize_to or field_name: (
+                field_def.serialize_func(getattr(self, field_name))
+            )
             for field_name, field_def in get_fields(cls).items()
         }
     cls.__serialize = _serialize
@@ -248,3 +252,19 @@ def test_serialize_to():
     assert isinstance(result, MySchema)
     assert result.myint == 100
     assert serialize(result) == {'my_new_int': 100}
+
+def test_serialize_func():
+    def double(value):
+        return value * 2
+
+    @schema
+    class MySchema:
+        myint = simple_field(
+            parents=(intfield,), serialize_func=double,
+        )
+
+    result = clean(MySchema, {'myint': 100})
+    assert isinstance(result, MySchema)
+    assert result.myint == 100
+    assert serialize(result) == {'myint': 200}
+
