@@ -89,6 +89,9 @@ class Field:
     defined on the schema.
     """
 
+    serialize_to: Optional[str]
+    """If provided overrides the name of the field during seiralialization."""
+
     def run_validators(self, field: Tuple[str, ...], value: Any) -> Union[Value, Error]:
         result = Value(value=value)
         for validator in self.validators:
@@ -99,10 +102,19 @@ class Field:
         return wrap_result(field=field, result=result)
 
 
-def field(*, parents: Tuple[Callable, ...] = tuple(), accepts: Tuple[str, ...] = tuple()):
+def field(
+    *,
+    parents: Tuple[Callable, ...] = tuple(),
+    accepts: Tuple[str, ...] = tuple()
+    serialize_to: Optional[str] = None
+):
     def _outer_field(inner_func: Callable):
 
-        field_def = Field(validators=parents + (inner_func,), accepts=accepts)
+        field_def = Field(
+            validators=parents + (inner_func,),
+            accepts=accepts,
+            serialize_to=serialize_to
+        )
 
         @functools.wraps(inner_func)
         def _field(field: Tuple[str, ...], value: Any) -> Union[Value, Error]:
@@ -171,7 +183,7 @@ def schema(cls: SchemaCls, getter=getter):
     def _serialize(self):
         # very simple serialize
         return {
-            field_name: getattr(self, field_name)
+            field_def.serialize_to or field_name: getattr(self, field_name)
             for field_name, field_def in get_fields(cls).items()
         }
     cls.__serialize = _serialize
@@ -192,7 +204,7 @@ def serialize(schema: SchemaCls) -> Dict:
 class ExampleSchema:
     myint = simple_field(parents=(intfield,), accepts=('myint', 'deprecated_int'))
 
-    @field(parents=(intfield,))
+    @field(parents=(intfield,), serialize_to='low_int')
     def mylowint(value: int) -> Union[Value[int], Error]:
         if value < 5:
             return Value(value=value)
@@ -200,7 +212,6 @@ class ExampleSchema:
             return Error(msg='Needs to be less than 5')
 
 def test_basic_happy_path():
-    # passes
     test_data = { 'myint': 100, 'mylowint': 2 }
     result = clean(ExampleSchema, test_data)
     assert isinstance(result, ExampleSchema)
@@ -210,14 +221,12 @@ def test_basic_happy_path():
     assert test_data == serialize(result)
 
 def test_basic_validation_error():
-    # passes
     test_data = { 'myint': 100, 'mylowint': 10 }
     result = clean(ExampleSchema, test_data)
     assert isinstance(result, ValidationError)
     assert result.errors == [Error(msg='Needs to be less than 5', field=('mylowint',))]
 
 def test_accepts():
-    # passes
     test_data = { 'deprecated_int': 100, 'mylowint': 2 }
     result = clean(ExampleSchema, test_data)
     assert isinstance(result, ExampleSchema)
@@ -226,3 +235,17 @@ def test_accepts():
     assert (
         serialize(result) == {'myint': test_data['deprecated_int'], 'mylowint': 2}
     )
+
+def test_serialize_to():
+    @schema
+    class MySchema:
+        myint = simple_field(
+            parents=(intfield,),
+            serialize_to='my_new_int',
+        )
+
+    test_data =
+    result = clean(MySchema, {'myint': 100})
+    assert isinstance(result, MySchema)
+    assert result.myint == 100
+    assert serialize(result) == {'my_new_int': 100}
