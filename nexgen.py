@@ -80,6 +80,14 @@ def wrap_result(field: Tuple[str, ...], result) -> ValueOrError:
 @attr.frozen
 class Field:
     validators: Tuple[Callable, ...]
+    """Callable that validate a the given field's value."""
+
+    accepts: Tuple[str]
+    """Field names accepted when parsing unvalidated input.
+
+    If left unspecified, effectively defaults to the name of the attribute
+    defined on the schema.
+    """
 
     def run_validators(self, field: Tuple[str, ...], value: Any) -> Union[Value, Error]:
         result = Value(value=value)
@@ -91,10 +99,10 @@ class Field:
         return wrap_result(field=field, result=result)
 
 
-def field(*, parents: Tuple[Callable, ...] = tuple()):
+def field(*, parents: Tuple[Callable, ...] = tuple(), accepts: Tuple[str, ...] = tuple()):
     def _outer_field(inner_func: Callable):
 
-        field_def = Field(validators=parents + (inner_func,))
+        field_def = Field(validators=parents + (inner_func,), accepts=accepts)
 
         @functools.wraps(inner_func)
         def _field(field: Tuple[str, ...], value: Any) -> Union[Value, Error]:
@@ -104,10 +112,10 @@ def field(*, parents: Tuple[Callable, ...] = tuple()):
         return _field
     return _outer_field
 
-def simple_field(parents: Tuple[Callable]):
+def simple_field(**kwargs):
     def _simple(value):
         return value
-    return field(parents=parents)(_simple)
+    return field(**kwargs)(_simple)
 
 # @schema
 # class NestedSchema:
@@ -136,9 +144,14 @@ def schema(cls: SchemaCls, getter=getter):
         # how to iterate over all methods?
         results: Dict[str, Union[Value, Error]] = {}
         for field_name, field_def in get_fields(cls).items():
+            accepts = field_def.accepts or (field_name,)
+            for accept in accepts:
+                value = getter(data, accept, omitted)
+                if value is not omitted:
+                    break
+
             results[field_name] = field_def.run_validators(
-                field=(field_name,),
-                value=getter(data, field_name, omitted)
+                field=(field_name,), value=value
             )
 
         errors = {
@@ -159,7 +172,7 @@ def schema(cls: SchemaCls, getter=getter):
         # very simple serialize
         return {
             field_name: getattr(self, field_name)
-            for field_name in get_fields(cls).keys()
+            for field_name, field_def in get_fields(cls).items()
         }
     cls.__serialize = _serialize
 
@@ -177,10 +190,7 @@ def serialize(schema: SchemaCls) -> Dict:
 
 @schema
 class ExampleSchema:
-    myint = simple_field(parents=(intfield,))
-    # @field(parents=(intfield,))
-    # def myint(value: int) -> int:
-    #     return value
+    myint = simple_field(parents=(intfield,), accepts=('myint', 'deprecated_int'))
 
     @field(parents=(intfield,))
     def mylowint(value: int) -> Union[Value[int], Error]:
@@ -206,3 +216,13 @@ def test_basic_validation_error():
     assert isinstance(result, ValidationError)
     assert result.errors == [Error(msg='Needs to be less than 5', field=('mylowint',))]
 
+def test_accepts():
+    # passes
+    test_data = { 'deprecated_int': 100, 'mylowint': 2 }
+    result = clean(ExampleSchema, test_data)
+    assert isinstance(result, ExampleSchema)
+    assert result.myint == test_data['deprecated_int']
+
+    assert (
+        serialize(result) == {'myint': test_data['deprecated_int'], 'mylowint': 2}
+    )
