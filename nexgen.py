@@ -91,7 +91,7 @@ class Field:
         return wrap_result(field=field, result=result)
 
 
-def field(*, parents: Tuple[Callable, ...] =tuple()):
+def field(*, parents: Tuple[Callable, ...] = tuple()):
     def _outer_field(inner_func: Callable):
 
         field_def = Field(validators=parents + (inner_func,))
@@ -123,11 +123,11 @@ SchemaCls = TypeVar('SchemaCls')
 
 def get_fields(cls: SchemaCls) -> Dict[str, Callable]:
     return {
-            field_name: field_validator
-        for field_name, field_validator in cls.__dict__.items()
+            field_name: value.__field
+        for field_name, value in cls.__dict__.items()
         if (
-            callable(field_validator)
-            and getattr(field_validator, '__field', None)
+            callable(value)
+            and isinstance(getattr(value, '__field', None), Field)
         )
     }
 
@@ -135,8 +135,8 @@ def schema(cls: SchemaCls, getter=getter):
     def _clean(data: Any) -> Union[SchemaCls, ValidationError]:
         # how to iterate over all methods?
         results: Dict[str, Union[Value, Error]] = {}
-        for field_name, field_validator in get_fields(cls).items():
-            results[field_name] = field_validator(
+        for field_name, field_def in get_fields(cls).items():
+            results[field_name] = field_def.run_validators(
                 field=(field_name,),
                 value=getter(data, field_name, omitted)
             )
