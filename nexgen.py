@@ -63,10 +63,6 @@ def intfield(
 
 
 
-FIELD_TYPE_MAP = {
-    int: intfield
-}
-
 ValueOrError = TypeVar('ValueOrError', bound=Union[Value, Error])
 
 def wrap_result(field: Tuple[str, ...], result) -> ValueOrError:
@@ -153,7 +149,27 @@ def get_fields(cls: SchemaCls) -> Dict[str, Callable]:
         )
     }
 
-def schema(cls: SchemaCls, getter=getter):
+FIELD_TYPE_MAP = {
+    int: intfield
+}
+
+def schema(cls: SchemaCls, getter=getter, autodef=True):
+    """
+    Annotate a class to turn it into a schema.
+
+    Args:
+        getter: given an object + field name, gets the value from the obj
+        autodef: automatically define simple fields for annotated attributes
+    """
+    # auto define simple annotations
+    if autodef:
+        for field, f_type in getattr(cls, '__annotations__', {}).items():
+            setattr(
+                cls,
+                field,
+                simple_field(parents=(FIELD_TYPE_MAP[f_type],)),
+            )
+
     def _clean(data: Any) -> Union[SchemaCls, ValidationError]:
         # how to iterate over all methods?
         results: Dict[str, Union[Value, Error]] = {}
@@ -204,36 +220,39 @@ def clean(schema: Type[SchemaCls], data) -> SchemaCls:
 def serialize(schema: SchemaCls) -> Dict:
     return schema.__serialize()
 
-@schema
-class ExampleSchema:
-    myint = simple_field(parents=(intfield,), accepts=('myint', 'deprecated_int'))
+@pytest.fixture
+def example_schema():
+    @schema
+    class ExampleSchema:
+        myint = simple_field(parents=(intfield,), accepts=('myint', 'deprecated_int'))
 
-    @field(parents=(intfield,))
-    def mylowint(value: int) -> Union[Value[int], Error]:
-        if value < 5:
-            return Value(value=value)
-        else:
-            return Error(msg='Needs to be less than 5')
+        @field(parents=(intfield,))
+        def mylowint(value: int) -> Union[Value[int], Error]:
+            if value < 5:
+                return Value(value=value)
+            else:
+                return Error(msg='Needs to be less than 5')
+    return ExampleSchema
 
-def test_basic_happy_path():
+def test_basic_happy_path(example_schema):
     test_data = { 'myint': 100, 'mylowint': 2 }
-    result = clean(ExampleSchema, test_data)
-    assert isinstance(result, ExampleSchema)
+    result = clean(example_schema, test_data)
+    assert isinstance(result, example_schema)
     assert result.myint == test_data['myint']
     assert result.mylowint == test_data['mylowint']
 
     assert test_data == serialize(result)
 
-def test_basic_validation_error():
+def test_basic_validation_error(example_schema):
     test_data = { 'myint': 100, 'mylowint': 10 }
-    result = clean(ExampleSchema, test_data)
+    result = clean(example_schema, test_data)
     assert isinstance(result, ValidationError)
     assert result.errors == [Error(msg='Needs to be less than 5', field=('mylowint',))]
 
-def test_accepts():
+def test_accepts(example_schema):
     test_data = { 'deprecated_int': 100, 'mylowint': 2 }
-    result = clean(ExampleSchema, test_data)
-    assert isinstance(result, ExampleSchema)
+    result = clean(example_schema, test_data)
+    assert isinstance(result, example_schema)
     assert result.myint == test_data['deprecated_int']
 
     assert (
@@ -267,4 +286,14 @@ def test_serialize_func():
     assert isinstance(result, MySchema)
     assert result.myint == 100
     assert serialize(result) == {'myint': 200}
+
+def test_autodef():
+    @schema
+    class MySchema:
+        myint: int
+
+    result = clean(MySchema, {'myint': 100})
+    assert isinstance(result, MySchema)
+    assert result.myint == 100
+    assert serialize(result) == {'myint': 100}
 
