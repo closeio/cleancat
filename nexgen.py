@@ -1,3 +1,4 @@
+import inspect
 import pytest
 import attr
 from typing import Generic, TypeVar, Type, Union, Dict, List, Tuple, Any, Callable, Optional
@@ -88,7 +89,12 @@ class Field:
 
     nullability: Nullability
 
-    def run_validators(self, field: Tuple[str, ...], value: Any) -> Union[Value, Error]:
+    def run_validators(
+        self,
+        field: Tuple[str, ...],
+        value: Any,
+        context: Any,
+    ) -> Union[Value, Error]:
         # handle nullability
         if value is omitted:
             if isinstance(self.nullability, Required):
@@ -99,9 +105,18 @@ class Field:
             elif isinstance(self.nullability, Nullable):
                 return Value(self.nullability.null_value)
 
+        def inject_context(func):
+            if 'context' in inspect.signature(func).parameters:
+                if context is empty:
+                    raise ValueError(
+                        'Context is required for evaluating this schema.'
+                    )
+                return functools.partial(func, context=context)
+            return func
+
         result = Value(value=value)
         for validator in self.validators:
-            result = validator(value=result.value)
+            result = inject_context(validator)(value=result.value)
             if isinstance(result, Error):
                 return wrap_result(field=field, result=result)
 
@@ -184,7 +199,7 @@ def schema(cls: SchemaCls, getter=getter, autodef=True):
                     simple_field(parents=(FIELD_TYPE_MAP[f_type],)),
                 )
 
-    def _clean(data: Any) -> Union[SchemaCls, ValidationError]:
+    def _clean(data: Any, context: Any) -> Union[SchemaCls, ValidationError]:
         # how to iterate over all methods?
         results: Dict[str, Union[Value, Error]] = {}
         for field_name, field_def in get_fields(cls).items():
@@ -195,7 +210,7 @@ def schema(cls: SchemaCls, getter=getter, autodef=True):
                     break
 
             results[field_name] = field_def.run_validators(
-                field=(field_name,), value=value
+                field=(field_name,), value=value, context=context
             )
 
         errors = {
@@ -225,8 +240,8 @@ def schema(cls: SchemaCls, getter=getter, autodef=True):
     return cls
 
 
-def clean(schema: Type[SchemaCls], data) -> SchemaCls:
-    return schema.__clean(data)
+def clean(schema: Type[SchemaCls], data: Any, context: Any = empty) -> SchemaCls:
+    return schema.__clean(data=data, context=context)
 
 def serialize(schema: SchemaCls) -> Dict:
     return schema.__serialize()
@@ -336,5 +351,64 @@ def test_strfield():
     result = clean(UserSchema, {'name': 'John'})
     assert isinstance(result, UserSchema)
     assert result.name == 'John'
+
+
+def test_context():
+    @attr.frozen
+    class Organization:
+        pk: str
+        name: str
+
+    org_a = Organization(pk='orga_a', name='Organization A')
+    org_b = Organization(pk='orga_b', name='Organization B')
+
+    class OrganizationRepo:
+        ORGANIZATIONS_BY_PK = {o.pk: o for o in [org_a, org_b]}
+
+        def get_by_pk(self, pk):
+            return self.ORGANIZATIONS_BY_PK.get(pk, None)
+
+    @attr.frozen
+    class Context:
+        org_repo: OrganizationRepo
+
+    @schema
+    class UserSchema:
+        name: str
+
+        @field(parents=(strfield,))
+        def organization(value: str, context: Context) -> Organization:
+            org = context.org_repo.get_by_pk(value)
+            if org:
+                return Value(value=org)
+
+            return Error(msg='Organization not found.')
+
+
+    context = Context(org_repo=OrganizationRepo())
+    result = clean(
+        schema=UserSchema,
+        data={'name': 'John', 'organization': 'orga_a'},
+        context=context,
+    )
+    assert isinstance(result, UserSchema)
+    assert result.name == 'John'
+    assert result.organization == org_a
+
+    result = clean(
+        schema=UserSchema,
+        data={'name': 'John', 'organization': 'orga_c'},
+        context=context,
+    )
+    assert isinstance(result, ValidationError)
+    assert result.errors == [Error(msg='Organization not found.', field=('organization',))]
+
+    with pytest.raises(ValueError):
+        # no context given, ths schema needs a context
+        result = clean(
+            schema=UserSchema,
+            data={'name': 'John', 'organization': 'orga_a'},
+        )
+
 
 
