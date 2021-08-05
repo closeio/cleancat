@@ -314,10 +314,17 @@ def schema(cls: SchemaCls, getter=getter, autodef=True):
                 if (
                     name not in results
                     and name not in queued_fields
-                    and all([dep in results for dep in f.depends_on])
+                    and all(
+                        [
+                            (
+                                dep in results
+                                and not isinstance(results[dep], Error)
+                            )
+                            for dep in f.depends_on
+                        ]
+                    )
                 ):
                     eval_queue.append((name, f))
-        assert {n for n, _f in field_defs} == set(results.keys())
 
         errors = {f: v for f, v in results.items() if isinstance(v, Error)}
         if errors:
@@ -557,6 +564,26 @@ def test_field_dependencies():
     assert isinstance(result, UpdateObject)
     assert result.a == 'A'
     assert result.b == B(val='A')
+
+
+def test_field_dependencies_error():
+    @attr.frozen
+    class B:
+        val: str
+
+    @schema
+    class UpdateObject:
+        @field()
+        def a(value: str) -> str:
+            return Error(msg='nope')
+
+        @field()
+        def b(a: str) -> B:
+            return B(val=a)
+
+    result = clean(schema=UpdateObject, data={'a': 'A'})
+    assert isinstance(result, ValidationError)
+    assert result.errors == [Error(msg='nope', field=('a',))]
 
 
 def test_reusable_fields():
