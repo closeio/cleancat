@@ -2,39 +2,60 @@ import inspect
 import pytest
 import attr
 import typing
-from typing import Generic, TypeVar, Type, Union, Dict, List, Tuple, Any, Callable, Optional as T_Optional
+from typing import (
+    Generic,
+    TypeVar,
+    Type,
+    Union,
+    Dict,
+    List,
+    Tuple,
+    Any,
+    Callable,
+    Optional as T_Optional,
+)
 import functools
+
 
 @attr.frozen
 class ValidationError:
     errors: List['Error']
+
 
 @attr.frozen
 class Error:
     msg: str
     field: Tuple[str, ...] = tuple()
 
+
 class OMITTED:
     """used as singleton for omitted values in validation"""
 
+
 omitted = OMITTED()
+
 
 class EMPTY:
     """used as singleton for omitted options/kwargs"""
+
 
 empty = EMPTY()
 
 T = TypeVar('T')
 
+
 @attr.frozen
 class Value(Generic[T]):
     value: Union[T, OMITTED]  # not sure how to express this
 
+
 class Nullability:
     pass
 
+
 class Required(Nullability):
     pass
+
 
 @attr.frozen
 class Optional(Nullability):
@@ -53,6 +74,7 @@ def intfield(value: Any) -> Union[Value[int], Error]:
 
     return Error(msg='Unhandled type, could not coerce.')
 
+
 def strfield(value: Any) -> Union[str, Error]:
     if isinstance(value, str):
         return value
@@ -60,8 +82,8 @@ def strfield(value: Any) -> Union[str, Error]:
     return Error(msg='Unhandled type')
 
 
-
 ValueOrError = TypeVar('ValueOrError', bound=Union[Value, Error])
+
 
 def wrap_result(field: Tuple[str, ...], result) -> ValueOrError:
     if isinstance(result, Error):
@@ -107,14 +129,12 @@ class Field:
             }
 
         # handle nullability
-        if (
-            value is omitted
-            and any(['value' in _get_deps(v) for v in self.validators])
+        if value is omitted and any(
+            ['value' in _get_deps(v) for v in self.validators]
         ):
             if isinstance(self.nullability, Required):
                 return wrap_result(
-                    field=field,
-                    result=Error(msg='Value is required.')
+                    field=field, result=Error(msg='Value is required.')
                 )
             elif isinstance(self.nullability, Optional):
                 return Value(self.nullability.omitted_value)
@@ -142,7 +162,7 @@ class Field:
                     dep: v
                     for dep, v in {'context': context, 'value': val}.items()
                     if dep in deps
-                }
+                },
             )
 
         result = value
@@ -153,8 +173,10 @@ class Field:
 
         return wrap_result(field=field, result=result)
 
+
 def noop(value):
     return value
+
 
 def field(
     *,
@@ -167,7 +189,8 @@ def field(
     def _outer_field(inner_func: Callable):
         # find any declared dependencies on other fields
         deps = tuple(
-            n for n in inspect.signature(inner_func).parameters.keys()
+            n
+            for n in inspect.signature(inner_func).parameters.keys()
             if n not in {'context', 'value'}
         )
 
@@ -179,13 +202,18 @@ def field(
             serialize_func=serialize_func,
             depends_on=deps,
         )
+
     return _outer_field
+
 
 def simple_field(**kwargs):
     """Passthrough to make defining simple fields cleaner."""
+
     def _simple(value):
         return value
+
     return field(**kwargs)(_simple)
+
 
 def getter(dict_or_obj, field, default):
     if isinstance(dict_or_obj, dict):
@@ -193,7 +221,9 @@ def getter(dict_or_obj, field, default):
     else:
         getattr(dict_or_obj, field, omitted)
 
+
 SchemaCls = TypeVar('SchemaCls')
+
 
 def get_fields(cls: SchemaCls) -> Dict[str, Callable]:
     return {
@@ -202,10 +232,12 @@ def get_fields(cls: SchemaCls) -> Dict[str, Callable]:
         if isinstance(field_def, Field)
     }
 
+
 FIELD_TYPE_MAP = {
     int: intfield,
     str: strfield,
 }
+
 
 def schema(cls: SchemaCls, getter=getter, autodef=True):
     """
@@ -217,13 +249,14 @@ def schema(cls: SchemaCls, getter=getter, autodef=True):
     """
     # auto define simple annotations
     if autodef:
+
         def _field_def_from_annotation(annotation):
             if annotation in FIELD_TYPE_MAP:
                 return simple_field(parents=(FIELD_TYPE_MAP[annotation],))
             elif typing.get_origin(annotation) is Union:
                 # basic support for `Optional`
                 union_of = typing.get_args(annotation)
-                if not(len(union_of) == 2 and type(None) in union_of):
+                if not (len(union_of) == 2 and type(None) in union_of):
                     raise TypeError('Unrecognized type annotation.')
 
                 inner = next(
@@ -234,7 +267,7 @@ def schema(cls: SchemaCls, getter=getter, autodef=True):
                 if inner in FIELD_TYPE_MAP:
                     return simple_field(
                         parents=(FIELD_TYPE_MAP[inner],),
-                        nullability=Optional()
+                        nullability=Optional(),
                     )
 
             raise TypeError('Unrecognized type annotation.')
@@ -242,19 +275,13 @@ def schema(cls: SchemaCls, getter=getter, autodef=True):
         existing_fields = get_fields(cls)
         for field, f_type in getattr(cls, '__annotations__', {}).items():
             if field not in existing_fields:
-                setattr(
-                    cls,
-                    field,
-                    _field_def_from_annotation(f_type)
-                )
+                setattr(cls, field, _field_def_from_annotation(f_type))
 
     # check for dependency loops
     # TODO
 
     def _clean(data: Any, context: Any) -> Union[SchemaCls, ValidationError]:
-        field_defs = [
-            (name, f_def) for name, f_def in get_fields(cls).items()
-        ]
+        field_defs = [(name, f_def) for name, f_def in get_fields(cls).items()]
 
         # initial set are those with no
         eval_queue = []
@@ -292,44 +319,52 @@ def schema(cls: SchemaCls, getter=getter, autodef=True):
                     eval_queue.append((name, f))
         assert {n for n, _f in field_defs} == set(results.keys())
 
-        errors = {
-            f: v for f, v in results.items() if isinstance(v, Error)
-        }
+        errors = {f: v for f, v in results.items() if isinstance(v, Error)}
         if errors:
             return ValidationError(errors=list(errors.values()))
 
         return cls(**results)
+
     cls.__clean = _clean
 
     def _new_init(self, **kwargs):
         for k, v in kwargs.items():
             setattr(self, k, v.value)
+
     cls.__init__ = _new_init
 
     def _serialize(self):
         # very simple serialize
         return {
-            field_def.serialize_to or field_name: (
+            field_def.serialize_to
+            or field_name: (
                 field_def.serialize_func(getattr(self, field_name))
             )
             for field_name, field_def in get_fields(cls).items()
         }
+
     cls.__serialize = _serialize
 
     return cls
 
 
-def clean(schema: Type[SchemaCls], data: Any, context: Any = empty) -> SchemaCls:
+def clean(
+    schema: Type[SchemaCls], data: Any, context: Any = empty
+) -> SchemaCls:
     return schema.__clean(data=data, context=context)
+
 
 def serialize(schema: SchemaCls) -> Dict:
     return schema.__serialize()
+
 
 @pytest.fixture
 def example_schema():
     @schema
     class ExampleSchema:
-        myint = simple_field(parents=(intfield,), accepts=('myint', 'deprecated_int'))
+        myint = simple_field(
+            parents=(intfield,), accepts=('myint', 'deprecated_int')
+        )
 
         @field(parents=(intfield,))
         def mylowint(value: int) -> Union[int, Error]:
@@ -337,10 +372,12 @@ def example_schema():
                 return value
             else:
                 return Error(msg='Needs to be less than 5')
+
     return ExampleSchema
 
+
 def test_basic_happy_path(example_schema):
-    test_data = { 'myint': 100, 'mylowint': 2 }
+    test_data = {'myint': 100, 'mylowint': 2}
     result = clean(example_schema, test_data)
     assert isinstance(result, example_schema)
     assert result.myint == test_data['myint']
@@ -348,21 +385,27 @@ def test_basic_happy_path(example_schema):
 
     assert test_data == serialize(result)
 
+
 def test_basic_validation_error(example_schema):
-    test_data = { 'myint': 100, 'mylowint': 10 }
+    test_data = {'myint': 100, 'mylowint': 10}
     result = clean(example_schema, test_data)
     assert isinstance(result, ValidationError)
-    assert result.errors == [Error(msg='Needs to be less than 5', field=('mylowint',))]
+    assert result.errors == [
+        Error(msg='Needs to be less than 5', field=('mylowint',))
+    ]
+
 
 def test_accepts(example_schema):
-    test_data = { 'deprecated_int': 100, 'mylowint': 2 }
+    test_data = {'deprecated_int': 100, 'mylowint': 2}
     result = clean(example_schema, test_data)
     assert isinstance(result, example_schema)
     assert result.myint == test_data['deprecated_int']
 
-    assert (
-        serialize(result) == {'myint': test_data['deprecated_int'], 'mylowint': 2}
-    )
+    assert serialize(result) == {
+        'myint': test_data['deprecated_int'],
+        'mylowint': 2,
+    }
+
 
 def test_serialize_to():
     @schema
@@ -377,6 +420,7 @@ def test_serialize_to():
     assert result.myint == 100
     assert serialize(result) == {'my_new_int': 100}
 
+
 def test_serialize_func():
     def double(value):
         return value * 2
@@ -384,13 +428,15 @@ def test_serialize_func():
     @schema
     class MySchema:
         myint = simple_field(
-            parents=(intfield,), serialize_func=double,
+            parents=(intfield,),
+            serialize_func=double,
         )
 
     result = clean(MySchema, {'myint': 100})
     assert isinstance(result, MySchema)
     assert result.myint == 100
     assert serialize(result) == {'myint': 200}
+
 
 def test_autodef():
     @schema
@@ -402,6 +448,7 @@ def test_autodef():
     assert result.myint == 100
     assert serialize(result) == {'myint': 100}
 
+
 def test_required():
     @schema
     class MySchema:
@@ -410,6 +457,7 @@ def test_required():
     result = clean(MySchema, {})
     assert isinstance(result, ValidationError)
     assert result.errors == [Error(msg='Value is required.', field=('myint',))]
+
 
 def test_optional():
     @schema
@@ -421,6 +469,7 @@ def test_optional():
     result = clean(MySchema, {})
     assert isinstance(result, MySchema)
     assert result.myint == None
+
 
 def test_strfield():
     @schema
@@ -463,7 +512,6 @@ def test_context():
 
             return Error(msg='Organization not found.')
 
-
     context = Context(org_repo=OrganizationRepo())
     result = clean(
         schema=UserSchema,
@@ -480,7 +528,9 @@ def test_context():
         context=context,
     )
     assert isinstance(result, ValidationError)
-    assert result.errors == [Error(msg='Organization not found.', field=('organization',))]
+    assert result.errors == [
+        Error(msg='Organization not found.', field=('organization',))
+    ]
 
     with pytest.raises(ValueError):
         # no context given, ths schema needs a context
@@ -583,7 +633,7 @@ def test_reusable_fields():
         return Error(msg='Organization not found.')
 
     def validate_org_visibility(
-        value: Organization, context:Context
+        value: Organization, context: Context
     ) -> Union[Organization, Error]:
         if not context.current_user.active:
             # probably would want to do this when constructing the context
@@ -602,14 +652,20 @@ def test_reusable_fields():
 
     @schema
     class UpdateLead:
-        name: Union[str, OMITTED] = simple_field(parents=(strfield,), nullability=Optional())
-        website: Union[str, OMITTED] = simple_field(parents=(strfield,), nullability=Optional())
+        name: Union[str, OMITTED] = simple_field(
+            parents=(strfield,), nullability=Optional()
+        )
+        website: Union[str, OMITTED] = simple_field(
+            parents=(strfield,), nullability=Optional()
+        )
         organization: Organization = simple_field(
             parents=(lookup_org, validate_org_visibility),
         )
 
         @field(parents=(strfield,), accepts=('pk',))
-        def obj(value: str, context: Context, organization: Organization) -> Lead:
+        def obj(
+            value: str, context: Context, organization: Organization
+        ) -> Lead:
             lead = context.lead_repo.get_by_pk(pk=value)
             if lead.org_id != organization.pk:
                 return Error(msg='Lead not found.')
@@ -627,7 +683,12 @@ def test_reusable_fields():
         )
         spec = clean(
             schema=UpdateLead,
-            data={'pk': pk, 'name': name, 'website': website, 'organization': org_id},
+            data={
+                'pk': pk,
+                'name': name,
+                'website': website,
+                'organization': org_id,
+            },
             context=context,
         )
         if isinstance(spec, Error):
@@ -642,10 +703,13 @@ def test_reusable_fields():
         lead_repo.add(lead)
         return lead
 
-
     result = clean(
         schema=UpdateLeadRestSchema,
-        data={'pk': 'lead_ibm', 'organization': 'orga_a', 'website': 'newibm.com'},
+        data={
+            'pk': 'lead_ibm',
+            'organization': 'orga_a',
+            'website': 'newibm.com',
+        },
     )
     assert isinstance(result, UpdateLeadRestSchema)
     assert result.pk == 'lead_ibm'
@@ -668,4 +732,3 @@ def test_reusable_fields():
     refetched_lead = LeadRepo().get_by_pk(new_lead.pk)
     assert refetched_lead.pk == new_lead.pk
     assert refetched_lead.website == new_lead.website
-
