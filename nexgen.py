@@ -652,12 +652,8 @@ def test_reusable_fields():
 
     @schema
     class UpdateLead:
-        name: Union[str, OMITTED] = simple_field(
-            parents=(strfield,), nullability=Optional()
-        )
-        website: Union[str, OMITTED] = simple_field(
-            parents=(strfield,), nullability=Optional()
-        )
+        name: T_Optional[str]
+        website: T_Optional[str]
         organization: Organization = simple_field(
             parents=(lookup_org, validate_org_visibility),
         )
