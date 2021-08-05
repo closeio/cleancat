@@ -101,8 +101,16 @@ class Field:
         context: Any,
         intermediate_results: Dict[str, Any],
     ) -> Union[Value, Error]:
+        def _get_deps(func):
+            return {
+                param for param in inspect.signature(func).parameters.keys()
+            }
+
         # handle nullability
-        if value is omitted:
+        if (
+            value is omitted
+            and any(['value' in _get_deps(v) for v in self.validators])
+        ):
             if isinstance(self.nullability, Required):
                 return wrap_result(
                     field=field,
@@ -113,23 +121,15 @@ class Field:
             else:
                 raise TypeError
 
-        def inject_context(func):
-            if 'context' in inspect.signature(func).parameters:
-                if context is empty:
-                    raise ValueError(
-                        'Context is required for evaluating this schema.'
-                    )
-                return functools.partial(func, context=context)
-            return func
-
-        def inject_deps(func):
-            # special handling for context and value
-            deps = {
-                param for param in inspect.signature(func).parameters.keys()
-                if param not in ('context', 'value')
-            }
+        def inject_deps(func, val):
+            deps = _get_deps(func)
             if not deps:
                 return func
+
+            if 'context' in deps and context is empty:
+                raise ValueError(
+                    'Context is required for evaluating this schema.'
+                )
 
             return functools.partial(
                 func,
@@ -137,12 +137,17 @@ class Field:
                     dep: v.value
                     for dep, v in intermediate_results.items()
                     if dep in deps
+                },
+                **{
+                    dep: v
+                    for dep, v in {'context': context, 'value': val}.items()
+                    if dep in deps
                 }
             )
 
         result = value
         for validator in self.validators:
-            result = inject_deps(inject_context(validator))(value=result)
+            result = inject_deps(func=validator, val=result)()
             if isinstance(result, Error):
                 return wrap_result(field=field, result=result)
 
@@ -485,6 +490,25 @@ def test_context():
         )
 
 
+def test_field_dependencies():
+    @attr.frozen
+    class B:
+        val: str
+
+    @schema
+    class UpdateObject:
+        a: str
+
+        @field()
+        def b(a: str) -> B:
+            return B(val=a)
+
+    result = clean(schema=UpdateObject, data={'a': 'A'})
+    assert isinstance(result, UpdateObject)
+    assert result.a == 'A'
+    assert result.b == B(val='A')
+
+
 def test_reusable_fields():
     @attr.frozen
     class User:
@@ -591,7 +615,6 @@ def test_reusable_fields():
                 return Error(msg='Lead not found.')
             return lead
 
-
     # service function
     def update_lead_as_user(pk, name, website, org_id, as_user_id):
         user_repo = UserRepo()
@@ -610,17 +633,14 @@ def test_reusable_fields():
         if isinstance(spec, Error):
             raise ValueError(','.join([e.msg for e in spec.errors]))
 
-        lead = spec.obj
-        # apply changes to lead ?
         changes = {
             field: getattr(spec, field)
             for field in ['name', 'website']
             if getattr(spec, field) is not omitted
         }
-        new_lead = attr.evolve(lead, **changes)
-        lead_repo.add(new_lead)
-
-        return new_lead
+        lead = attr.evolve(spec.obj, **changes)
+        lead_repo.add(lead)
+        return lead
 
 
     result = clean(
