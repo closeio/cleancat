@@ -91,11 +91,15 @@ class Field:
 
     nullability: Nullability
 
+    depends_on: Tuple[str, ...]
+    """Other fields on the same schema this field depends on"""
+
     def run_validators(
         self,
         field: Tuple[str, ...],
         value: Any,
         context: Any,
+        intermediate_results: Dict[str, Any],
     ) -> Union[Value, Error]:
         # handle nullability
         if value is omitted:
@@ -118,9 +122,27 @@ class Field:
                 return functools.partial(func, context=context)
             return func
 
+        def inject_deps(func):
+            # special handling for context and value
+            deps = {
+                param for param in inspect.signature(func).parameters.keys()
+                if param not in ('context', 'value')
+            }
+            if not deps:
+                return func
+
+            return functools.partial(
+                func,
+                **{
+                    dep: v.value
+                    for dep, v in intermediate_results.items()
+                    if dep in deps
+                }
+            )
+
         result = value
         for validator in self.validators:
-            result = inject_context(validator)(value=result)
+            result = inject_deps(inject_context(validator))(value=result)
             if isinstance(result, Error):
                 return wrap_result(field=field, result=result)
 
@@ -138,21 +160,20 @@ def field(
     nullability: Nullability = Required(),
 ):
     def _outer_field(inner_func: Callable):
+        # find any declared dependencies on other fields
+        deps = tuple(
+            n for n in inspect.signature(inner_func).parameters.keys()
+            if n not in {'context', 'value'}
+        )
 
-        field_def = Field(
+        return Field(
             nullability=nullability,
             validators=parents + (inner_func,),
             accepts=accepts,
             serialize_to=serialize_to,
             serialize_func=serialize_func,
+            depends_on=deps,
         )
-
-        @functools.wraps(inner_func)
-        def _field(field: Tuple[str, ...], value: Any) -> Union[Value, Error]:
-            return field_def.run_validators(field, value)
-
-        _field.__field = field_def
-        return _field
     return _outer_field
 
 def simple_field(**kwargs):
@@ -171,12 +192,9 @@ SchemaCls = TypeVar('SchemaCls')
 
 def get_fields(cls: SchemaCls) -> Dict[str, Callable]:
     return {
-            field_name: value.__field
-        for field_name, value in cls.__dict__.items()
-        if (
-            callable(value)
-            and isinstance(getattr(value, '__field', None), Field)
-        )
+        field_name: field_def
+        for field_name, field_def in cls.__dict__.items()
+        if isinstance(field_def, Field)
     }
 
 FIELD_TYPE_MAP = {
@@ -219,17 +237,34 @@ def schema(cls: SchemaCls, getter=getter, autodef=True):
         existing_fields = get_fields(cls)
         for field, f_type in getattr(cls, '__annotations__', {}).items():
             if field not in existing_fields:
-
                 setattr(
                     cls,
                     field,
                     _field_def_from_annotation(f_type)
                 )
 
+    # check for dependency loops
+    # TODO
+
     def _clean(data: Any, context: Any) -> Union[SchemaCls, ValidationError]:
-        # how to iterate over all methods?
+        field_defs = [
+            (name, f_def) for name, f_def in get_fields(cls).items()
+        ]
+
+        # initial set are those with no
+        eval_queue = []
+        delayed_eval = []
+        for name, f in field_defs:
+            if f.depends_on:
+                delayed_eval.append((name, f))
+            else:
+                eval_queue.append((name, f))
+        assert len(field_defs) == len(eval_queue) + len(delayed_eval)
+
         results: Dict[str, Union[Value, Error]] = {}
-        for field_name, field_def in get_fields(cls).items():
+        while eval_queue:
+            field_name, field_def = eval_queue.pop()
+
             accepts = field_def.accepts or (field_name,)
             for accept in accepts:
                 value = getter(data, accept, omitted)
@@ -237,8 +272,20 @@ def schema(cls: SchemaCls, getter=getter, autodef=True):
                     break
 
             results[field_name] = field_def.run_validators(
-                field=(field_name,), value=value, context=context
+                field=(field_name,),
+                value=value,
+                context=context,
+                intermediate_results=results,
             )
+            queued_fields = {n for n, _f in eval_queue}
+            for name, f in delayed_eval:
+                if (
+                    name not in results
+                    and name not in queued_fields
+                    and all([dep in results for dep in f.depends_on])
+                ):
+                    eval_queue.append((name, f))
+        assert {n for n, _f in field_defs} == set(results.keys())
 
         errors = {
             f: v for f, v in results.items() if isinstance(v, Error)
@@ -538,9 +585,11 @@ def test_reusable_fields():
         )
 
         @field(parents=(strfield,), accepts=('pk',))
-        def obj(value: str, context: Context) -> Lead:
-            # TODO need to express that this depends on org
-            return context.lead_repo.get_by_pk(pk=value)
+        def obj(value: str, context: Context, organization: Organization) -> Lead:
+            lead = context.lead_repo.get_by_pk(pk=value)
+            if lead.org_id != organization.pk:
+                return Error(msg='Lead not found.')
+            return lead
 
 
     # service function
