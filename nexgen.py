@@ -1,7 +1,8 @@
 import inspect
 import pytest
 import attr
-from typing import Generic, TypeVar, Type, Union, Dict, List, Tuple, Any, Callable, Optional
+import typing
+from typing import Generic, TypeVar, Type, Union, Dict, List, Tuple, Any, Callable, Optional as T_Optional
 import functools
 
 @attr.frozen
@@ -36,24 +37,25 @@ class Required(Nullability):
     pass
 
 @attr.frozen
-class Nullable(Nullability):
-    null_value: Any = omitted
+class Optional(Nullability):
+    omitted_value: Any = omitted
+
 
 def intfield(value: Any) -> Union[Value[int], Error]:
     # coerce from string if needed
     if isinstance(value, int):
-        return Value(value=value)
+        return value
     elif isinstance(value, str):
         try:
-            value = int(value)
+            return int(value)
         except (ValueError, TypeError):
             return Error(msg='Unable to parse int from given string.')
 
     return Error(msg='Unhandled type, could not coerce.')
 
-def strfield(value: Any) -> Union[Value[str], Error]:
+def strfield(value: Any) -> Union[str, Error]:
     if isinstance(value, str):
-        return Value(value=value)
+        return value
 
     return Error(msg='Unhandled type')
 
@@ -81,10 +83,10 @@ class Field:
     defined on the schema.
     """
 
-    serialize_to: Optional[str]
+    serialize_to: T_Optional[str]
     """If provided overrides the name of the field during seiralialization."""
 
-    serialize_func: Optional[Callable]
+    serialize_func: T_Optional[Callable]
     """If provided, will be used when serializing this field."""
 
     nullability: Nullability
@@ -102,8 +104,10 @@ class Field:
                     field=field,
                     result=Error(msg='Value is required.')
                 )
-            elif isinstance(self.nullability, Nullable):
-                return Value(self.nullability.null_value)
+            elif isinstance(self.nullability, Optional):
+                return Value(self.nullability.omitted_value)
+            else:
+                raise TypeError
 
         def inject_context(func):
             if 'context' in inspect.signature(func).parameters:
@@ -114,9 +118,9 @@ class Field:
                 return functools.partial(func, context=context)
             return func
 
-        result = Value(value=value)
+        result = value
         for validator in self.validators:
-            result = inject_context(validator)(value=result.value)
+            result = inject_context(validator)(value=result)
             if isinstance(result, Error):
                 return wrap_result(field=field, result=result)
 
@@ -129,7 +133,7 @@ def field(
     *,
     parents: Tuple[Callable, ...] = tuple(),
     accepts: Tuple[str, ...] = tuple(),
-    serialize_to: Optional[str] = None,
+    serialize_to: T_Optional[str] = None,
     serialize_func: Callable = noop,
     nullability: Nullability = Required(),
 ):
@@ -190,13 +194,36 @@ def schema(cls: SchemaCls, getter=getter, autodef=True):
     """
     # auto define simple annotations
     if autodef:
+        def _field_def_from_annotation(annotation):
+            if annotation in FIELD_TYPE_MAP:
+                return simple_field(parents=(FIELD_TYPE_MAP[annotation],))
+            elif typing.get_origin(annotation) is Union:
+                # basic support for `Optional`
+                union_of = typing.get_args(annotation)
+                if not(len(union_of) == 2 and type(None) in union_of):
+                    raise TypeError('Unrecognized type annotation.')
+
+                inner = next(
+                    t
+                    for t in typing.get_args(annotation)
+                    if t is not type(None)
+                )
+                if inner in FIELD_TYPE_MAP:
+                    return simple_field(
+                        parents=(FIELD_TYPE_MAP[inner],),
+                        nullability=Optional()
+                    )
+
+            raise TypeError('Unrecognized type annotation.')
+
         existing_fields = get_fields(cls)
         for field, f_type in getattr(cls, '__annotations__', {}).items():
             if field not in existing_fields:
+
                 setattr(
                     cls,
                     field,
-                    simple_field(parents=(FIELD_TYPE_MAP[f_type],)),
+                    _field_def_from_annotation(f_type)
                 )
 
     def _clean(data: Any, context: Any) -> Union[SchemaCls, ValidationError]:
@@ -253,9 +280,9 @@ def example_schema():
         myint = simple_field(parents=(intfield,), accepts=('myint', 'deprecated_int'))
 
         @field(parents=(intfield,))
-        def mylowint(value: int) -> Union[Value[int], Error]:
+        def mylowint(value: int) -> Union[int, Error]:
             if value < 5:
-                return Value(value=value)
+                return value
             else:
                 return Error(msg='Needs to be less than 5')
     return ExampleSchema
@@ -332,11 +359,11 @@ def test_required():
     assert isinstance(result, ValidationError)
     assert result.errors == [Error(msg='Value is required.', field=('myint',))]
 
-def test_nullable():
+def test_optional():
     @schema
     class MySchema:
-        myint: Optional[int] = simple_field(
-            parents=(intfield,), nullability=Nullable(null_value=None)
+        myint: T_Optional[int] = simple_field(
+            parents=(intfield,), nullability=Optional(omitted_value=None)
         )
 
     result = clean(MySchema, {})
@@ -411,4 +438,165 @@ def test_context():
         )
 
 
+def test_reusable_fields():
+    @attr.frozen
+    class User:
+        pk: str
+        name: str
+        active: bool = True
+
+    @attr.frozen
+    class Organization:
+        pk: str
+        name: str
+        members: List[str]
+
+    @attr.frozen
+    class Lead:
+        pk: str
+        org_id: str
+        name: str
+        website: str
+
+    billy = User(pk='user_billy', name='Billy')
+    joe = User(pk='user_joe', name='Joe')
+    charlie = User(pk='user_charlie', name='Charlie')
+    dave = User(pk='user_dave', name='Dave', active=False)
+
+    org_a = Organization(
+        pk='orga_a',
+        name='Organization A',
+        members=[billy.pk, dave.pk],
+    )
+    org_b = Organization(
+        pk='orga_b',
+        name='Organization B',
+        members=[billy.pk, joe.pk],
+    )
+
+    ibm = Lead(pk='lead_ibm', name='IBM', website='ibm.com', org_id=org_a.pk)
+
+    class UserRepo:
+        USERS_BY_PK = {u.pk: u for u in [billy, joe, charlie]}
+
+        def get_by_pk(self, pk):
+            return self.USERS_BY_PK.get(pk, None)
+
+    class OrganizationRepo:
+        ORGANIZATIONS_BY_PK = {o.pk: o for o in [org_a, org_b]}
+
+        def get_by_pk(self, pk):
+            return self.ORGANIZATIONS_BY_PK.get(pk, None)
+
+    class LeadRepo:
+        LEADS_BY_PK = {l.pk: l for l in [ibm]}
+
+        def get_by_pk(self, pk):
+            return self.LEADS_BY_PK.get(pk, None)
+
+        def add(self, lead):
+            self.LEADS_BY_PK[lead.pk] = lead
+
+    @attr.frozen
+    class Context:
+        current_user: User
+        user_repo: UserRepo
+        org_repo: OrganizationRepo
+        lead_repo: LeadRepo
+
+    def lookup_org(value: str, context: Context) -> Union[Organization, Error]:
+        org = context.org_repo.get_by_pk(value)
+        if org:
+            return org
+
+        return Error(msg='Organization not found.')
+
+    def validate_org_visibility(
+        value: Organization, context:Context
+    ) -> Union[Organization, Error]:
+        if not context.current_user.active:
+            # probably would want to do this when constructing the context
+            return Error(msg='User is not active.')
+
+        if context.current_user.pk not in value.members:
+            return Error(msg='User cannot access organization.')
+        return value
+
+    @schema
+    class UpdateLeadRestSchema:
+        pk: str
+        name: T_Optional[str]
+        website: str
+        organization: str
+
+    @schema
+    class UpdateLead:
+        name: Union[str, OMITTED] = simple_field(parents=(strfield,), nullability=Optional())
+        website: Union[str, OMITTED] = simple_field(parents=(strfield,), nullability=Optional())
+        organization: Organization = simple_field(
+            parents=(lookup_org, validate_org_visibility),
+        )
+
+        @field(parents=(strfield,), accepts=('pk',))
+        def obj(value: str, context: Context) -> Lead:
+            # TODO need to express that this depends on org
+            return context.lead_repo.get_by_pk(pk=value)
+
+
+    # service function
+    def update_lead_as_user(pk, name, website, org_id, as_user_id):
+        user_repo = UserRepo()
+        lead_repo = LeadRepo()
+        context = Context(
+            current_user=user_repo.get_by_pk(as_user_id),
+            org_repo=OrganizationRepo(),
+            user_repo=user_repo,
+            lead_repo=lead_repo,
+        )
+        spec = clean(
+            schema=UpdateLead,
+            data={'pk': pk, 'name': name, 'website': website, 'organization': org_id},
+            context=context,
+        )
+        if isinstance(spec, Error):
+            raise ValueError(','.join([e.msg for e in spec.errors]))
+
+        lead = spec.obj
+        # apply changes to lead ?
+        changes = {
+            field: getattr(spec, field)
+            for field in ['name', 'website']
+            if getattr(spec, field) is not omitted
+        }
+        new_lead = attr.evolve(lead, **changes)
+        lead_repo.add(new_lead)
+
+        return new_lead
+
+
+    result = clean(
+        schema=UpdateLeadRestSchema,
+        data={'pk': 'lead_ibm', 'organization': 'orga_a', 'website': 'newibm.com'},
+    )
+    assert isinstance(result, UpdateLeadRestSchema)
+    assert result.pk == 'lead_ibm'
+    assert result.organization == org_a.pk
+    assert result.name is omitted
+    assert result.website == 'newibm.com'
+
+    new_lead = update_lead_as_user(
+        pk=result.pk,
+        org_id=result.organization,
+        name=result.name,
+        website=result.website,
+        as_user_id=billy.pk,
+    )
+    assert new_lead.pk == 'lead_ibm'
+    assert new_lead.name == 'IBM'
+    assert new_lead.website == 'newibm.com'
+
+    # was actually persisted with the lead repo
+    refetched_lead = LeadRepo().get_by_pk(new_lead.pk)
+    assert refetched_lead.pk == new_lead.pk
+    assert refetched_lead.website == new_lead.website
 
