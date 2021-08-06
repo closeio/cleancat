@@ -33,7 +33,7 @@ T = TypeVar('T')
 
 @attr.frozen
 class Value(Generic[T]):
-    value: Union[T, OMITTED]  # not sure how to express this
+    value: T
 
 
 class Nullability:
@@ -49,10 +49,7 @@ class Optional(Nullability):
     omitted_value: Any = omitted
 
 
-ValueOrError = TypeVar('ValueOrError', bound=Union[Value, Error])
-
-
-def wrap_result(field: Tuple[str, ...], result: Any) -> ValueOrError:
+def wrap_result(field: Tuple[str, ...], result: Any) -> Union[Value, Error]:
     if isinstance(result, Error):
         return attr.evolve(result, field=field + result.field)
     elif not isinstance(result, Value):
@@ -141,7 +138,10 @@ class Field:
         return wrap_result(field=field, result=result)
 
 
-def noop(value):
+V = TypeVar('V')
+
+
+def noop(value: V) -> V:
     return value
 
 
@@ -152,8 +152,25 @@ def field(
     serialize_to: T_Optional[str] = None,
     serialize_func: Callable = noop,
     nullability: Nullability = Required(),
-):
-    def _outer_field(inner_func: Callable):
+) -> Callable[[Callable], Field]:
+    """Defines a Field.
+
+    Args:
+        parents: Optionally a list of any parent fields. Validated values chain between
+            parents in order they've been given here, before being passed to this
+            field's validation function.
+        accepts: Optionally a list of field names to accept values from. If not given,
+            defaults to the field name on the schema. Field names given first are given
+            precedent.
+        serialize_to: The field name to serialize to. Defaults to the field name on the
+            schema.
+        serialize_func: Optionally a function that transforms the serialized value
+            during serialization. Defaults to noop, which passes through the value
+            unchanged.
+        nullability: An instance of one of `Nullability`'s descendants, used to define
+            behavior if a field is omitted or falsy. Defaults to Required.
+    """
+    def _outer_field(inner_func: Callable) -> Field:
         # find any declared dependencies on other fields
         deps = tuple(
             n
@@ -183,6 +200,7 @@ def simple_field(**kwargs):
 
 
 def intfield(value: Any) -> Union[int, Error]:
+    """Simple string coercion/validation for int values."""
     # coerce from string if needed
     if isinstance(value, int):
         return value
@@ -196,6 +214,7 @@ def intfield(value: Any) -> Union[int, Error]:
 
 
 def strfield(value: Any) -> Union[str, Error]:
+    """Simple validation for str values."""
     if isinstance(value, str):
         return value
 

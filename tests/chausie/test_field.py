@@ -2,7 +2,13 @@ from typing import Union
 
 import pytest
 
-from cleancat.chausie.field import simple_field, intfield, Error, field, ValidationError
+from cleancat.chausie.field import (
+    simple_field,
+    intfield,
+    Error,
+    field,
+    ValidationError,
+)
 from cleancat.chausie.schema import schema, clean, serialize
 
 
@@ -85,6 +91,7 @@ def test_serialize_func():
     assert result.myint == 100
     assert serialize(result) == {'myint': 200}
 
+
 def test_required():
     @schema
     class MySchema:
@@ -94,6 +101,7 @@ def test_required():
     assert isinstance(result, ValidationError)
     assert result.errors == [Error(msg='Value is required.', field=('myint',))]
 
+
 def test_strfield():
     @schema
     class UserSchema:
@@ -102,4 +110,3 @@ def test_strfield():
     result = clean(UserSchema, {'name': 'John'})
     assert isinstance(result, UserSchema)
     assert result.name == 'John'
-

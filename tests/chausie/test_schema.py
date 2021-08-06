@@ -4,8 +4,15 @@ import attr
 import pytest
 
 from cleancat.chausie.schema import schema, clean, serialize
-from cleancat.chausie.field import Optional as CCOptional, simple_field, intfield, field, Error, ValidationError, \
-    strfield
+from cleancat.chausie.field import (
+    Optional as CCOptional,
+    simple_field,
+    intfield,
+    field,
+    Error,
+    ValidationError,
+    strfield,
+)
 
 
 def test_autodef():
@@ -29,6 +36,7 @@ def test_optional_autodef():
     result = clean(MySchema, {})
     assert isinstance(result, MySchema)
     assert result.myint == None
+
 
 def test_field_dependencies():
     @attr.frozen
@@ -68,6 +76,7 @@ def test_field_dependencies_error():
     assert isinstance(result, ValidationError)
     assert result.errors == [Error(msg='nope', field=('a',))]
 
+
 def test_context():
     @attr.frozen
     class Organization:
@@ -92,7 +101,9 @@ def test_context():
         name: str
 
         @field(parents=(strfield,))
-        def organization(value: str, context: Context) -> Union[Organization, Error]:
+        def organization(
+            value: str, context: Context
+        ) -> Union[Organization, Error]:
             org = context.org_repo.get_by_pk(value)
             if org:
                 return org

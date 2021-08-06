@@ -81,7 +81,7 @@ def test_reusable_fields():
         return Error(msg='Organization not found.')
 
     def validate_org_visibility(
-            value: Organization, context: Context
+        value: Organization, context: Context
     ) -> Union[Organization, Error]:
         if not context.current_user.active:
             # probably would want to do this when constructing the context
@@ -108,7 +108,7 @@ def test_reusable_fields():
 
         @field(parents=(strfield,), accepts=('pk',))
         def obj(
-                value: str, context: Context, organization: Organization
+            value: str, context: Context, organization: Organization
         ) -> Union[Lead, Error]:
             lead = context.lead_repo.get_by_pk(pk=value)
             if lead.org_id != organization.pk:

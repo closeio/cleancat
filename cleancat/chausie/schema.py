@@ -1,6 +1,6 @@
 import functools
 import typing
-from typing import Dict, TypeVar, Callable, Type, Any, Union
+from typing import Dict, TypeVar, Type, Any, Union
 
 from cleancat.chausie.consts import omitted, empty
 from cleancat.chausie.field import (
@@ -16,15 +16,15 @@ from cleancat.chausie.field import (
 
 def getter(dict_or_obj, field, default):
     if isinstance(dict_or_obj, dict):
-        return dict_or_obj.get(field, omitted)
+        return dict_or_obj.get(field, default)
     else:
-        getattr(dict_or_obj, field, omitted)
+        getattr(dict_or_obj, field, default)
 
 
 SchemaCls = TypeVar('SchemaCls')
 
 
-def get_fields(cls: SchemaCls) -> Dict[str, Field]:
+def get_fields(cls: Type[SchemaCls]) -> Dict[str, Field]:
     return {
         field_name: field_def
         for field_name, field_def in cls.__dict__.items()
@@ -32,7 +32,7 @@ def get_fields(cls: SchemaCls) -> Dict[str, Field]:
     }
 
 
-def _field_def_from_annotation(annotation):
+def _field_def_from_annotation(annotation) -> Field:
     """Turn an annotation into an equivalent simple_field."""
     if annotation in FIELD_TYPE_MAP:
         return simple_field(parents=(FIELD_TYPE_MAP[annotation],))
@@ -55,7 +55,7 @@ def _field_def_from_annotation(annotation):
 
 
 def _clean(
-    cls: SchemaCls, data: Any, context: Any
+    cls: Type[SchemaCls], data: Any, context: Any
 ) -> Union[SchemaCls, ValidationError]:
     """Entrypoint for cleaning some set of data for a given class."""
     field_defs = [(name, f_def) for name, f_def in get_fields(cls).items()]
@@ -112,14 +112,14 @@ def _clean(
     return cls(**results)
 
 
-def _new_init(self, **kwargs):
+def _new_init(self: SchemaCls, **kwargs):
     defined_fields = get_fields(self.__class__)
     attribs = {k: v for k, v in kwargs.items() if k in defined_fields}
     for k, v in attribs.items():
         setattr(self, k, v.value)
 
 
-def _serialize(self):
+def _serialize(self: SchemaCls):
     """Serialize a schema to a dictionary, respecting serialization settings."""
     return {
         (field_def.serialize_to or field_name): field_def.serialize_func(
@@ -128,8 +128,26 @@ def _serialize(self):
         for field_name, field_def in get_fields(self.__class__).items()
     }
 
+def _check_for_dependency_loops(cls: Type[SchemaCls]) -> None:
+    deps = {
+        name: set(f_def.depends_on) for name, f_def in get_fields(cls).items()
+    }
+    seen = set()
+    while deps:
+        prog = len(seen)
+        for f_name, f_deps in deps.items():
+            if not f_deps or all([f_dep in seen for f_dep in f_deps]):
+                seen.add(f_name)
+                deps.pop(f_name)
+                break
 
-def schema(cls: SchemaCls, autodef=True):
+        if len(seen) == prog:
+            # no progress was made
+            print(deps, seen)
+            raise ValueError('Field dependencies could not be resolved.')
+
+
+def schema(cls: Type[SchemaCls], autodef=True):
     """
     Annotate a class to turn it into a schema.
 
@@ -144,7 +162,7 @@ def schema(cls: SchemaCls, autodef=True):
                 setattr(cls, field, _field_def_from_annotation(f_type))
 
     # check for dependency loops
-    # TODO
+    _check_for_dependency_loops(cls)
 
     cls.__clean = functools.partial(_clean, cls=cls)
     cls.__init__ = _new_init
