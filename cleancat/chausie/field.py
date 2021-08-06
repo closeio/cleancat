@@ -73,7 +73,7 @@ class Field:
     """
 
     serialize_to: T_Optional[str]
-    """If provided overrides the name of the field during seiralialization."""
+    """If provided overrides the name of the field during serialization."""
 
     serialize_func: T_Optional[Callable]
     """If provided, will be used when serializing this field."""
@@ -84,11 +84,11 @@ class Field:
     """Other fields on the same schema this field depends on"""
 
     def run_validators(
-            self,
-            field: Tuple[str, ...],
-            value: Any,
-            context: Any,
-            intermediate_results: Dict[str, Any],
+        self,
+        field: Tuple[str, ...],
+        value: Any,
+        context: Any,
+        intermediate_results: Dict[str, Any],
     ) -> Union[Value, Error]:
         def _get_deps(func):
             return {
@@ -97,7 +97,7 @@ class Field:
 
         # handle nullability
         if value is omitted and any(
-                ['value' in _get_deps(v) for v in self.validators]
+            ['value' in _get_deps(v) for v in self.validators]
         ):
             if isinstance(self.nullability, Required):
                 return wrap_result(
@@ -146,12 +146,12 @@ def noop(value):
 
 
 def field(
-        *,
-        parents: Tuple[Callable, ...] = tuple(),
-        accepts: Tuple[str, ...] = tuple(),
-        serialize_to: T_Optional[str] = None,
-        serialize_func: Callable = noop,
-        nullability: Nullability = Required(),
+    *,
+    parents: Tuple[Callable, ...] = tuple(),
+    accepts: Tuple[str, ...] = tuple(),
+    serialize_to: T_Optional[str] = None,
+    serialize_func: Callable = noop,
+    nullability: Nullability = Required(),
 ):
     def _outer_field(inner_func: Callable):
         # find any declared dependencies on other fields
