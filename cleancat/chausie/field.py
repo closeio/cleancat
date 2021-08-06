@@ -37,15 +37,17 @@ class Value(Generic[T]):
 
 
 class Nullability:
-    pass
+    allow_none: bool
 
 
+@attr.frozen
 class Required(Nullability):
-    pass
+    allow_none: bool = False
 
 
 @attr.frozen
 class Optional(Nullability):
+    allow_none: bool = True
     omitted_value: Any = omitted
 
 
@@ -93,9 +95,20 @@ class Field:
             }
 
         # handle nullability
-        if value is omitted and any(
+        if value in (omitted, None) and any(
             ['value' in _get_deps(v) for v in self.validators]
         ):
+            if value is None:
+                if self.nullability.allow_none:
+                    return Value(value)
+                else:
+                    return wrap_result(
+                        field=field,
+                        result=Error(
+                            msg='Value is required, and must not be None.'
+                        ),
+                    )
+
             if isinstance(self.nullability, Required):
                 return wrap_result(
                     field=field, result=Error(msg='Value is required.')
@@ -170,6 +183,7 @@ def field(
         nullability: An instance of one of `Nullability`'s descendants, used to define
             behavior if a field is omitted or falsy. Defaults to Required.
     """
+
     def _outer_field(inner_func: Callable) -> Field:
         # find any declared dependencies on other fields
         deps = tuple(

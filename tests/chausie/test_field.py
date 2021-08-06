@@ -1,13 +1,15 @@
-from typing import Union
+from typing import Union, Optional
 
 import pytest
 
+from cleancat.chausie.consts import omitted
 from cleancat.chausie.field import (
     simple_field,
     intfield,
     Error,
     field,
     ValidationError,
+    Optional as CCOptional,
 )
 from cleancat.chausie.schema import schema, clean, serialize
 
@@ -92,16 +94,6 @@ def test_serialize_func():
     assert serialize(result) == {'myint': 200}
 
 
-def test_required():
-    @schema
-    class MySchema:
-        myint: int
-
-    result = clean(MySchema, {})
-    assert isinstance(result, ValidationError)
-    assert result.errors == [Error(msg='Value is required.', field=('myint',))]
-
-
 def test_strfield():
     @schema
     class UserSchema:
@@ -110,3 +102,48 @@ def test_strfield():
     result = clean(UserSchema, {'name': 'John'})
     assert isinstance(result, UserSchema)
     assert result.name == 'John'
+
+
+class TestNullability:
+    def test_required_omitted(self):
+        @schema
+        class MySchema:
+            myint: int
+
+        result = clean(MySchema, {})
+        assert isinstance(result, ValidationError)
+        assert result.errors == [
+            Error(msg='Value is required.', field=('myint',))
+        ]
+
+    def test_required_none(self):
+        @schema
+        class MySchema:
+            myint: int
+
+        result = clean(MySchema, {'myint': None})
+        assert isinstance(result, ValidationError)
+        assert result.errors == [
+            Error(
+                msg='Value is required, and must not be None.',
+                field=('myint',),
+            )
+        ]
+
+    def test_optional_omitted(self):
+        @schema
+        class MySchema:
+            myint: Optional[int]
+
+        result = clean(MySchema, {})
+        assert isinstance(result, MySchema)
+        assert result.myint is omitted
+
+    def test_optional_none(self):
+        @schema
+        class MySchema:
+            myint: Optional[int]
+
+        result = clean(MySchema, {'myint': None})
+        assert isinstance(result, MySchema)
+        assert result.myint is None

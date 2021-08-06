@@ -128,6 +128,7 @@ def _serialize(self: SchemaCls):
         for field_name, field_def in get_fields(self.__class__).items()
     }
 
+
 def _check_for_dependency_loops(cls: Type[SchemaCls]) -> None:
     deps = {
         name: set(f_def.depends_on) for name, f_def in get_fields(cls).items()
