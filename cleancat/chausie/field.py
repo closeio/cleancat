@@ -13,6 +13,7 @@ from typing import (
     Callable,
     Optional as T_Optional,
     Collection,
+    Type,
 )
 
 from cleancat.chausie.consts import OMITTED, omitted, empty
@@ -172,28 +173,25 @@ class Field:
                 return result
             elif isinstance(result, Error):
                 return Errors(field=field, errors=[result])
-
-        if isinstance(result, UnvalidatedWrappedValue):
-            intermediate_results = [
-                result.inner_field.run_validators(
-                    field=(idx,),
-                    value=inner_value,
-                    context=context,
-                    intermediate_results=intermediate_results,
+            elif isinstance(result, UnvalidatedWrappedValue):
+                inner_results = [
+                    result.inner_field.run_validators(
+                        field=(idx,),
+                        value=inner_value,
+                        context=context,
+                        intermediate_results=intermediate_results,
+                    )
+                    for idx, inner_value in enumerate(result.value)
+                ]
+                errors = Errors(
+                    field=field,
+                    errors=[r for r in inner_results if isinstance(r, Error)],
                 )
-                for idx, inner_value in enumerate(result.value)
-            ]
-            errors = Errors(
-                field=field,
-                errors=[
-                    r for r in intermediate_results if isinstance(r, Error)
-                ],
-            )
-            if errors.errors:
-                return errors
-            else:
-                # construct result with the validated inner data
-                result = result.construct(intermediate_results)
+                if errors.errors:
+                    return errors
+                else:
+                    # construct result with the validated inner data
+                    result = result.construct(inner_results)
 
         return wrap_result(field=field, result=result)
 

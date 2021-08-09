@@ -1,5 +1,6 @@
-from typing import Union, Optional
+from typing import Union, Optional, List
 
+import attr
 import pytest
 
 from cleancat.chausie.consts import omitted
@@ -128,6 +129,21 @@ class TestListField:
         result = clean(UserSchema, {'aliases': ['John', 'Johnny']})
         assert isinstance(result, UserSchema)
         assert result.aliases == ['John', 'Johnny']
+
+    def test_listfield_chained(self):
+        @attr.frozen
+        class Alias:
+            value: str
+
+        @schema
+        class UserSchema:
+            @field(parents=(listfield(simple_field(parents=(strfield,))),))
+            def aliases(value: List[str]) -> List[Alias]:
+                return [Alias(v) for v in value]
+
+        result = clean(UserSchema, {'aliases': ['John', 'Johnny']})
+        assert isinstance(result, UserSchema)
+        assert result.aliases == [Alias(value='John'), Alias(value='Johnny')]
 
 
 class TestNullability:

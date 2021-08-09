@@ -152,7 +152,6 @@ def _check_for_dependency_loops(cls: Type[SchemaCls]) -> None:
 
         if len(seen) == prog:
             # no progress was made
-            print(deps, seen)
             raise ValueError('Field dependencies could not be resolved.')
 
 
