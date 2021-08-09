@@ -3,7 +3,7 @@ from typing import List, Union, Optional
 import attr
 
 from cleancat.chausie.consts import omitted
-from cleancat.chausie.field import Error, simple_field, strfield, field
+from cleancat.chausie.field import Error, strfield, field, noop
 from cleancat.chausie.schema import schema, clean
 
 
@@ -102,7 +102,8 @@ def test_reusable_fields():
     class UpdateLead:
         name: Optional[str]
         website: Optional[str]
-        organization: Organization = simple_field(
+        organization: Organization = field(
+            noop,
             parents=(lookup_org, validate_org_visibility),
         )
 

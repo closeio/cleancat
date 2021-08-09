@@ -5,12 +5,12 @@ from typing import Dict, TypeVar, Type, Any, Union
 
 from cleancat.chausie.consts import omitted, empty
 from cleancat.chausie.field import (
+    field,
     Field,
     FIELD_TYPE_MAP,
     ValidationError,
     Error,
     Value,
-    simple_field,
     Optional as CCOptional,
     listfield,
 )
@@ -35,9 +35,9 @@ def get_fields(cls: Type[SchemaCls]) -> Dict[str, Field]:
 
 
 def _field_def_from_annotation(annotation) -> Field:
-    """Turn an annotation into an equivalent simple_field."""
+    """Turn an annotation into an equivalent field."""
     if annotation in FIELD_TYPE_MAP:
-        return simple_field(parents=(FIELD_TYPE_MAP[annotation],))
+        return field(FIELD_TYPE_MAP[annotation])
     elif typing.get_origin(annotation) is Union:
         # basic support for `Optional`
         union_of = typing.get_args(annotation)
@@ -48,17 +48,15 @@ def _field_def_from_annotation(annotation) -> Field:
             t for t in typing.get_args(annotation) if t is not type(None)
         )
         if inner in FIELD_TYPE_MAP:
-            return simple_field(
-                parents=(FIELD_TYPE_MAP[inner],),
+            return field(
+                FIELD_TYPE_MAP[inner],
                 nullability=CCOptional(),
             )
     elif typing.get_origin(annotation) is list:
         list_of = typing.get_args(annotation)
         if len(list_of) != 1:
             raise TypeError('Only one inner List type is currently supported.')
-        return simple_field(
-            parents=(listfield(_field_def_from_annotation(list_of[0])),)
-        )
+        return field(listfield(_field_def_from_annotation(list_of[0])))
 
     raise TypeError('Unrecognized type annotation.')
 

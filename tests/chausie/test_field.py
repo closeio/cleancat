@@ -6,7 +6,6 @@ import pytest
 
 from cleancat.chausie.consts import omitted
 from cleancat.chausie.field import (
-    simple_field,
     intfield,
     Error,
     field,
@@ -24,9 +23,7 @@ from cleancat.chausie.schema import schema, clean, serialize
 def example_schema():
     @schema
     class ExampleSchema:
-        myint = simple_field(
-            parents=(intfield,), accepts=('myint', 'deprecated_int')
-        )
+        myint = field(intfield, accepts=('myint', 'deprecated_int'))
 
         @field(parents=(intfield,))
         def mylowint(value: int) -> Union[int, Error]:
@@ -72,10 +69,7 @@ def test_accepts(example_schema):
 def test_serialize_to():
     @schema
     class MySchema:
-        myint = simple_field(
-            parents=(intfield,),
-            serialize_to='my_new_int',
-        )
+        myint = field(intfield, serialize_to='my_new_int')
 
     result = clean(MySchema, {'myint': 100})
     assert isinstance(result, MySchema)
@@ -89,10 +83,7 @@ def test_serialize_func():
 
     @schema
     class MySchema:
-        myint = simple_field(
-            parents=(intfield,),
-            serialize_func=double,
-        )
+        myint = field(intfield, serialize_func=double)
 
     result = clean(MySchema, {'myint': 100})
     assert isinstance(result, MySchema)
@@ -124,9 +115,7 @@ class TestListField:
     def test_listfield_basic(self):
         @schema
         class UserSchema:
-            aliases = simple_field(
-                parents=(listfield(simple_field(parents=(strfield,))),)
-            )
+            aliases = field(listfield(field(strfield)))
 
         result = clean(UserSchema, {'aliases': ['John', 'Johnny']})
         assert isinstance(result, UserSchema)
@@ -135,9 +124,7 @@ class TestListField:
     def test_listfield_empty(self):
         @schema
         class UserSchema:
-            aliases = simple_field(
-                parents=(listfield(simple_field(parents=(strfield,))),)
-            )
+            aliases = field(listfield(field(strfield)))
 
         result = clean(UserSchema, {'aliases': ['John', 'Johnny']})
         assert isinstance(result, UserSchema)
@@ -146,14 +133,8 @@ class TestListField:
     def test_listfield_inner_optional(self):
         @schema
         class UserSchema:
-            aliases = simple_field(
-                parents=(
-                    listfield(
-                        simple_field(
-                            parents=(strfield,), nullability=CCOptional()
-                        )
-                    ),
-                )
+            aliases = field(
+                listfield(field(strfield, nullability=CCOptional()))
             )
 
         result = clean(UserSchema, {'aliases': ['John', None]})
@@ -167,7 +148,7 @@ class TestListField:
 
         @schema
         class UserSchema:
-            @field(parents=(listfield(simple_field(parents=(strfield,))),))
+            @field(parents=(listfield(field(strfield)),))
             def aliases(value: List[str]) -> List[Alias]:
                 return [Alias(v) for v in value]
 
@@ -187,12 +168,8 @@ class TestListField:
 
         @schema
         class UserSchema:
-            suffixes = simple_field(
-                parents=(
-                    listfield(
-                        simple_field(parents=(strfield, validate_suffix))
-                    ),
-                )
+            suffixes = field(
+                listfield(field(validate_suffix, parents=(strfield,)))
             )
 
         context_ = Context(valid_suffixes={'Sr', 'Jr', '2nd'})
@@ -209,7 +186,7 @@ class TestListField:
 
         @schema
         class UserSchema:
-            @field(parents=(listfield(simple_field(parents=(strfield,))),))
+            @field(parents=(listfield(field(strfield)),))
             def suffixes(
                 value: List[str], context: Context
             ) -> Union[List[str], Error]:
@@ -279,7 +256,7 @@ class TestNestedField:
 
         @schema
         class OuterSchema:
-            inner = simple_field(parents=(nestedfield(InnerSchema),))
+            inner = field(nestedfield(InnerSchema))
 
         result = clean(OuterSchema, {'inner': {'a': 'John'}})
         assert isinstance(result, OuterSchema)
@@ -299,7 +276,7 @@ class TestNestedField:
 
         @schema
         class OuterSchema:
-            inner = simple_field(parents=(nestedfield(InnerSchema),))
+            inner = field(nestedfield(InnerSchema))
 
         result = clean(
             OuterSchema,
@@ -320,7 +297,7 @@ class TestEnumField:
 
         @schema
         class MySchema:
-            color = simple_field(parents=(enumfield(Color),))
+            color = field(enumfield(Color))
 
         result = clean(MySchema, {'color': 'blue'})
         assert isinstance(result, MySchema)
@@ -336,7 +313,7 @@ class TestEnumField:
 
         @schema
         class MySchema:
-            color = simple_field(parents=(enumfield(Color),))
+            color = field(enumfield(Color))
 
         result = clean(MySchema, {'color': bad_value})
         assert isinstance(result, ValidationError)

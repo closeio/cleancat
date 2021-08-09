@@ -263,15 +263,6 @@ def field(
         return _outer_field
 
 
-def simple_field(**kwargs):
-    """Passthrough to make defining simple fields cleaner."""
-
-    def _simple(value):
-        return value
-
-    return field(**kwargs)(_simple)
-
-
 def intfield(value: Any) -> Union[int, Error]:
     """Simple string coercion/validation for int values."""
     # coerce from string if needed

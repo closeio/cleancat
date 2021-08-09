@@ -6,9 +6,6 @@ import pytest
 from cleancat.chausie.consts import omitted
 from cleancat.chausie.schema import schema, clean, serialize
 from cleancat.chausie.field import (
-    Optional as CCOptional,
-    simple_field,
-    intfield,
     field,
     Error,
     ValidationError,
