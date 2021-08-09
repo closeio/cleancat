@@ -1,4 +1,4 @@
-from typing import Union, Optional, List
+from typing import Union, Optional, List, Set
 
 import attr
 import pytest
@@ -144,6 +144,56 @@ class TestListField:
         result = clean(UserSchema, {'aliases': ['John', 'Johnny']})
         assert isinstance(result, UserSchema)
         assert result.aliases == [Alias(value='John'), Alias(value='Johnny')]
+
+    def test_listfield_parent_context(self):
+        @attr.frozen
+        class Context:
+            valid_suffixes: Set[str]
+
+        def validate_suffix(value: str, context: Context):
+            if value not in context.valid_suffixes:
+                return Error(msg='Suffix is invalid')
+            return value
+
+        @schema
+        class UserSchema:
+            suffixes = simple_field(
+                parents=(
+                    listfield(
+                        simple_field(parents=(strfield, validate_suffix))
+                    ),
+                )
+            )
+
+        context_ = Context(valid_suffixes={'Sr', 'Jr', '2nd'})
+        result = clean(
+            UserSchema, {'suffixes': ['Sr', 'Jr']}, context=context_
+        )
+        assert isinstance(result, UserSchema)
+        assert result.suffixes == ['Sr', 'Jr']
+
+    def test_listfield_context(self):
+        @attr.frozen
+        class Context:
+            valid_suffixes: Set[str]
+
+        @schema
+        class UserSchema:
+            @field(parents=(listfield(simple_field(parents=(strfield,))),))
+            def suffixes(
+                value: List[str], context: Context
+            ) -> Union[List[str], Error]:
+                for suffix in value:
+                    if suffix not in context.valid_suffixes:
+                        return Error(msg='Suffix is invalid')
+                return value
+
+        context_ = Context(valid_suffixes={'Sr', 'Jr', '2nd'})
+        result = clean(
+            UserSchema, {'suffixes': ['Sr', 'Jr']}, context=context_
+        )
+        assert isinstance(result, UserSchema)
+        assert result.suffixes == ['Sr', 'Jr']
 
 
 class TestNullability:
