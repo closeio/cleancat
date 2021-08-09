@@ -12,6 +12,7 @@ from typing import (
     Any,
     Callable,
     Optional as T_Optional,
+    Collection,
 )
 
 from cleancat.chausie.consts import OMITTED, omitted, empty
@@ -28,12 +29,32 @@ class Error:
     field: Tuple[str, ...] = tuple()
 
 
+@attr.frozen
+class Errors:
+    errors: List[Error]
+    field: Tuple[Union[str, int], ...] = tuple()
+
+    def flatten(self) -> List[Error]:
+        return [
+            wrap_result(field=self.field, result=err) for err in self.errors
+        ]
+
+
 T = TypeVar('T')
 
 
 @attr.frozen
 class Value(Generic[T]):
     value: T
+
+
+@attr.frozen
+class UnvalidatedWrappedValue:
+    value: Collection
+    inner_field: 'Field'
+
+    construct: Callable
+    """Called to construct the wrapped type with validated data."""
 
 
 class Nullability:
@@ -84,11 +105,11 @@ class Field:
 
     def run_validators(
         self,
-        field: Tuple[str, ...],
+        field: Tuple[Union[str, int], ...],
         value: Any,
         context: Any,
         intermediate_results: Dict[str, Any],
-    ) -> Union[Value, Error]:
+    ) -> Union[Value, Errors]:
         def _get_deps(func):
             return {
                 param for param in inspect.signature(func).parameters.keys()
@@ -102,16 +123,18 @@ class Field:
                 if self.nullability.allow_none:
                     return Value(value)
                 else:
-                    return wrap_result(
+                    return Errors(
                         field=field,
-                        result=Error(
-                            msg='Value is required, and must not be None.'
-                        ),
+                        errors=[
+                            Error(
+                                msg='Value is required, and must not be None.'
+                            )
+                        ],
                     )
 
             if isinstance(self.nullability, Required):
-                return wrap_result(
-                    field=field, result=Error(msg='Value is required.')
+                return Errors(
+                    field=field, errors=[Error(msg='Value is required.')]
                 )
             elif isinstance(self.nullability, Optional):
                 return Value(self.nullability.omitted_value)
@@ -145,8 +168,32 @@ class Field:
         result = value
         for validator in self.validators:
             result = inject_deps(func=validator, val=result)()
-            if isinstance(result, Error):
-                return wrap_result(field=field, result=result)
+            if isinstance(result, Errors):
+                return result
+            elif isinstance(result, Error):
+                return Errors(field=field, errors=[result])
+
+        if isinstance(result, UnvalidatedWrappedValue):
+            intermediate_results = [
+                result.inner_field.run_validators(
+                    field=(idx,),
+                    value=inner_value,
+                    context=context,
+                    intermediate_results=intermediate_results,
+                )
+                for idx, inner_value in enumerate(result.value)
+            ]
+            errors = Errors(
+                field=field,
+                errors=[
+                    r for r in intermediate_results if isinstance(r, Error)
+                ],
+            )
+            if errors.errors:
+                return errors
+            else:
+                # construct result with the validated inner data
+                result = result.construct(intermediate_results)
 
         return wrap_result(field=field, result=result)
 
@@ -233,6 +280,46 @@ def strfield(value: Any) -> Union[str, Error]:
         return value
 
     return Error(msg='Unhandled type')
+
+
+class WrapperField:
+    inner_field: Field
+
+    def __init__(self, inner_field: Field):
+        self.inner_field = inner_field
+
+    def __call__(self, value: Any) -> Union[UnvalidatedWrappedValue, Error]:
+        result = self.impl(value)
+        if not isinstance(result, Error):
+            return UnvalidatedWrappedValue(
+                inner_field=self.inner_field,
+                construct=self.construct,
+                value=value,
+            )
+
+    def impl(self, value: Any):
+        raise NotImplementedError()
+
+    def construct(self, values: List[Value]) -> Any:
+        raise NotImplementedError()
+
+
+class _ListField(WrapperField):
+    def impl(self, value: Any) -> Union[List, Error]:
+        if isinstance(value, tuple):
+            value = list(value)
+
+        if isinstance(value, list):
+            return value
+
+        return Error(msg='Unhandled type')
+
+    def construct(self, values: List[Value]) -> List:
+        return [v.value for v in values]
+
+
+# alias for consistency with other fields
+listfield = _ListField
 
 
 FIELD_TYPE_MAP = {

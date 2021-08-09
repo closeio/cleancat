@@ -10,6 +10,8 @@ from cleancat.chausie.field import (
     field,
     ValidationError,
     Optional as CCOptional,
+    strfield,
+    listfield,
 )
 from cleancat.chausie.schema import schema, clean, serialize
 
@@ -102,6 +104,30 @@ def test_strfield():
     result = clean(UserSchema, {'name': 'John'})
     assert isinstance(result, UserSchema)
     assert result.name == 'John'
+
+
+class TestListField:
+    def test_listfield_basic(self):
+        @schema
+        class UserSchema:
+            aliases = simple_field(
+                parents=(listfield(simple_field(parents=(strfield,))),)
+            )
+
+        result = clean(UserSchema, {'aliases': ['John', 'Johnny']})
+        assert isinstance(result, UserSchema)
+        assert result.aliases == ['John', 'Johnny']
+
+    def test_listfield_empty(self):
+        @schema
+        class UserSchema:
+            aliases = simple_field(
+                parents=(listfield(simple_field(parents=(strfield,))),)
+            )
+
+        result = clean(UserSchema, {'aliases': ['John', 'Johnny']})
+        assert isinstance(result, UserSchema)
+        assert result.aliases == ['John', 'Johnny']
 
 
 class TestNullability:

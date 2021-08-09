@@ -1,4 +1,5 @@
 import functools
+import itertools
 import typing
 from typing import Dict, TypeVar, Type, Any, Union
 
@@ -11,6 +12,7 @@ from cleancat.chausie.field import (
     Value,
     simple_field,
     Optional as CCOptional,
+    UnvalidatedWrappedValue,
 )
 
 
@@ -88,6 +90,7 @@ def _clean(
             context=context,
             intermediate_results=results,
         )
+
         queued_fields = {n for n, _f in eval_queue}
         for name, f in delayed_eval:
             if (
@@ -95,28 +98,33 @@ def _clean(
                 and name not in queued_fields
                 and all(
                     [
-                        (
-                            dep in results
-                            and not isinstance(results[dep], Error)
-                        )
+                        (dep in results and isinstance(results[dep], Value))
                         for dep in f.depends_on
                     ]
                 )
             ):
                 eval_queue.append((name, f))
 
-    errors = {f: v for f, v in results.items() if isinstance(v, Error)}
+    errors = list(
+        itertools.chain(
+            *[
+                v.flatten()
+                for v in results.values()
+                if not isinstance(v, Value)
+            ]
+        )
+    )
     if errors:
-        return ValidationError(errors=list(errors.values()))
+        return ValidationError(errors=errors)
 
-    return cls(**results)
+    return cls(**{k: v.value for k, v in results.items()})
 
 
 def _new_init(self: SchemaCls, **kwargs):
     defined_fields = get_fields(self.__class__)
     attribs = {k: v for k, v in kwargs.items() if k in defined_fields}
     for k, v in attribs.items():
-        setattr(self, k, v.value)
+        setattr(self, k, v)
 
 
 def _serialize(self: SchemaCls):
