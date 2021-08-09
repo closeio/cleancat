@@ -147,7 +147,13 @@ class Field:
             if not deps:
                 return func
 
-            if 'context' in deps and context is empty:
+            # an empty context default value means its optional/passthrough
+            if (
+                'context' in deps
+                and context is empty
+                and inspect.signature(func).parameters['context'].default
+                is not empty
+            ):
                 raise ValueError(
                     'Context is required for evaluating this schema.'
                 )
@@ -170,7 +176,7 @@ class Field:
         for validator in self.validators:
             result = inject_deps(func=validator, val=result)()
             if isinstance(result, Errors):
-                return result
+                return Errors(field=field, errors=result.flatten())
             elif isinstance(result, Error):
                 return Errors(field=field, errors=[result])
             elif isinstance(result, UnvalidatedWrappedValue):
@@ -319,6 +325,31 @@ class _ListField(WrapperField):
 # alias for consistency with other fields
 listfield = _ListField
 
+
+SchemaCls = TypeVar('SchemaCls')
+
+
+class _NestedField:
+    inner_schema: Type[SchemaCls]
+
+    def __init__(self, schema: Type[SchemaCls]):
+        self.inner_schema = schema
+
+    def __call__(
+        self, value: Any, context: Any = empty
+    ) -> Union[SchemaCls, Errors]:
+        from cleancat.chausie.schema import clean
+
+        result = clean(self.inner_schema, value, context=context)
+        if isinstance(result, ValidationError):
+            return Errors(errors=result.errors)
+        elif isinstance(result, self.inner_schema):
+            return result
+
+        raise TypeError
+
+
+nestedfield = _NestedField
 
 FIELD_TYPE_MAP = {
     int: intfield,

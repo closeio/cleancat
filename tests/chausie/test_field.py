@@ -13,6 +13,7 @@ from cleancat.chausie.field import (
     Optional as CCOptional,
     strfield,
     listfield,
+    nestedfield,
 )
 from cleancat.chausie.schema import schema, clean, serialize
 
@@ -239,3 +240,43 @@ class TestNullability:
         result = clean(MySchema, {'myint': None})
         assert isinstance(result, MySchema)
         assert result.myint is None
+
+
+class TestNestedField:
+    def test_nestedfield_basic(self):
+        @schema
+        class InnerSchema:
+            a: str
+
+        @schema
+        class OuterSchema:
+            inner = simple_field(parents=(nestedfield(InnerSchema),))
+
+        result = clean(OuterSchema, {'inner': {'a': 'John'}})
+        assert isinstance(result, OuterSchema)
+        assert isinstance(result.inner, InnerSchema)
+        assert result.inner.a == 'John'
+
+    def test_nestedfield_with_context(self):
+        @attr.frozen
+        class Context:
+            curr_user_id: str
+
+        @schema
+        class InnerSchema:
+            @field(parents=(strfield,))
+            def a(value: str, context: Context) -> str:
+                return f'{value}:{context.curr_user_id}'
+
+        @schema
+        class OuterSchema:
+            inner = simple_field(parents=(nestedfield(InnerSchema),))
+
+        result = clean(
+            OuterSchema,
+            {'inner': {'a': 'John'}},
+            context=Context(curr_user_id='user_abc'),
+        )
+        assert isinstance(result, OuterSchema)
+        assert isinstance(result.inner, InnerSchema)
+        assert result.inner.a == 'John:user_abc'
