@@ -12,7 +12,6 @@ from cleancat.chausie.field import (
     Value,
     simple_field,
     Optional as CCOptional,
-    UnvalidatedWrappedValue,
     listfield,
 )
 

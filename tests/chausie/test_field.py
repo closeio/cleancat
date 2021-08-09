@@ -100,6 +100,16 @@ def test_serialize_func():
     assert serialize(result) == {'myint': 200}
 
 
+def test_intfield():
+    @schema
+    class MySchema:
+        val: int = field(intfield)
+
+    result = clean(MySchema, {'val': 5})
+    assert isinstance(result, MySchema)
+    assert result.val == 5
+
+
 def test_strfield():
     @schema
     class UserSchema:
@@ -132,6 +142,23 @@ class TestListField:
         result = clean(UserSchema, {'aliases': ['John', 'Johnny']})
         assert isinstance(result, UserSchema)
         assert result.aliases == ['John', 'Johnny']
+
+    def test_listfield_inner_optional(self):
+        @schema
+        class UserSchema:
+            aliases = simple_field(
+                parents=(
+                    listfield(
+                        simple_field(
+                            parents=(strfield,), nullability=CCOptional()
+                        )
+                    ),
+                )
+            )
+
+        result = clean(UserSchema, {'aliases': ['John', None]})
+        assert isinstance(result, UserSchema)
+        assert result.aliases == ['John', None]
 
     def test_listfield_chained(self):
         @attr.frozen

@@ -1,5 +1,6 @@
 import functools
 import inspect
+import itertools
 from enum import Enum
 
 import attr
@@ -211,13 +212,14 @@ def noop(value: V) -> V:
 
 
 def field(
+    decorated_func: T_Optional[Callable] = None,
     *,
     parents: Tuple[Callable, ...] = tuple(),
     accepts: Tuple[str, ...] = tuple(),
     serialize_to: T_Optional[str] = None,
     serialize_func: Callable = noop,
     nullability: Nullability = Required(),
-) -> Callable[[Callable], Field]:
+) -> Union[Callable[[Callable], Field], Field]:
     """Defines a Field.
 
     Args:
@@ -238,22 +240,27 @@ def field(
 
     def _outer_field(inner_func: Callable) -> Field:
         # find any declared dependencies on other fields
-        deps = tuple(
+        validators = parents + (inner_func,)
+        deps = {
             n
-            for n in inspect.signature(inner_func).parameters.keys()
+            for n in itertools.chain(
+                *[inspect.signature(f).parameters.keys() for f in validators]
+            )
             if n not in {'context', 'value'}
-        )
-
+        }
         return Field(
             nullability=nullability,
-            validators=parents + (inner_func,),
+            validators=validators,
             accepts=accepts,
             serialize_to=serialize_to,
             serialize_func=serialize_func,
             depends_on=deps,
         )
 
-    return _outer_field
+    if decorated_func is not None:
+        return _outer_field(inner_func=decorated_func)
+    else:
+        return _outer_field
 
 
 def simple_field(**kwargs):
