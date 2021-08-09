@@ -1,3 +1,4 @@
+import enum
 from typing import Union, Optional, List, Set
 
 import attr
@@ -14,6 +15,7 @@ from cleancat.chausie.field import (
     strfield,
     listfield,
     nestedfield,
+    enumfield,
 )
 from cleancat.chausie.schema import schema, clean, serialize
 
@@ -280,3 +282,37 @@ class TestNestedField:
         assert isinstance(result, OuterSchema)
         assert isinstance(result.inner, InnerSchema)
         assert result.inner.a == 'John:user_abc'
+
+
+class TestEnumField:
+    def test_enumfield_basic(self):
+        class Color(enum.Enum):
+            BLUE = 'blue'
+            RED = 'red'
+            GREEN = 'green'
+
+        @schema
+        class MySchema:
+            color = simple_field(parents=(enumfield(Color),))
+
+        result = clean(MySchema, {'color': 'blue'})
+        assert isinstance(result, MySchema)
+        assert isinstance(result.color, Color)
+        assert result.color is Color.BLUE
+
+    @pytest.mark.parametrize('bad_value', ['black', 5, object()])
+    def test_enumfield_error(self, bad_value):
+        class Color(enum.Enum):
+            BLUE = 'blue'
+            RED = 'red'
+            GREEN = 'green'
+
+        @schema
+        class MySchema:
+            color = simple_field(parents=(enumfield(Color),))
+
+        result = clean(MySchema, {'color': bad_value})
+        assert isinstance(result, ValidationError)
+        assert result.errors == [
+            Error(msg='Invalid value for enum.', field=('color',))
+        ]

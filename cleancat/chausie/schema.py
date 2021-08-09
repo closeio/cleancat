@@ -138,6 +138,10 @@ def _serialize(self: SchemaCls):
 
 
 def _check_for_dependency_loops(cls: Type[SchemaCls]) -> None:
+    """Try to catch simple top-level dependency loops.
+
+    Does not handle wrapped fields.
+    """
     deps = {
         name: set(f_def.depends_on) for name, f_def in get_fields(cls).items()
     }

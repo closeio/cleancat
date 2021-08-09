@@ -1,5 +1,6 @@
 import functools
 import inspect
+from enum import Enum
 
 import attr
 from typing import (
@@ -350,6 +351,25 @@ class _NestedField:
 
 
 nestedfield = _NestedField
+
+EnumCls = TypeVar('EnumCls', bound=Enum)
+
+
+class _EnumField:
+    enum_cls: Type[EnumCls]
+
+    def __init__(self, enum_cls: Type[EnumCls]):
+        self.enum_cls = enum_cls
+
+    def __call__(self, value: Any) -> Union[EnumCls, Error]:
+        try:
+            return self.enum_cls(value)
+        except (ValueError, TypeError):
+            return Error(msg='Invalid value for enum.')
+
+
+enumfield = _EnumField
+
 
 FIELD_TYPE_MAP = {
     int: intfield,
