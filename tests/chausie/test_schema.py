@@ -1,8 +1,9 @@
-from typing import Optional, Union
+from typing import Optional, Union, List
 
 import attr
 import pytest
 
+from cleancat.chausie.consts import omitted
 from cleancat.chausie.schema import schema, clean, serialize
 from cleancat.chausie.field import (
     Optional as CCOptional,
@@ -15,27 +16,43 @@ from cleancat.chausie.field import (
 )
 
 
-def test_autodef():
-    @schema
-    class MySchema:
-        myint: int
+class TestAutodef:
+    def test_int_basic(self):
+        @schema
+        class MySchema:
+            myint: int
 
-    result = clean(MySchema, {'myint': 100})
-    assert isinstance(result, MySchema)
-    assert result.myint == 100
-    assert serialize(result) == {'myint': 100}
+        result = clean(MySchema, {'myint': 100})
+        assert isinstance(result, MySchema)
+        assert result.myint == 100
+        assert serialize(result) == {'myint': 100}
 
+    def test_optional_omitted(self):
+        @schema
+        class MySchema:
+            myint: Optional[int]
 
-def test_optional_autodef():
-    @schema
-    class MySchema:
-        myint: Optional[int] = simple_field(
-            parents=(intfield,), nullability=CCOptional(omitted_value=None)
-        )
+        result = clean(MySchema, {})
+        assert isinstance(result, MySchema)
+        assert result.myint is omitted
 
-    result = clean(MySchema, {})
-    assert isinstance(result, MySchema)
-    assert result.myint == None
+    def test_optional_none(self):
+        @schema
+        class MySchema:
+            myint: Optional[int]
+
+        result = clean(MySchema, {'myint': None})
+        assert isinstance(result, MySchema)
+        assert result.myint is None
+
+    def test_list(self):
+        @schema
+        class MySchema:
+            mystrs: List[str]
+
+        result = clean(MySchema, {'mystrs': ['a', 'b', 'c']})
+        assert isinstance(result, MySchema)
+        assert result.mystrs == ['a', 'b', 'c']
 
 
 def test_field_dependencies():

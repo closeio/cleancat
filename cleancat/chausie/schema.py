@@ -13,6 +13,7 @@ from cleancat.chausie.field import (
     simple_field,
     Optional as CCOptional,
     UnvalidatedWrappedValue,
+    listfield,
 )
 
 
@@ -52,6 +53,13 @@ def _field_def_from_annotation(annotation) -> Field:
                 parents=(FIELD_TYPE_MAP[inner],),
                 nullability=CCOptional(),
             )
+    elif typing.get_origin(annotation) is list:
+        list_of = typing.get_args(annotation)
+        if len(list_of) != 1:
+            raise TypeError('Only one inner List type is currently supported.')
+        return simple_field(
+            parents=(listfield(_field_def_from_annotation(list_of[0])),)
+        )
 
     raise TypeError('Unrecognized type annotation.')
 
