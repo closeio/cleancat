@@ -44,8 +44,10 @@ def _field_def_from_annotation(annotation) -> Field:
         if not (len(union_of) == 2 and type(None) in union_of):
             raise TypeError('Unrecognized type annotation.')
 
+        # yes, we actually do want to check against type(xx)
+        NoneType = type(None)
         inner = next(
-            t for t in typing.get_args(annotation) if t is not type(None)
+            t for t in typing.get_args(annotation) if t is not NoneType
         )
         if inner in FIELD_TYPE_MAP:
             return field(
