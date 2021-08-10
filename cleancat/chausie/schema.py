@@ -179,9 +179,9 @@ def schema(cls: Type[SchemaCls], autodef=True):
     # auto define simple annotations
     if autodef:
         existing_fields = get_fields(cls)
-        for field, f_type in getattr(cls, '__annotations__', {}).items():
-            if field not in existing_fields:
-                setattr(cls, field, _field_def_from_annotation(f_type))
+        for f_name, f_type in getattr(cls, '__annotations__', {}).items():
+            if f_name not in existing_fields:
+                setattr(cls, f_name, _field_def_from_annotation(f_type))
 
     # check for dependency loops
     _check_for_dependency_loops(cls)

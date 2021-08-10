@@ -58,7 +58,7 @@ def test_reusable_fields():
             return self.ORGANIZATIONS_BY_PK.get(pk, None)
 
     class LeadRepo:
-        LEADS_BY_PK = {l.pk: l for l in [ibm]}
+        LEADS_BY_PK = {lead.pk: lead for lead in [ibm]}
 
         def get_by_pk(self, pk):
             return self.LEADS_BY_PK.get(pk, None)

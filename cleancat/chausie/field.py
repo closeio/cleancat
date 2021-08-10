@@ -22,7 +22,7 @@ from typing import (
 
 from dateutil import parser
 
-from cleancat.chausie.consts import OMITTED, omitted, empty
+from cleancat.chausie.consts import omitted, empty
 
 
 @attr.frozen

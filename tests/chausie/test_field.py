@@ -17,7 +17,6 @@ from cleancat.chausie.field import (
     nestedfield,
     enumfield,
     regexfield,
-    datetimefield,
     urlfield,
 )
 from cleancat.chausie.schema import schema, clean, serialize
