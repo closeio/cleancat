@@ -320,3 +320,15 @@ class TestEnumField:
         assert result.errors == [
             Error(msg='Invalid value for enum.', field=('color',))
         ]
+
+
+def test_field_self():
+    @schema
+    class AliasSchema:
+        @field(parents=(strfield,))
+        def value(self, value: str):
+            return f'Value:{value}'
+
+    result = clean(AliasSchema, {'value': 'John'})
+    assert isinstance(result, AliasSchema)
+    assert result.value == 'Value:John'

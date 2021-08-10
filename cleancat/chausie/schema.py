@@ -67,17 +67,20 @@ def _clean(
     """Entrypoint for cleaning some set of data for a given class."""
     field_defs = [(name, f_def) for name, f_def in get_fields(cls).items()]
 
-    # initial set are those with no
+    # fake an initial 'self' result so function-defined fields can
+    # optionally include an unused "self" parameter
+    results: Dict[str, Union[Value, Error]] = {'self': Value(value=None)}
+
+    # initial set are those with met deps
     eval_queue: typing.List[typing.Tuple[str, Field]] = []
     delayed_eval = []
     for name, f in field_defs:
-        if f.depends_on:
-            delayed_eval.append((name, f))
-        else:
+        if not f.depends_on or all([d in results for d in f.depends_on]):
             eval_queue.append((name, f))
+        else:
+            delayed_eval.append((name, f))
     assert len(field_defs) == len(eval_queue) + len(delayed_eval)
 
-    results: Dict[str, Union[Value, Error]] = {}
     while eval_queue:
         field_name, field_def = eval_queue.pop()
 
@@ -122,6 +125,8 @@ def _clean(
     if errors:
         return ValidationError(errors=errors)
 
+    results.pop('self')
+    assert set(results.keys()) == {f_name for f_name, _ in field_defs}
     return cls(**{k: v.value for k, v in results.items()})
 
 
@@ -150,7 +155,7 @@ def _check_for_dependency_loops(cls: Type[SchemaCls]) -> None:
     deps = {
         name: set(f_def.depends_on) for name, f_def in get_fields(cls).items()
     }
-    seen = set()
+    seen = {'self'}
     while deps:
         prog = len(seen)
         for f_name, f_deps in deps.items():
