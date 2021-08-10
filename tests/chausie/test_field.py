@@ -332,3 +332,21 @@ def test_field_self():
     result = clean(AliasSchema, {'value': 'John'})
     assert isinstance(result, AliasSchema)
     assert result.value == 'Value:John'
+
+
+def test_extendable_fields():
+    # we should be able to define reusable/composable fields with their own parents
+    # TODO should this be a different function that makes it clearer this only applies parents as validators?
+    @field(parents=(strfield,))
+    def valuefield(value: str):
+        return f'Value:{value}'
+
+    @schema
+    class MySchema:
+        @field(parents=(valuefield,))
+        def a(self, value: str):
+            return f'a:{value}'
+
+    result = clean(MySchema, {'a': 'John'})
+    assert isinstance(result, MySchema)
+    assert result.a == 'a:Value:John'

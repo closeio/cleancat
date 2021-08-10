@@ -214,7 +214,7 @@ def noop(value: V) -> V:
 def field(
     decorated_func: T_Optional[Callable] = None,
     *,
-    parents: Tuple[Callable, ...] = tuple(),
+    parents: Tuple[Union[Callable, Field], ...] = tuple(),
     accepts: Tuple[str, ...] = tuple(),
     serialize_to: T_Optional[str] = None,
     serialize_func: Callable = noop,
@@ -225,7 +225,8 @@ def field(
     Args:
         parents: Optionally a list of any parent fields. Validated values chain between
             parents in order they've been given here, before being passed to this
-            field's validation function.
+            field's validation function. Note that if a `Field` is given instead of a
+            `Callable`, only the validators are reused.
         accepts: Optionally a list of field names to accept values from. If not given,
             defaults to the field name on the schema. Field names given first are given
             precedent.
@@ -239,8 +240,16 @@ def field(
     """
 
     def _outer_field(inner_func: Callable) -> Field:
+        # flatten any parents defined as fields
+        validators = []
+        for p in parents:
+            if isinstance(p, Field):
+                validators.extend(p.validators)
+            else:
+                validators.append(p)
+        validators.append(inner_func)
+
         # find any declared dependencies on other fields
-        validators = parents + (inner_func,)
         deps = {
             n
             for n in itertools.chain(
@@ -250,7 +259,7 @@ def field(
         }
         return Field(
             nullability=nullability,
-            validators=validators,
+            validators=tuple(validators),
             accepts=accepts,
             serialize_to=serialize_to,
             serialize_func=serialize_func,
@@ -373,3 +382,11 @@ FIELD_TYPE_MAP = {
     int: intfield,
     str: strfield,
 }
+
+# TODO
+#  regex
+#  datetime
+#  bool
+#  URL
+#  dict? Should we should even support these?
+#  trimmedstring?
