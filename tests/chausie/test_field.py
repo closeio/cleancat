@@ -18,6 +18,7 @@ from cleancat.chausie.field import (
     enumfield,
     regexfield,
     datetimefield,
+    urlfield,
 )
 from cleancat.chausie.schema import schema, clean, serialize
 
@@ -409,3 +410,178 @@ def test_extendable_fields():
     result = clean(MySchema, {'a': 'John'})
     assert isinstance(result, MySchema)
     assert result.a == 'a:Value:John'
+
+
+class TestURLField:
+    @pytest.mark.parametrize(
+        'value',
+        [
+            'http://x.com',
+            u'http://♡.com',
+            'http://example.com/a?b=c',
+            'ftp://ftp.example.com',
+            'http://example.com?params=without&path',
+            # Russian unicode URL (IDN, unicode path and query params)
+            u'http://пример.com',
+            u'http://пример.рф',
+            u'http://пример.рф/путь/?параметр=значение',
+            # Punicode stuff
+            u'http://test.XN--11B4C3D',
+            # http://stackoverflow.com/questions/9238640/how-long-can-a-tld-possibly-be
+            # Longest to date (Feb 2017) TLD in punicode format is 24 chars long
+            u'http://test.xn--vermgensberatung-pwb',
+        ],
+    )
+    def test_in_accepts_valid_urls(self, value):
+        @schema
+        class MyUrlSchema:
+            url = field(urlfield())
+
+        result = clean(MyUrlSchema, {'url': value})
+        assert isinstance(result, MyUrlSchema)
+        assert result.url == value
+
+    @pytest.mark.parametrize(
+        'value',
+        [
+            'www.example.com',
+            'http:// invalid.com',
+            'http://!nvalid.com',
+            'http://.com',
+            'http://',
+            'http://.',
+            'invalid',
+            u'http://ＧＯＯＧＬＥ.com',  # full-width chars are disallowed
+            'javascript:alert()',  # TODO "javascript" is a valid scheme. "//" is not a part of some URIs.
+        ],
+    )
+    def test_it_rejects_invalid_urls(self, value):
+        @schema
+        class MyUrlSchema:
+            url = field(urlfield())
+
+        result = clean(MyUrlSchema, {'url': value})
+        assert isinstance(result, ValidationError)
+        assert result.errors == [Error(msg='Invalid input.', field=('url',))]
+
+    @pytest.mark.parametrize(
+        'value, expected',
+        [
+            ('http://example.com/a?b=c', 'http://example.com/a?b=c'),
+            ('ftp://ftp.example.com', 'ftp://ftp.example.com'),
+            ('www.example.com', 'http://www.example.com'),
+            ('invalid', None),
+        ],
+    )
+    def test_it_supports_a_default_scheme(self, value, expected):
+        @schema
+        class MyUrlSchema:
+            url = field(urlfield(default_scheme='http://'))
+
+        result = clean(MyUrlSchema, {'url': value})
+        if expected:
+            assert isinstance(result, MyUrlSchema)
+            assert result.url == expected
+        else:
+            assert isinstance(result, ValidationError)
+            assert result.errors == [
+                Error(msg='Invalid input.', field=('url',))
+            ]
+
+    @pytest.mark.parametrize(
+        'value, expected',
+        [
+            ('https://example.com/', 'https://example.com/'),
+            ('example.com/', 'https://example.com/'),
+            ('http://example.com', None),
+        ],
+    )
+    def test_it_enforces_allowed_schemes(self, value, expected):
+        @schema
+        class MyUrlSchema:
+            url = field(
+                urlfield(
+                    default_scheme='https://', allowed_schemes=['https://']
+                )
+            )
+
+        result = clean(MyUrlSchema, {'url': value})
+        if expected:
+            assert isinstance(result, MyUrlSchema)
+            assert result.url == expected
+        else:
+            expected_err_msg = (
+                "This URL uses a scheme that's not allowed. You can only "
+                "use https://."
+            )
+            assert isinstance(result, ValidationError)
+            assert result.errors == [
+                Error(msg=expected_err_msg, field=('url',))
+            ]
+
+    @pytest.mark.parametrize(
+        'value, expected',
+        [
+            ('https://example.com/', 'https://example.com/'),
+            ('ftp://ftp.example.com', 'ftp://ftp.example.com'),
+            ('example.com/', 'https://example.com/'),
+            ('javascript://www.example.com/#%0aalert(document.cookie)', None),
+        ],
+    )
+    def test_it_enforces_disallowed_schemes(self, value, expected):
+        @schema
+        class MyUrlSchema:
+            url = field(
+                urlfield(
+                    default_scheme='https://',
+                    disallowed_schemes=['javascript:'],
+                )
+            )
+
+        result = clean(MyUrlSchema, {'url': value})
+        if expected:
+            assert isinstance(result, MyUrlSchema)
+            assert result.url == expected
+        else:
+            assert isinstance(result, ValidationError)
+            assert result.errors == [
+                Error(
+                    msg="This URL uses a scheme that's not allowed.",
+                    field=('url',),
+                )
+            ]
+
+    @pytest.mark.parametrize(
+        'value, expected',
+        [
+            ('https://example.com/', 'https://example.com/'),
+            ('example.com/', 'https://example.com/'),
+            ('ftps://storage.example.com', 'ftps://storage.example.com'),
+        ],
+    )
+    def test_it_supports_simpler_allowed_scheme_values(self, value, expected):
+        @schema
+        class MyUrlSchema:
+            url = field(
+                urlfield(
+                    default_scheme='https', allowed_schemes=['https', 'ftps']
+                )
+            )
+
+        result = clean(MyUrlSchema, {'url': value})
+        assert isinstance(result, MyUrlSchema)
+        assert result.url == expected
+
+    @pytest.mark.parametrize('value', [23.0, True])
+    def test_it_enforces_valid_data_type(self, value):
+        @schema
+        class MyUrlSchema:
+            url = field(
+                urlfield(
+                    default_scheme='https', allowed_schemes=['https', 'ftps']
+                )
+            )
+
+        result = clean(MyUrlSchema, {'url': value})
+        assert isinstance(result, ValidationError)
+        assert result.errors == [Error(msg="Unhandled type", field=('url',))]

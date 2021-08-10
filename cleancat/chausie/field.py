@@ -216,7 +216,7 @@ def noop(value: V) -> V:
 
 
 def field(
-    decorated_func: T_Optional[Callable] = None,
+    decorated_func: T_Optional[Union[Callable, Field]] = None,
     *,
     parents: Tuple[Union[Callable, Field], ...] = tuple(),
     accepts: Tuple[str, ...] = tuple(),
@@ -243,7 +243,7 @@ def field(
             behavior if a field is omitted or falsy. Defaults to Required.
     """
 
-    def _outer_field(inner_func: Callable) -> Field:
+    def _outer_field(inner_func: Union[Callable, Field]) -> Field:
         # flatten any parents defined as fields
         validators = []
         for p in parents + (inner_func,):
@@ -408,6 +408,81 @@ def boolfield(value: Any) -> Union[bool, Error]:
     return value
 
 
+def urlfield(
+    require_tld=True,
+    default_scheme=None,
+    allowed_schemes=None,
+    disallowed_schemes=None,
+) -> Field:
+    def normalize_scheme(sch):
+        if sch.endswith('://') or sch.endswith(':'):
+            return sch
+        return sch + '://'
+
+    # FQDN validation similar to https://github.com/chriso/validator.js/blob/master/src/lib/isFQDN.js
+
+    # ff01-ff5f -> full-width chars, not allowed
+    alpha_numeric_and_symbols_ranges = u'0-9a-z\u00a1-\uff00\uff5f-\uffff'
+
+    tld_part = (
+        require_tld
+        and r'\.[%s-]{2,63}' % alpha_numeric_and_symbols_ranges
+        or ''
+    )
+    scheme_part = '[a-z]+://'
+    if default_scheme:
+        default_scheme = normalize_scheme(default_scheme)
+    scheme_regex = re.compile('^' + scheme_part, re.IGNORECASE)
+    if default_scheme:
+        scheme_part = '(%s)?' % scheme_part
+    regex = (
+        r'^%s([-%s@:%%_+.~#?&/\\=]{1,256}%s|([0-9]{1,3}\.){3}[0-9]{1,3})(:[0-9]+)?([/?].*)?$'
+        % (scheme_part, alpha_numeric_and_symbols_ranges, tld_part)
+    )
+    regex_flags = re.IGNORECASE | re.UNICODE
+
+    def compile_schemes_to_regexes(schemes):
+        return [
+            re.compile('^' + normalize_scheme(sch) + '.*', re.IGNORECASE)
+            for sch in schemes
+        ]
+
+    allowed_schemes = allowed_schemes or []
+    allowed_schemes_regexes = compile_schemes_to_regexes(allowed_schemes)
+
+    disallowed_schemes = disallowed_schemes or []
+    disallowed_schemes_regexes = compile_schemes_to_regexes(disallowed_schemes)
+
+    @field(parents=(regexfield(regex=regex, flags=regex_flags),))
+    def _urlfield(value: str) -> Union[Error, str]:
+        if not scheme_regex.match(value):
+            value = default_scheme + value
+
+        if allowed_schemes:
+            if not any(
+                allowed_regex.match(value)
+                for allowed_regex in allowed_schemes_regexes
+            ):
+                allowed_schemes_text = ' or '.join(allowed_schemes)
+                return Error(
+                    msg=(
+                        "This URL uses a scheme that's not allowed. You can only "
+                        f"use {allowed_schemes_text}."
+                    )
+                )
+
+        if disallowed_schemes:
+            if any(
+                disallowed_regex.match(value)
+                for disallowed_regex in disallowed_schemes_regexes
+            ):
+                return Error(msg="This URL uses a scheme that's not allowed.")
+
+        return value
+
+    return _urlfield
+
+
 FIELD_TYPE_MAP = {
     int: intfield,
     str: strfield,
@@ -416,7 +491,6 @@ FIELD_TYPE_MAP = {
 }
 
 # TODO
-#  bool
-#  URL
+#  email
 #  dict? Should we should even support these?
 #  trimmedstring?
