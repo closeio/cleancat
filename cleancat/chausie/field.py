@@ -1,6 +1,7 @@
 import functools
 import inspect
 import itertools
+import re
 from enum import Enum
 
 import attr
@@ -383,8 +384,19 @@ FIELD_TYPE_MAP = {
     str: strfield,
 }
 
+
+def regexfield(regex: str, flags: int = 0) -> Field:
+    _compiled_regex = re.compile(regex, flags)
+
+    def _validate_regex(value: str) -> Union[str, Error]:
+        if not _compiled_regex.match(value):
+            return Error(msg='Invalid input.')
+        return value
+
+    return field(_validate_regex, parents=(strfield,))
+
+
 # TODO
-#  regex
 #  datetime
 #  bool
 #  URL

@@ -15,6 +15,7 @@ from cleancat.chausie.field import (
     listfield,
     nestedfield,
     enumfield,
+    regexfield,
 )
 from cleancat.chausie.schema import schema, clean, serialize
 
@@ -201,6 +202,28 @@ class TestListField:
         )
         assert isinstance(result, UserSchema)
         assert result.suffixes == ['Sr', 'Jr']
+
+
+class TestRegexField:
+    def test_basic(self):
+        @schema
+        class UserSchema:
+            initials: str = regexfield(r'[A-Z]{2}')
+
+        result = clean(UserSchema, {'initials': 'AA'})
+        assert isinstance(result, UserSchema)
+        assert result.initials == 'AA'
+
+    def test_no_match(self):
+        @schema
+        class UserSchema:
+            initials: str = regexfield(r'[A-Z]{2}')
+
+        result = clean(UserSchema, {'initials': 'A'})
+        assert isinstance(result, ValidationError)
+        assert result.errors == [
+            Error(msg='Invalid input.', field=('initials',))
+        ]
 
 
 class TestNullability:
