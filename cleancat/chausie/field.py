@@ -1,3 +1,4 @@
+import datetime
 import functools
 import inspect
 import itertools
@@ -18,6 +19,8 @@ from typing import (
     Collection,
     Type,
 )
+
+from dateutil import parser
 
 from cleancat.chausie.consts import OMITTED, omitted, empty
 
@@ -243,12 +246,11 @@ def field(
     def _outer_field(inner_func: Callable) -> Field:
         # flatten any parents defined as fields
         validators = []
-        for p in parents:
+        for p in parents + (inner_func,):
             if isinstance(p, Field):
                 validators.extend(p.validators)
             else:
                 validators.append(p)
-        validators.append(inner_func)
 
         # find any declared dependencies on other fields
         deps = {
@@ -379,12 +381,6 @@ class _EnumField:
 enumfield = _EnumField
 
 
-FIELD_TYPE_MAP = {
-    int: intfield,
-    str: strfield,
-}
-
-
 def regexfield(regex: str, flags: int = 0) -> Field:
     _compiled_regex = re.compile(regex, flags)
 
@@ -396,8 +392,23 @@ def regexfield(regex: str, flags: int = 0) -> Field:
     return field(_validate_regex, parents=(strfield,))
 
 
+@field(parents=(strfield,))
+def datetimefield(value: str) -> Union[datetime.datetime, Error]:
+    # TODO should this reject naive datetimes? or assume a timezone?
+    try:
+        # TODO should we use ciso8601 to parse? It's a bit stricter, but much faster.
+        return parser.parse(value)
+    except ValueError:
+        return Error(msg='Could not parse datetime.')
+
+
+FIELD_TYPE_MAP = {
+    int: intfield,
+    str: strfield,
+    datetime.datetime: datetimefield,
+}
+
 # TODO
-#  datetime
 #  bool
 #  URL
 #  dict? Should we should even support these?

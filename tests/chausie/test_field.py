@@ -1,3 +1,4 @@
+import datetime
 import enum
 from typing import Union, Optional, List, Set
 
@@ -16,6 +17,7 @@ from cleancat.chausie.field import (
     nestedfield,
     enumfield,
     regexfield,
+    datetimefield,
 )
 from cleancat.chausie.schema import schema, clean, serialize
 
@@ -223,6 +225,30 @@ class TestRegexField:
         assert isinstance(result, ValidationError)
         assert result.errors == [
             Error(msg='Invalid input.', field=('initials',))
+        ]
+
+
+class TestDatetimeField:
+    def test_basic(self):
+        @schema
+        class UserSchema:
+            birthday: datetime.datetime
+
+        result = clean(UserSchema, {'birthday': '2000-01-01T4:00:00Z'})
+        assert isinstance(result, UserSchema)
+        assert result.birthday == datetime.datetime(
+            2000, 1, 1, 4, tzinfo=datetime.timezone.utc
+        )
+
+    def test_no_match(self):
+        @schema
+        class UserSchema:
+            birthday: datetime.datetime
+
+        result = clean(UserSchema, {'birthday': 'nonsense'})
+        assert isinstance(result, ValidationError)
+        assert result.errors == [
+            Error(msg='Could not parse datetime.', field=('birthday',))
         ]
 
 
