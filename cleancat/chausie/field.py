@@ -402,9 +402,16 @@ def datetimefield(value: str) -> Union[datetime.datetime, Error]:
         return Error(msg='Could not parse datetime.')
 
 
+def boolfield(value: Any) -> Union[bool, Error]:
+    if not isinstance(value, bool):
+        return Error(msg='Value is not a boolean.')
+    return value
+
+
 FIELD_TYPE_MAP = {
     int: intfield,
     str: strfield,
+    bool: boolfield,
     datetime.datetime: datetimefield,
 }
 

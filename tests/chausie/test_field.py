@@ -114,6 +114,16 @@ def test_strfield():
     assert result.name == 'John'
 
 
+def test_boolfield():
+    @schema
+    class UserSchema:
+        active: bool
+
+    result = clean(UserSchema, {'active': True})
+    assert isinstance(result, UserSchema)
+    assert result.active is True
+
+
 class TestListField:
     def test_listfield_basic(self):
         @schema
