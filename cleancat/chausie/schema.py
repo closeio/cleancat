@@ -13,20 +13,118 @@ from cleancat.chausie.field import (
     Value,
     Optional as CCOptional,
     listfield,
+    Errors,
 )
 
 
-def getter(dict_or_obj, field, default):
+def getter(dict_or_obj, field_name, default):
     if isinstance(dict_or_obj, dict):
-        return dict_or_obj.get(field, default)
+        return dict_or_obj.get(field_name, default)
     else:
-        getattr(dict_or_obj, field, default)
+        getattr(dict_or_obj, field_name, default)
 
 
-SchemaCls = TypeVar('SchemaCls')
+T = TypeVar('T', bound='SchemaCls')
 
 
-def get_fields(cls: Type[SchemaCls]) -> Dict[str, Field]:
+class SchemaCls(typing.Generic[T]):
+    def __init__(self, **kwargs):
+        defined_fields = get_fields(self.__class__)
+        attribs = {k: v for k, v in kwargs.items() if k in defined_fields}
+        for k, v in attribs.items():
+            setattr(self, k, v)
+
+    def _chausie__serialize(self) -> Dict:
+        """Serialize a schema to a dictionary, respecting serialization settings."""
+        return {
+            (field_def.serialize_to or field_name): field_def.serialize_func(
+                getattr(self, field_name)
+            )
+            for field_name, field_def in get_fields(self.__class__).items()
+        }
+
+    @classmethod
+    def _chausie__clean(
+        cls: Type[T], data: Any, context: Any
+    ) -> Union[T, ValidationError]:
+        """Entrypoint for cleaning some set of data for a given class."""
+        field_defs = [(name, f_def) for name, f_def in get_fields(cls).items()]
+
+        # fake an initial 'self' result so function-defined fields can
+        # optionally include an unused "self" parameter
+        results: Dict[str, Union[Value, Errors]] = {'self': Value(value=None)}
+
+        # initial set are those with met deps
+        eval_queue: typing.List[typing.Tuple[str, Field]] = []
+        delayed_eval = []
+        for name, f in field_defs:
+            if not f.depends_on or all([d in results for d in f.depends_on]):
+                eval_queue.append((name, f))
+            else:
+                delayed_eval.append((name, f))
+        assert len(field_defs) == len(eval_queue) + len(delayed_eval)
+
+        while eval_queue:
+            field_name, field_def = eval_queue.pop()
+
+            accepts = field_def.accepts or (field_name,)
+            value = empty
+            for accept in accepts:
+                value = getter(data, accept, omitted)
+                if value is not omitted:
+                    break
+            assert value is not empty
+
+            results[field_name] = field_def.run_validators(
+                field=(field_name,),
+                value=value,
+                context=context,
+                intermediate_results=results,
+            )
+
+            queued_fields = {n for n, _f in eval_queue}
+            for name, f in delayed_eval:
+                if (
+                    name not in results
+                    and name not in queued_fields
+                    and all(
+                        [
+                            (
+                                dep in results
+                                and isinstance(results[dep], Value)
+                            )
+                            for dep in f.depends_on
+                        ]
+                    )
+                ):
+                    eval_queue.append((name, f))
+
+        errors = list(
+            itertools.chain(
+                *[
+                    v.flatten()
+                    for v in results.values()
+                    if not isinstance(v, Value)
+                ]
+            )
+        )
+        if errors:
+            return ValidationError(errors=errors)
+
+        # we already checked for errors above, but this extra explicit check
+        # helps mypy figure out what's going on.
+        validated_values = {
+            k: v.value
+            for k, v in results.items()
+            if isinstance(v, Value) and k != 'self'
+        }
+        assert set(validated_values.keys()) == {
+            f_name for f_name, _ in field_defs
+        }
+        return cls(**validated_values)
+
+
+def get_fields(cls: Type) -> Dict[str, Field]:
     return {
         field_name: field_def
         for field_name, field_def in cls.__dict__.items()
@@ -63,100 +161,12 @@ def _field_def_from_annotation(annotation) -> Field:
     raise TypeError('Unrecognized type annotation.')
 
 
-def _clean(
-    cls: Type[SchemaCls], data: Any, context: Any
-) -> Union[SchemaCls, ValidationError]:
-    """Entrypoint for cleaning some set of data for a given class."""
-    field_defs = [(name, f_def) for name, f_def in get_fields(cls).items()]
-
-    # fake an initial 'self' result so function-defined fields can
-    # optionally include an unused "self" parameter
-    results: Dict[str, Union[Value, Error]] = {'self': Value(value=None)}
-
-    # initial set are those with met deps
-    eval_queue: typing.List[typing.Tuple[str, Field]] = []
-    delayed_eval = []
-    for name, f in field_defs:
-        if not f.depends_on or all([d in results for d in f.depends_on]):
-            eval_queue.append((name, f))
-        else:
-            delayed_eval.append((name, f))
-    assert len(field_defs) == len(eval_queue) + len(delayed_eval)
-
-    while eval_queue:
-        field_name, field_def = eval_queue.pop()
-
-        accepts = field_def.accepts or (field_name,)
-        value = empty
-        for accept in accepts:
-            value = getter(data, accept, omitted)
-            if value is not omitted:
-                break
-        assert value is not empty
-
-        results[field_name] = field_def.run_validators(
-            field=(field_name,),
-            value=value,
-            context=context,
-            intermediate_results=results,
-        )
-
-        queued_fields = {n for n, _f in eval_queue}
-        for name, f in delayed_eval:
-            if (
-                name not in results
-                and name not in queued_fields
-                and all(
-                    [
-                        (dep in results and isinstance(results[dep], Value))
-                        for dep in f.depends_on
-                    ]
-                )
-            ):
-                eval_queue.append((name, f))
-
-    errors = list(
-        itertools.chain(
-            *[
-                v.flatten()
-                for v in results.values()
-                if not isinstance(v, Value)
-            ]
-        )
-    )
-    if errors:
-        return ValidationError(errors=errors)
-
-    results.pop('self')
-    assert set(results.keys()) == {f_name for f_name, _ in field_defs}
-    return cls(**{k: v.value for k, v in results.items()})
-
-
-def _new_init(self: SchemaCls, **kwargs):
-    defined_fields = get_fields(self.__class__)
-    attribs = {k: v for k, v in kwargs.items() if k in defined_fields}
-    for k, v in attribs.items():
-        setattr(self, k, v)
-
-
-def _serialize(self: SchemaCls):
-    """Serialize a schema to a dictionary, respecting serialization settings."""
-    return {
-        (field_def.serialize_to or field_name): field_def.serialize_func(
-            getattr(self, field_name)
-        )
-        for field_name, field_def in get_fields(self.__class__).items()
-    }
-
-
-def _check_for_dependency_loops(cls: Type[SchemaCls]) -> None:
+def _check_for_dependency_loops(fields: Dict[str, Field]) -> None:
     """Try to catch simple top-level dependency loops.
 
     Does not handle wrapped fields.
     """
-    deps = {
-        name: set(f_def.depends_on) for name, f_def in get_fields(cls).items()
-    }
+    deps = {name: set(f_def.depends_on) for name, f_def in fields.items()}
     seen = {'self'}
     while deps:
         prog = len(seen)
@@ -171,35 +181,32 @@ def _check_for_dependency_loops(cls: Type[SchemaCls]) -> None:
             raise ValueError('Field dependencies could not be resolved.')
 
 
-def schema(cls: Type[SchemaCls], autodef=True):
+def schema(cls: Type, autodef=True) -> Type[SchemaCls]:
     """
     Annotate a class to turn it into a schema.
 
     Args:
         autodef: automatically define simple fields for annotated attributes
     """
+    fields = get_fields(cls)
+
     # auto define simple annotations
     if autodef:
-        existing_fields = get_fields(cls)
         for f_name, f_type in getattr(cls, '__annotations__', {}).items():
-            if f_name not in existing_fields:
-                setattr(cls, f_name, _field_def_from_annotation(f_type))
+            if f_name not in fields:
+                fields[f_name] = _field_def_from_annotation(f_type)
 
     # check for dependency loops
-    _check_for_dependency_loops(cls)
+    _check_for_dependency_loops(fields)
 
-    cls.__clean = functools.partial(_clean, cls=cls)
-    cls.__init__ = _new_init
-    cls.__serialize = _serialize
-
-    return cls
+    return type(cls.__name__, (SchemaCls, cls), fields)
 
 
 def clean(
     schema: Type[SchemaCls], data: Any, context: Any = empty
-) -> SchemaCls:
-    return schema.__clean(data=data, context=context)
+) -> Union[SchemaCls, ValidationError]:
+    return schema._chausie__clean(data=data, context=context)
 
 
 def serialize(schema: SchemaCls) -> Dict:
-    return schema.__serialize()
+    return schema._chausie__serialize()

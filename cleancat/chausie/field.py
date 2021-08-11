@@ -18,11 +18,17 @@ from typing import (
     Optional as T_Optional,
     Collection,
     Type,
+    Literal,
+    overload,
+    TYPE_CHECKING,
 )
 
 from dateutil import parser
 
 from cleancat.chausie.consts import omitted, empty
+
+if TYPE_CHECKING:
+    from .schema import SchemaCls
 
 
 @attr.frozen
@@ -79,7 +85,19 @@ class Optional(Nullability):
     omitted_value: Any = omitted
 
 
-def wrap_result(field: Tuple[str, ...], result: Any) -> Union[Value, Error]:
+@overload
+def wrap_result(field: Tuple[Union[str, int], ...], result: Error) -> Error:
+    ...
+
+
+@overload
+def wrap_result(field: Tuple[Union[str, int], ...], result: Value) -> Value:
+    ...
+
+
+def wrap_result(
+    field: Tuple[Union[str, int], ...], result: Any
+) -> Union[Value, Error]:
     if isinstance(result, Error):
         return attr.evolve(result, field=field + result.field)
     elif not isinstance(result, Value):
@@ -92,7 +110,7 @@ class Field:
     validators: Tuple[Callable, ...]
     """Callable that validate a the given field's value."""
 
-    accepts: Tuple[str]
+    accepts: Tuple[str, ...]
     """Field names accepted when parsing unvalidated input.
 
     If left unspecified, effectively defaults to the name of the attribute
@@ -102,8 +120,8 @@ class Field:
     serialize_to: T_Optional[str]
     """If provided overrides the name of the field during serialization."""
 
-    serialize_func: T_Optional[Callable]
-    """If provided, will be used when serializing this field."""
+    serialize_func: Callable
+    """Used when serializing this field. Defaults to a noop passthrough."""
 
     nullability: Nullability
 
@@ -215,6 +233,48 @@ def noop(value: V) -> V:
     return value
 
 
+# when decorating a function (decorated func is passed to the inner func)
+@overload
+def field(
+    decorated_func: Literal[None],
+    *,
+    parents: Tuple[Union[Callable, Field], ...] = tuple(),
+    accepts: Tuple[str, ...] = tuple(),
+    serialize_to: T_Optional[str] = None,
+    serialize_func: Callable = noop,
+    nullability: Nullability = Required(),
+) -> Callable[[Callable], Field]:
+    ...
+
+
+# defining simple fields with existing functions
+@overload
+def field(
+    decorated_func: Callable,
+    *,
+    parents: Tuple[Union[Callable, Field], ...] = tuple(),
+    accepts: Tuple[str, ...] = tuple(),
+    serialize_to: T_Optional[str] = None,
+    serialize_func: Callable = noop,
+    nullability: Nullability = Required(),
+) -> Field:
+    ...
+
+
+# fallback
+@overload
+def field(
+    decorated_func: T_Optional[Union[Callable, Field]],
+    *,
+    parents: Tuple[Union[Callable, Field], ...] = tuple(),
+    accepts: Tuple[str, ...] = tuple(),
+    serialize_to: T_Optional[str] = None,
+    serialize_func: Callable = noop,
+    nullability: Nullability = Required(),
+) -> Union[Callable[[Callable], Field], Field]:
+    ...
+
+
 def field(
     decorated_func: T_Optional[Union[Callable, Field]] = None,
     *,
@@ -245,7 +305,7 @@ def field(
 
     def _outer_field(inner_func: Union[Callable, Field]) -> Field:
         # flatten any parents defined as fields
-        validators = []
+        validators: List[Callable] = []
         for p in parents + (inner_func,):
             if isinstance(p, Field):
                 validators.extend(p.validators)
@@ -266,7 +326,7 @@ def field(
             accepts=accepts,
             serialize_to=serialize_to,
             serialize_func=serialize_func,
-            depends_on=deps,
+            depends_on=tuple(deps),
         )
 
     if decorated_func is not None:
@@ -311,6 +371,7 @@ class WrapperField:
                 construct=self.construct,
                 value=value,
             )
+        return result
 
     def impl(self, value: Any):
         raise NotImplementedError()
@@ -337,18 +398,15 @@ class _ListField(WrapperField):
 listfield = _ListField
 
 
-SchemaCls = TypeVar('SchemaCls')
-
-
 class _NestedField:
-    inner_schema: Type[SchemaCls]
+    inner_schema: Type['SchemaCls']
 
-    def __init__(self, schema: Type[SchemaCls]):
+    def __init__(self, schema: Type['SchemaCls']):
         self.inner_schema = schema
 
     def __call__(
         self, value: Any, context: Any = empty
-    ) -> Union[SchemaCls, Errors]:
+    ) -> Union['SchemaCls', Errors]:
         from cleancat.chausie.schema import clean
 
         result = clean(self.inner_schema, value, context=context)
@@ -365,7 +423,7 @@ nestedfield = _NestedField
 EnumCls = TypeVar('EnumCls', bound=Enum)
 
 
-class _EnumField:
+class _EnumField(Generic[EnumCls]):
     enum_cls: Type[EnumCls]
 
     def __init__(self, enum_cls: Type[EnumCls]):
