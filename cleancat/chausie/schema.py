@@ -1,4 +1,3 @@
-import functools
 import itertools
 import typing
 from typing import Dict, TypeVar, Type, Any, Union
@@ -9,7 +8,6 @@ from cleancat.chausie.field import (
     Field,
     FIELD_TYPE_MAP,
     ValidationError,
-    Error,
     Value,
     Optional as CCOptional,
     listfield,
