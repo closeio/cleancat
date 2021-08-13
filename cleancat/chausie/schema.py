@@ -38,13 +38,11 @@ def _field_def_from_annotation(annotation) -> Field:
         # basic support for `Optional`
         union_of = typing.get_args(annotation)
         if not (len(union_of) == 2 and type(None) in union_of):
-            raise TypeError('Unrecognized type annotation.')
+            raise TypeError("Unrecognized type annotation.")
 
         # yes, we actually do want to check against type(xx)
         NoneType = type(None)
-        inner = next(
-            t for t in typing.get_args(annotation) if t is not NoneType
-        )
+        inner = next(t for t in typing.get_args(annotation) if t is not NoneType)
         if inner in FIELD_TYPE_MAP:
             return field(
                 FIELD_TYPE_MAP[inner],
@@ -53,10 +51,10 @@ def _field_def_from_annotation(annotation) -> Field:
     elif typing.get_origin(annotation) is list:
         list_of = typing.get_args(annotation)
         if len(list_of) != 1:
-            raise TypeError('Only one inner List type is currently supported.')
+            raise TypeError("Only one inner List type is currently supported.")
         return field(listfield(_field_def_from_annotation(list_of[0])))
 
-    raise TypeError('Unrecognized type annotation.')
+    raise TypeError("Unrecognized type annotation.")
 
 
 def _check_for_dependency_loops(fields: Dict[str, Field]) -> None:
@@ -65,7 +63,7 @@ def _check_for_dependency_loops(fields: Dict[str, Field]) -> None:
     Does not handle wrapped fields.
     """
     deps = {name: set(f_def.depends_on) for name, f_def in fields.items()}
-    seen = {'self'}
+    seen = {"self"}
     while deps:
         prog = len(seen)
         for f_name, f_deps in deps.items():
@@ -76,7 +74,7 @@ def _check_for_dependency_loops(fields: Dict[str, Field]) -> None:
 
         if len(seen) == prog:
             # no progress was made
-            raise ValueError('Field dependencies could not be resolved.')
+            raise ValueError("Field dependencies could not be resolved.")
 
 
 class SchemaMetaclass(type):
@@ -91,15 +89,11 @@ class SchemaMetaclass(type):
         for base in bases:
             fields.update(get_fields(base))
         fields.update(
-            {
-                f_name: f
-                for f_name, f in attribs.items()
-                if isinstance(f, Field)
-            }
+            {f_name: f for f_name, f in attribs.items() if isinstance(f, Field)}
         )
 
         if autodef:
-            for f_name, f_type in attribs.get('__annotations__', {}).items():
+            for f_name, f_type in attribs.get("__annotations__", {}).items():
                 if f_name not in fields:
                     fields[f_name] = _field_def_from_annotation(f_type)
 
@@ -111,7 +105,7 @@ class SchemaMetaclass(type):
         )
 
 
-T = TypeVar('T', bound='Schema')
+T = TypeVar("T", bound="Schema")
 
 
 class Schema(typing.Generic[T], metaclass=SchemaMetaclass):
@@ -139,7 +133,7 @@ class Schema(typing.Generic[T], metaclass=SchemaMetaclass):
 
         # fake an initial 'self' result so function-defined fields can
         # optionally include an unused "self" parameter
-        results: Dict[str, Union[Value, Errors]] = {'self': Value(value=None)}
+        results: Dict[str, Union[Value, Errors]] = {"self": Value(value=None)}
 
         # initial set are those with met deps
         eval_queue: typing.List[typing.Tuple[str, Field]] = []
@@ -176,10 +170,7 @@ class Schema(typing.Generic[T], metaclass=SchemaMetaclass):
                     and name not in queued_fields
                     and all(
                         [
-                            (
-                                dep in results
-                                and isinstance(results[dep], Value)
-                            )
+                            (dep in results and isinstance(results[dep], Value))
                             for dep in f.depends_on
                         ]
                     )
@@ -188,11 +179,7 @@ class Schema(typing.Generic[T], metaclass=SchemaMetaclass):
 
         errors = list(
             itertools.chain(
-                *[
-                    v.flatten()
-                    for v in results.values()
-                    if not isinstance(v, Value)
-                ]
+                *[v.flatten() for v in results.values() if not isinstance(v, Value)]
             )
         )
         if errors:
@@ -203,36 +190,14 @@ class Schema(typing.Generic[T], metaclass=SchemaMetaclass):
         validated_values = {
             k: v.value
             for k, v in results.items()
-            if isinstance(v, Value) and k != 'self'
+            if isinstance(v, Value) and k != "self"
         }
-        assert set(validated_values.keys()) == {
-            f_name for f_name, _ in field_defs
-        }
+        assert set(validated_values.keys()) == {f_name for f_name, _ in field_defs}
         return cls(**validated_values)
 
 
-def schema(cls: Type, autodef=True) -> Type[Schema]:
-    """
-    Annotate a class to turn it into a schema.
+SchemaVar = TypeVar("SchemaVar", bound=Schema)
 
-    Args:
-        autodef: automatically define simple fields for annotated attributes
-    """
-    fields = get_fields(cls)
-
-    # auto define simple annotations
-    if autodef:
-        for f_name, f_type in getattr(cls, '__annotations__', {}).items():
-            if f_name not in fields:
-                fields[f_name] = _field_def_from_annotation(f_type)
-
-    # check for dependency loops
-    _check_for_dependency_loops(fields)
-
-    return type(cls.__name__, (Schema, cls), fields)
-
-
-SchemaVar = TypeVar('SchemaVar', bound=Schema)
 
 def clean(
     schema: Type[SchemaVar], data: Any, context: Any = empty
