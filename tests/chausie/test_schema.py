@@ -4,7 +4,7 @@ import attr
 import pytest
 
 from cleancat.chausie.consts import omitted
-from cleancat.chausie.schema import schema, clean, serialize
+from cleancat.chausie.schema import Schema, clean, serialize
 from cleancat.chausie.field import (
     field,
     Error,
@@ -15,8 +15,7 @@ from cleancat.chausie.field import (
 
 class TestAutodef:
     def test_int_basic(self):
-        @schema
-        class MySchema:
+        class MySchema(Schema):
             myint: int
 
         result = clean(MySchema, {'myint': 100})
@@ -25,8 +24,7 @@ class TestAutodef:
         assert serialize(result) == {'myint': 100}
 
     def test_optional_omitted(self):
-        @schema
-        class MySchema:
+        class MySchema(Schema):
             myint: Optional[int]
 
         result = clean(MySchema, {})
@@ -34,8 +32,7 @@ class TestAutodef:
         assert result.myint is omitted
 
     def test_optional_none(self):
-        @schema
-        class MySchema:
+        class MySchema(Schema):
             myint: Optional[int]
 
         result = clean(MySchema, {'myint': None})
@@ -43,8 +40,7 @@ class TestAutodef:
         assert result.myint is None
 
     def test_list(self):
-        @schema
-        class MySchema:
+        class MySchema(Schema):
             mystrs: List[str]
 
         result = clean(MySchema, {'mystrs': ['a', 'b', 'c']})
@@ -57,8 +53,7 @@ def test_field_dependencies():
     class B:
         val: str
 
-    @schema
-    class UpdateObject:
+    class UpdateObject(Schema):
         a: str
 
         @field()
@@ -76,8 +71,7 @@ def test_field_dependencies_error():
     class B:
         val: str
 
-    @schema
-    class UpdateObject:
+    class UpdateObject(Schema):
         @field()
         def a(value: str) -> Union[str, Error]:
             return Error(msg='nope')
@@ -110,8 +104,7 @@ def test_context():
     class Context:
         org_repo: OrganizationRepo
 
-    @schema
-    class UserSchema:
+    class UserSchema(Schema):
         name: str
 
         @field(parents=(strfield,))

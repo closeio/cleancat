@@ -28,7 +28,7 @@ from dateutil import parser
 from cleancat.chausie.consts import omitted, empty
 
 if TYPE_CHECKING:
-    from .schema import SchemaCls
+    from .schema import Schema
 
 
 @attr.frozen
@@ -399,14 +399,14 @@ listfield = _ListField
 
 
 class _NestedField:
-    inner_schema: Type['SchemaCls']
+    inner_schema: Type['Schema']
 
-    def __init__(self, schema: Type['SchemaCls']):
+    def __init__(self, schema: Type['Schema']):
         self.inner_schema = schema
 
     def __call__(
         self, value: Any, context: Any = empty
-    ) -> Union['SchemaCls', Errors]:
+    ) -> Union['Schema', Errors]:
         from cleancat.chausie.schema import clean
 
         result = clean(self.inner_schema, value, context=context)

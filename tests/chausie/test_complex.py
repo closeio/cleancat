@@ -4,7 +4,7 @@ import attr
 
 from cleancat.chausie.consts import omitted
 from cleancat.chausie.field import Error, strfield, field, noop
-from cleancat.chausie.schema import schema, clean
+from cleancat.chausie.schema import Schema, clean
 
 
 def test_reusable_fields():
@@ -91,15 +91,13 @@ def test_reusable_fields():
             return Error(msg='User cannot access organization.')
         return value
 
-    @schema
-    class UpdateLeadRestSchema:
+    class UpdateLeadRestSchema(Schema):
         pk: str
         name: Optional[str]
         website: str
         organization: str
 
-    @schema
-    class UpdateLead:
+    class UpdateLead(Schema):
         name: Optional[str]
         website: Optional[str]
         organization: Organization = field(

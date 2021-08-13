@@ -19,13 +19,12 @@ from cleancat.chausie.field import (
     regexfield,
     urlfield,
 )
-from cleancat.chausie.schema import schema, clean, serialize
+from cleancat.chausie.schema import Schema, clean, serialize
 
 
 @pytest.fixture
 def example_schema():
-    @schema
-    class ExampleSchema:
+    class ExampleSchema(Schema):
         myint = field(intfield, accepts=('myint', 'deprecated_int'))
 
         @field(parents=(intfield,))
@@ -70,8 +69,7 @@ def test_accepts(example_schema):
 
 
 def test_serialize_to():
-    @schema
-    class MySchema:
+    class MySchema(Schema):
         myint = field(intfield, serialize_to='my_new_int')
 
     result = clean(MySchema, {'myint': 100})
@@ -84,8 +82,7 @@ def test_serialize_func():
     def double(value):
         return value * 2
 
-    @schema
-    class MySchema:
+    class MySchema(Schema):
         myint = field(intfield, serialize_func=double)
 
     result = clean(MySchema, {'myint': 100})
@@ -95,8 +92,7 @@ def test_serialize_func():
 
 
 def test_intfield():
-    @schema
-    class MySchema:
+    class MySchema(Schema):
         val: int = field(intfield)
 
     result = clean(MySchema, {'val': 5})
@@ -105,8 +101,7 @@ def test_intfield():
 
 
 def test_strfield():
-    @schema
-    class UserSchema:
+    class UserSchema(Schema):
         name: str
 
     result = clean(UserSchema, {'name': 'John'})
@@ -115,8 +110,7 @@ def test_strfield():
 
 
 def test_boolfield():
-    @schema
-    class UserSchema:
+    class UserSchema(Schema):
         active: bool
 
     result = clean(UserSchema, {'active': True})
@@ -126,8 +120,7 @@ def test_boolfield():
 
 class TestListField:
     def test_listfield_basic(self):
-        @schema
-        class UserSchema:
+        class UserSchema(Schema):
             aliases = field(listfield(field(strfield)))
 
         result = clean(UserSchema, {'aliases': ['John', 'Johnny']})
@@ -135,8 +128,7 @@ class TestListField:
         assert result.aliases == ['John', 'Johnny']
 
     def test_listfield_empty(self):
-        @schema
-        class UserSchema:
+        class UserSchema(Schema):
             aliases = field(listfield(field(strfield)))
 
         result = clean(UserSchema, {'aliases': ['John', 'Johnny']})
@@ -144,8 +136,7 @@ class TestListField:
         assert result.aliases == ['John', 'Johnny']
 
     def test_listfield_inner_optional(self):
-        @schema
-        class UserSchema:
+        class UserSchema(Schema):
             aliases = field(
                 listfield(field(strfield, nullability=CCOptional()))
             )
@@ -159,8 +150,7 @@ class TestListField:
         class Alias:
             value: str
 
-        @schema
-        class UserSchema:
+        class UserSchema(Schema):
             @field(parents=(listfield(field(strfield)),))
             def aliases(value: List[str]) -> List[Alias]:
                 return [Alias(v) for v in value]
@@ -179,8 +169,7 @@ class TestListField:
                 return Error(msg='Suffix is invalid')
             return value
 
-        @schema
-        class UserSchema:
+        class UserSchema(Schema):
             suffixes = field(
                 listfield(field(validate_suffix, parents=(strfield,)))
             )
@@ -197,8 +186,7 @@ class TestListField:
         class Context:
             valid_suffixes: Set[str]
 
-        @schema
-        class UserSchema:
+        class UserSchema(Schema):
             @field(parents=(listfield(field(strfield)),))
             def suffixes(
                 value: List[str], context: Context
@@ -218,8 +206,7 @@ class TestListField:
 
 class TestRegexField:
     def test_basic(self):
-        @schema
-        class UserSchema:
+        class UserSchema(Schema):
             initials: str = regexfield(r'[A-Z]{2}')
 
         result = clean(UserSchema, {'initials': 'AA'})
@@ -227,8 +214,7 @@ class TestRegexField:
         assert result.initials == 'AA'
 
     def test_no_match(self):
-        @schema
-        class UserSchema:
+        class UserSchema(Schema):
             initials: str = regexfield(r'[A-Z]{2}')
 
         result = clean(UserSchema, {'initials': 'A'})
@@ -240,8 +226,7 @@ class TestRegexField:
 
 class TestDatetimeField:
     def test_basic(self):
-        @schema
-        class UserSchema:
+        class UserSchema(Schema):
             birthday: datetime.datetime
 
         result = clean(UserSchema, {'birthday': '2000-01-01T4:00:00Z'})
@@ -251,8 +236,7 @@ class TestDatetimeField:
         )
 
     def test_no_match(self):
-        @schema
-        class UserSchema:
+        class UserSchema(Schema):
             birthday: datetime.datetime
 
         result = clean(UserSchema, {'birthday': 'nonsense'})
@@ -264,8 +248,7 @@ class TestDatetimeField:
 
 class TestNullability:
     def test_required_omitted(self):
-        @schema
-        class MySchema:
+        class MySchema(Schema):
             myint: int
 
         result = clean(MySchema, {})
@@ -275,8 +258,7 @@ class TestNullability:
         ]
 
     def test_required_none(self):
-        @schema
-        class MySchema:
+        class MySchema(Schema):
             myint: int
 
         result = clean(MySchema, {'myint': None})
@@ -289,8 +271,7 @@ class TestNullability:
         ]
 
     def test_optional_omitted(self):
-        @schema
-        class MySchema:
+        class MySchema(Schema):
             myint: Optional[int]
 
         result = clean(MySchema, {})
@@ -298,8 +279,7 @@ class TestNullability:
         assert result.myint is omitted
 
     def test_optional_none(self):
-        @schema
-        class MySchema:
+        class MySchema(Schema):
             myint: Optional[int]
 
         result = clean(MySchema, {'myint': None})
@@ -309,12 +289,10 @@ class TestNullability:
 
 class TestNestedField:
     def test_nestedfield_basic(self):
-        @schema
-        class InnerSchema:
+        class InnerSchema(Schema):
             a: str
 
-        @schema
-        class OuterSchema:
+        class OuterSchema(Schema):
             inner = field(nestedfield(InnerSchema))
 
         result = clean(OuterSchema, {'inner': {'a': 'John'}})
@@ -327,14 +305,12 @@ class TestNestedField:
         class Context:
             curr_user_id: str
 
-        @schema
-        class InnerSchema:
+        class InnerSchema(Schema):
             @field(parents=(strfield,))
             def a(value: str, context: Context) -> str:
                 return f'{value}:{context.curr_user_id}'
 
-        @schema
-        class OuterSchema:
+        class OuterSchema(Schema):
             inner = field(nestedfield(InnerSchema))
 
         result = clean(
@@ -354,8 +330,7 @@ class TestEnumField:
             RED = 'red'
             GREEN = 'green'
 
-        @schema
-        class MySchema:
+        class MySchema(Schema):
             color = field(enumfield(Color))
 
         result = clean(MySchema, {'color': 'blue'})
@@ -370,8 +345,7 @@ class TestEnumField:
             RED = 'red'
             GREEN = 'green'
 
-        @schema
-        class MySchema:
+        class MySchema(Schema):
             color = field(enumfield(Color))
 
         result = clean(MySchema, {'color': bad_value})
@@ -382,8 +356,7 @@ class TestEnumField:
 
 
 def test_field_self():
-    @schema
-    class AliasSchema:
+    class AliasSchema(Schema):
         @field(parents=(strfield,))
         def value(self, value: str):
             return f'Value:{value}'
@@ -400,8 +373,7 @@ def test_extendable_fields():
     def valuefield(value: str):
         return f'Value:{value}'
 
-    @schema
-    class MySchema:
+    class MySchema(Schema):
         @field(parents=(valuefield,))
         def a(self, value: str):
             return f'a:{value}'
@@ -432,8 +404,7 @@ class TestURLField:
         ],
     )
     def test_in_accepts_valid_urls(self, value):
-        @schema
-        class MyUrlSchema:
+        class MyUrlSchema(Schema):
             url = field(urlfield())
 
         result = clean(MyUrlSchema, {'url': value})
@@ -455,8 +426,7 @@ class TestURLField:
         ],
     )
     def test_it_rejects_invalid_urls(self, value):
-        @schema
-        class MyUrlSchema:
+        class MyUrlSchema(Schema):
             url = field(urlfield())
 
         result = clean(MyUrlSchema, {'url': value})
@@ -473,8 +443,7 @@ class TestURLField:
         ],
     )
     def test_it_supports_a_default_scheme(self, value, expected):
-        @schema
-        class MyUrlSchema:
+        class MyUrlSchema(Schema):
             url = field(urlfield(default_scheme='http://'))
 
         result = clean(MyUrlSchema, {'url': value})
@@ -496,8 +465,7 @@ class TestURLField:
         ],
     )
     def test_it_enforces_allowed_schemes(self, value, expected):
-        @schema
-        class MyUrlSchema:
+        class MyUrlSchema(Schema):
             url = field(
                 urlfield(
                     default_scheme='https://', allowed_schemes=['https://']
@@ -528,8 +496,7 @@ class TestURLField:
         ],
     )
     def test_it_enforces_disallowed_schemes(self, value, expected):
-        @schema
-        class MyUrlSchema:
+        class MyUrlSchema(Schema):
             url = field(
                 urlfield(
                     default_scheme='https://',
@@ -559,8 +526,7 @@ class TestURLField:
         ],
     )
     def test_it_supports_simpler_allowed_scheme_values(self, value, expected):
-        @schema
-        class MyUrlSchema:
+        class MyUrlSchema(Schema):
             url = field(
                 urlfield(
                     default_scheme='https', allowed_schemes=['https', 'ftps']
@@ -573,8 +539,7 @@ class TestURLField:
 
     @pytest.mark.parametrize('value', [23.0, True])
     def test_it_enforces_valid_data_type(self, value):
-        @schema
-        class MyUrlSchema:
+        class MyUrlSchema(Schema):
             url = field(
                 urlfield(
                     default_scheme='https', allowed_schemes=['https', 'ftps']

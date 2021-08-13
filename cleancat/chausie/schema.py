@@ -22,10 +22,99 @@ def getter(dict_or_obj, field_name, default):
         getattr(dict_or_obj, field_name, default)
 
 
-T = TypeVar('T', bound='SchemaCls')
+def get_fields(cls: Type) -> Dict[str, Field]:
+    return {
+        field_name: field_def
+        for field_name, field_def in cls.__dict__.items()
+        if isinstance(field_def, Field)
+    }
 
 
-class SchemaCls(typing.Generic[T]):
+def _field_def_from_annotation(annotation) -> Field:
+    """Turn an annotation into an equivalent field."""
+    if annotation in FIELD_TYPE_MAP:
+        return field(FIELD_TYPE_MAP[annotation])
+    elif typing.get_origin(annotation) is Union:
+        # basic support for `Optional`
+        union_of = typing.get_args(annotation)
+        if not (len(union_of) == 2 and type(None) in union_of):
+            raise TypeError('Unrecognized type annotation.')
+
+        # yes, we actually do want to check against type(xx)
+        NoneType = type(None)
+        inner = next(
+            t for t in typing.get_args(annotation) if t is not NoneType
+        )
+        if inner in FIELD_TYPE_MAP:
+            return field(
+                FIELD_TYPE_MAP[inner],
+                nullability=CCOptional(),
+            )
+    elif typing.get_origin(annotation) is list:
+        list_of = typing.get_args(annotation)
+        if len(list_of) != 1:
+            raise TypeError('Only one inner List type is currently supported.')
+        return field(listfield(_field_def_from_annotation(list_of[0])))
+
+    raise TypeError('Unrecognized type annotation.')
+
+
+def _check_for_dependency_loops(fields: Dict[str, Field]) -> None:
+    """Try to catch simple top-level dependency loops.
+
+    Does not handle wrapped fields.
+    """
+    deps = {name: set(f_def.depends_on) for name, f_def in fields.items()}
+    seen = {'self'}
+    while deps:
+        prog = len(seen)
+        for f_name, f_deps in deps.items():
+            if not f_deps or all([f_dep in seen for f_dep in f_deps]):
+                seen.add(f_name)
+                deps.pop(f_name)
+                break
+
+        if len(seen) == prog:
+            # no progress was made
+            raise ValueError('Field dependencies could not be resolved.')
+
+
+class SchemaMetaclass(type):
+    def __new__(cls, clsname, bases, attribs, autodef=True):
+        """
+        Turn a Schema subclass into a schema.
+
+        Args:
+            autodef: automatically define simple fields for annotated attributes
+        """
+        fields = {}
+        for base in bases:
+            fields.update(get_fields(base))
+        fields.update(
+            {
+                f_name: f
+                for f_name, f in attribs.items()
+                if isinstance(f, Field)
+            }
+        )
+
+        if autodef:
+            for f_name, f_type in attribs.get('__annotations__', {}).items():
+                if f_name not in fields:
+                    fields[f_name] = _field_def_from_annotation(f_type)
+
+        # check for dependency loops
+        _check_for_dependency_loops(fields)
+
+        return super(SchemaMetaclass, cls).__new__(
+            cls, clsname, bases, {**attribs, **fields}
+        )
+
+
+T = TypeVar('T', bound='Schema')
+
+
+class Schema(typing.Generic[T], metaclass=SchemaMetaclass):
     def __init__(self, **kwargs):
         defined_fields = get_fields(self.__class__)
         attribs = {k: v for k, v in kwargs.items() if k in defined_fields}
@@ -122,64 +211,7 @@ class SchemaCls(typing.Generic[T]):
         return cls(**validated_values)
 
 
-def get_fields(cls: Type) -> Dict[str, Field]:
-    return {
-        field_name: field_def
-        for field_name, field_def in cls.__dict__.items()
-        if isinstance(field_def, Field)
-    }
-
-
-def _field_def_from_annotation(annotation) -> Field:
-    """Turn an annotation into an equivalent field."""
-    if annotation in FIELD_TYPE_MAP:
-        return field(FIELD_TYPE_MAP[annotation])
-    elif typing.get_origin(annotation) is Union:
-        # basic support for `Optional`
-        union_of = typing.get_args(annotation)
-        if not (len(union_of) == 2 and type(None) in union_of):
-            raise TypeError('Unrecognized type annotation.')
-
-        # yes, we actually do want to check against type(xx)
-        NoneType = type(None)
-        inner = next(
-            t for t in typing.get_args(annotation) if t is not NoneType
-        )
-        if inner in FIELD_TYPE_MAP:
-            return field(
-                FIELD_TYPE_MAP[inner],
-                nullability=CCOptional(),
-            )
-    elif typing.get_origin(annotation) is list:
-        list_of = typing.get_args(annotation)
-        if len(list_of) != 1:
-            raise TypeError('Only one inner List type is currently supported.')
-        return field(listfield(_field_def_from_annotation(list_of[0])))
-
-    raise TypeError('Unrecognized type annotation.')
-
-
-def _check_for_dependency_loops(fields: Dict[str, Field]) -> None:
-    """Try to catch simple top-level dependency loops.
-
-    Does not handle wrapped fields.
-    """
-    deps = {name: set(f_def.depends_on) for name, f_def in fields.items()}
-    seen = {'self'}
-    while deps:
-        prog = len(seen)
-        for f_name, f_deps in deps.items():
-            if not f_deps or all([f_dep in seen for f_dep in f_deps]):
-                seen.add(f_name)
-                deps.pop(f_name)
-                break
-
-        if len(seen) == prog:
-            # no progress was made
-            raise ValueError('Field dependencies could not be resolved.')
-
-
-def schema(cls: Type, autodef=True) -> Type[SchemaCls]:
+def schema(cls: Type, autodef=True) -> Type[Schema]:
     """
     Annotate a class to turn it into a schema.
 
@@ -197,14 +229,16 @@ def schema(cls: Type, autodef=True) -> Type[SchemaCls]:
     # check for dependency loops
     _check_for_dependency_loops(fields)
 
-    return type(cls.__name__, (SchemaCls, cls), fields)
+    return type(cls.__name__, (Schema, cls), fields)
 
+
+SchemaVar = TypeVar('SchemaVar', bound=Schema)
 
 def clean(
-    schema: Type[SchemaCls], data: Any, context: Any = empty
-) -> Union[SchemaCls, ValidationError]:
+    schema: Type[SchemaVar], data: Any, context: Any = empty
+) -> Union[SchemaVar, ValidationError]:
     return schema._chausie__clean(data=data, context=context)
 
 
-def serialize(schema: SchemaCls) -> Dict:
+def serialize(schema: Schema) -> Dict:
     return schema._chausie__serialize()
