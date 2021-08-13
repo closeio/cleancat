@@ -20,7 +20,7 @@ from typing import (
     Type,
     Literal,
     overload,
-    TYPE_CHECKING,
+    TYPE_CHECKING, Protocol,
 )
 
 from dateutil import parser
@@ -233,17 +233,25 @@ def noop(value: V) -> V:
     return value
 
 
+class InnerFieldProto(Protocol):
+    @overload
+    def __call__(self) -> Field: ...
+
+    @overload
+    def __call__(self, inner_func: Union[Callable, Field]) -> Field: ...
+
+    def __call__(self, inner_func: Union[Callable, Field, None] = None): ...
+
 # when decorating a function (decorated func is passed to the inner func)
 @overload
 def field(
-    decorated_func: Literal[None],
     *,
     parents: Tuple[Union[Callable, Field], ...] = tuple(),
     accepts: Tuple[str, ...] = tuple(),
     serialize_to: T_Optional[str] = None,
     serialize_func: Callable = noop,
     nullability: Nullability = Required(),
-) -> Callable[[Callable], Field]:
+) -> InnerFieldProto:
     ...
 
 
@@ -258,20 +266,6 @@ def field(
     serialize_func: Callable = noop,
     nullability: Nullability = Required(),
 ) -> Field:
-    ...
-
-
-# fallback
-@overload
-def field(
-    decorated_func: T_Optional[Union[Callable, Field]],
-    *,
-    parents: Tuple[Union[Callable, Field], ...] = tuple(),
-    accepts: Tuple[str, ...] = tuple(),
-    serialize_to: T_Optional[str] = None,
-    serialize_func: Callable = noop,
-    nullability: Nullability = Required(),
-) -> Union[Callable[[Callable], Field], Field]:
     ...
 
 
@@ -303,10 +297,10 @@ def field(
             behavior if a field is omitted or falsy. Defaults to Required.
     """
 
-    def _outer_field(inner_func: Union[Callable, Field]) -> Field:
+    def _outer_field(inner_func: Union[Callable, Field, None] = None) -> Field:
         # flatten any parents defined as fields
         validators: List[Callable] = []
-        for p in parents + (inner_func,):
+        for p in parents + (inner_func or noop,):
             if isinstance(p, Field):
                 validators.extend(p.validators)
             else:
