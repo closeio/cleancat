@@ -20,7 +20,8 @@ from typing import (
     Type,
     Literal,
     overload,
-    TYPE_CHECKING, Protocol,
+    TYPE_CHECKING,
+    Protocol,
 )
 
 from dateutil import parser
@@ -33,7 +34,7 @@ if TYPE_CHECKING:
 
 @attr.frozen
 class ValidationError:
-    errors: List['Error']
+    errors: List["Error"]
 
 
 @attr.frozen
@@ -48,12 +49,10 @@ class Errors:
     field: Tuple[Union[str, int], ...] = tuple()
 
     def flatten(self) -> List[Error]:
-        return [
-            wrap_result(field=self.field, result=err) for err in self.errors
-        ]
+        return [wrap_result(field=self.field, result=err) for err in self.errors]
 
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 @attr.frozen
@@ -64,7 +63,7 @@ class Value(Generic[T]):
 @attr.frozen
 class UnvalidatedWrappedValue:
     value: Collection
-    inner_field: 'Field'
+    inner_field: "Field"
 
     construct: Callable
     """Called to construct the wrapped type with validated data."""
@@ -95,9 +94,7 @@ def wrap_result(field: Tuple[Union[str, int], ...], result: Value) -> Value:
     ...
 
 
-def wrap_result(
-    field: Tuple[Union[str, int], ...], result: Any
-) -> Union[Value, Error]:
+def wrap_result(field: Tuple[Union[str, int], ...], result: Any) -> Union[Value, Error]:
     if isinstance(result, Error):
         return attr.evolve(result, field=field + result.field)
     elif not isinstance(result, Value):
@@ -105,8 +102,11 @@ def wrap_result(
     return result
 
 
+FType = TypeVar("FType")
+
+
 @attr.frozen
-class Field:
+class Field(Generic[FType]):
     validators: Tuple[Callable, ...]
     """Callable that validate a the given field's value."""
 
@@ -128,6 +128,9 @@ class Field:
     depends_on: Tuple[str, ...]
     """Other fields on the same schema this field depends on"""
 
+    def __get__(self, instance, owner) -> FType:
+        return super().__get__(instance, owner)
+
     def run_validators(
         self,
         field: Tuple[Union[str, int], ...],
@@ -136,13 +139,11 @@ class Field:
         intermediate_results: Dict[str, Any],
     ) -> Union[Value, Errors]:
         def _get_deps(func):
-            return {
-                param for param in inspect.signature(func).parameters.keys()
-            }
+            return {param for param in inspect.signature(func).parameters.keys()}
 
         # handle nullability
         if value in (omitted, None) and any(
-            ['value' in _get_deps(v) for v in self.validators]
+            ["value" in _get_deps(v) for v in self.validators]
         ):
             if value is None:
                 if self.nullability.allow_none:
@@ -150,17 +151,11 @@ class Field:
                 else:
                     return Errors(
                         field=field,
-                        errors=[
-                            Error(
-                                msg='Value is required, and must not be None.'
-                            )
-                        ],
+                        errors=[Error(msg="Value is required, and must not be None.")],
                     )
 
             if isinstance(self.nullability, Required):
-                return Errors(
-                    field=field, errors=[Error(msg='Value is required.')]
-                )
+                return Errors(field=field, errors=[Error(msg="Value is required.")])
             elif isinstance(self.nullability, Optional):
                 return Value(self.nullability.omitted_value)
             else:
@@ -173,14 +168,11 @@ class Field:
 
             # an empty context default value means its optional/passthrough
             if (
-                'context' in deps
+                "context" in deps
                 and context is empty
-                and inspect.signature(func).parameters['context'].default
-                is not empty
+                and inspect.signature(func).parameters["context"].default is not empty
             ):
-                raise ValueError(
-                    'Context is required for evaluating this schema.'
-                )
+                raise ValueError("Context is required for evaluating this schema.")
 
             return functools.partial(
                 func,
@@ -191,7 +183,7 @@ class Field:
                 },
                 **{
                     dep: v
-                    for dep, v in {'context': context, 'value': val}.items()
+                    for dep, v in {"context": context, "value": val}.items()
                     if dep in deps
                 },
             )
@@ -226,46 +218,54 @@ class Field:
         return wrap_result(field=field, result=result)
 
 
-V = TypeVar('V')
+V = TypeVar("V")
 
 
 def noop(value: V) -> V:
     return value
 
 
-class InnerFieldProto(Protocol):
+class InnerFieldProto(Protocol[FType]):
     @overload
-    def __call__(self) -> Field: ...
+    def __call__(self) -> Field[FType]:
+        ...
 
     @overload
-    def __call__(self, inner_func: Union[Callable, Field]) -> Field: ...
+    def __call__(
+        self, inner_func: Union[Callable[[...], FType], Field[FType]]
+    ) -> Field[FType]:
+        ...
 
-    def __call__(self, inner_func: Union[Callable, Field, None] = None): ...
+    def __call__(
+        self, inner_func: Union[Callable[[...], FType], Field[FType], None] = None
+    ) -> Field[FType]:
+        ...
+
 
 # when decorating a function (decorated func is passed to the inner func)
 @overload
 def field(
     *,
-    parents: Tuple[Union[Callable, Field], ...] = tuple(),
+    parents: Tuple[Union[Callable[[...], FType], Field[FType]], ...] = tuple(),
     accepts: Tuple[str, ...] = tuple(),
     serialize_to: T_Optional[str] = None,
     serialize_func: Callable = noop,
     nullability: Nullability = Required(),
-) -> InnerFieldProto:
+) -> InnerFieldProto[FType]:
     ...
 
 
 # defining simple fields with existing functions
 @overload
 def field(
-    decorated_func: Callable,
+    decorated_func: Callable[[...], FType],
     *,
     parents: Tuple[Union[Callable, Field], ...] = tuple(),
     accepts: Tuple[str, ...] = tuple(),
     serialize_to: T_Optional[str] = None,
     serialize_func: Callable = noop,
     nullability: Nullability = Required(),
-) -> Field:
+) -> Field[FType]:
     ...
 
 
@@ -312,7 +312,7 @@ def field(
             for n in itertools.chain(
                 *[inspect.signature(f).parameters.keys() for f in validators]
             )
-            if n not in {'context', 'value'}
+            if n not in {"context", "value"}
         }
         return Field(
             nullability=nullability,
@@ -338,9 +338,9 @@ def intfield(value: Any) -> Union[int, Error]:
         try:
             return int(value)
         except (ValueError, TypeError):
-            return Error(msg='Unable to parse int from given string.')
+            return Error(msg="Unable to parse int from given string.")
 
-    return Error(msg='Unhandled type, could not coerce.')
+    return Error(msg="Unhandled type, could not coerce.")
 
 
 def strfield(value: Any) -> Union[str, Error]:
@@ -348,7 +348,7 @@ def strfield(value: Any) -> Union[str, Error]:
     if isinstance(value, str):
         return value
 
-    return Error(msg='Unhandled type')
+    return Error(msg="Unhandled type")
 
 
 class WrapperField:
@@ -382,7 +382,7 @@ class _ListField(WrapperField):
         if isinstance(value, list):
             return value
 
-        return Error(msg='Unhandled type')
+        return Error(msg="Unhandled type")
 
     def construct(self, values: List[Value]) -> List:
         return [v.value for v in values]
@@ -393,14 +393,12 @@ listfield = _ListField
 
 
 class _NestedField:
-    inner_schema: Type['Schema']
+    inner_schema: Type["Schema"]
 
-    def __init__(self, schema: Type['Schema']):
+    def __init__(self, schema: Type["Schema"]):
         self.inner_schema = schema
 
-    def __call__(
-        self, value: Any, context: Any = empty
-    ) -> Union['Schema', Errors]:
+    def __call__(self, value: Any, context: Any = empty) -> Union["Schema", Errors]:
         from cleancat.chausie.schema import clean
 
         result = clean(self.inner_schema, value, context=context)
@@ -414,7 +412,7 @@ class _NestedField:
 
 nestedfield = _NestedField
 
-EnumCls = TypeVar('EnumCls', bound=Enum)
+EnumCls = TypeVar("EnumCls", bound=Enum)
 
 
 class _EnumField(Generic[EnumCls]):
@@ -427,7 +425,7 @@ class _EnumField(Generic[EnumCls]):
         try:
             return self.enum_cls(value)
         except (ValueError, TypeError):
-            return Error(msg='Invalid value for enum.')
+            return Error(msg="Invalid value for enum.")
 
 
 enumfield = _EnumField
@@ -438,7 +436,7 @@ def regexfield(regex: str, flags: int = 0) -> Field:
 
     def _validate_regex(value: str) -> Union[str, Error]:
         if not _compiled_regex.match(value):
-            return Error(msg='Invalid input.')
+            return Error(msg="Invalid input.")
         return value
 
     return field(_validate_regex, parents=(strfield,))
@@ -451,12 +449,12 @@ def datetimefield(value: str) -> Union[datetime.datetime, Error]:
         # TODO should we use ciso8601 to parse? It's a bit stricter, but much faster.
         return parser.parse(value)
     except ValueError:
-        return Error(msg='Could not parse datetime.')
+        return Error(msg="Could not parse datetime.")
 
 
 def boolfield(value: Any) -> Union[bool, Error]:
     if not isinstance(value, bool):
-        return Error(msg='Value is not a boolean.')
+        return Error(msg="Value is not a boolean.")
     return value
 
 
@@ -467,35 +465,31 @@ def urlfield(
     disallowed_schemes=None,
 ) -> Field:
     def normalize_scheme(sch):
-        if sch.endswith('://') or sch.endswith(':'):
+        if sch.endswith("://") or sch.endswith(":"):
             return sch
-        return sch + '://'
+        return sch + "://"
 
     # FQDN validation similar to https://github.com/chriso/validator.js/blob/master/src/lib/isFQDN.js
 
     # ff01-ff5f -> full-width chars, not allowed
-    alpha_numeric_and_symbols_ranges = u'0-9a-z\u00a1-\uff00\uff5f-\uffff'
+    alpha_numeric_and_symbols_ranges = "0-9a-z\u00a1-\uff00\uff5f-\uffff"
 
-    tld_part = (
-        require_tld
-        and r'\.[%s-]{2,63}' % alpha_numeric_and_symbols_ranges
-        or ''
-    )
-    scheme_part = '[a-z]+://'
+    tld_part = require_tld and r"\.[%s-]{2,63}" % alpha_numeric_and_symbols_ranges or ""
+    scheme_part = "[a-z]+://"
     if default_scheme:
         default_scheme = normalize_scheme(default_scheme)
-    scheme_regex = re.compile('^' + scheme_part, re.IGNORECASE)
+    scheme_regex = re.compile("^" + scheme_part, re.IGNORECASE)
     if default_scheme:
-        scheme_part = '(%s)?' % scheme_part
+        scheme_part = "(%s)?" % scheme_part
     regex = (
-        r'^%s([-%s@:%%_+.~#?&/\\=]{1,256}%s|([0-9]{1,3}\.){3}[0-9]{1,3})(:[0-9]+)?([/?].*)?$'
+        r"^%s([-%s@:%%_+.~#?&/\\=]{1,256}%s|([0-9]{1,3}\.){3}[0-9]{1,3})(:[0-9]+)?([/?].*)?$"
         % (scheme_part, alpha_numeric_and_symbols_ranges, tld_part)
     )
     regex_flags = re.IGNORECASE | re.UNICODE
 
     def compile_schemes_to_regexes(schemes):
         return [
-            re.compile('^' + normalize_scheme(sch) + '.*', re.IGNORECASE)
+            re.compile("^" + normalize_scheme(sch) + ".*", re.IGNORECASE)
             for sch in schemes
         ]
 
@@ -512,10 +506,9 @@ def urlfield(
 
         if allowed_schemes:
             if not any(
-                allowed_regex.match(value)
-                for allowed_regex in allowed_schemes_regexes
+                allowed_regex.match(value) for allowed_regex in allowed_schemes_regexes
             ):
-                allowed_schemes_text = ' or '.join(allowed_schemes)
+                allowed_schemes_text = " or ".join(allowed_schemes)
                 return Error(
                     msg=(
                         "This URL uses a scheme that's not allowed. You can only "
