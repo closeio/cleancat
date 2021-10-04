@@ -795,6 +795,15 @@ class Schema(object):
         self.fields = self.get_fields()
 
     def clean(self):
+        """
+        Override to add additional validations.
+
+        Always called at the end of `full_clean()` method, even if validation
+        failed for some fields.
+        Cleaned input data are available in `self.data` dict.
+        Keys that failed validation won't be set. Use conditional dictionary
+        access or return early `if self.errors or self.field_errors`.
+        """
         pass
 
     def full_clean(self):
