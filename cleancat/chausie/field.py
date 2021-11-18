@@ -232,12 +232,12 @@ class InnerFieldProto(Protocol[FType]):
 
     @overload
     def __call__(
-        self, inner_func: Union[Callable[[...], FType], Field[FType]]
+        self, inner_func: Union[Callable[..., FType], Field[FType]]
     ) -> Field[FType]:
         ...
 
     def __call__(
-        self, inner_func: Union[Callable[[...], FType], Field[FType], None] = None
+        self, inner_func: Union[Callable[..., FType], Field[FType], None] = None
     ) -> Field[FType]:
         ...
 
@@ -246,7 +246,7 @@ class InnerFieldProto(Protocol[FType]):
 @overload
 def field(
     *,
-    parents: Tuple[Union[Callable[[...], FType], Field[FType]], ...] = tuple(),
+    parents: Tuple[Union[Callable[..., FType], Field[FType]], ...] = tuple(),
     accepts: Tuple[str, ...] = tuple(),
     serialize_to: T_Optional[str] = None,
     serialize_func: Callable = noop,
@@ -258,7 +258,7 @@ def field(
 # defining simple fields with existing functions
 @overload
 def field(
-    decorated_func: Callable[[...], FType],
+    decorated_func: Callable[..., FType],
     *,
     parents: Tuple[Union[Callable, Field], ...] = tuple(),
     accepts: Tuple[str, ...] = tuple(),
