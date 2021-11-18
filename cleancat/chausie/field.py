@@ -18,7 +18,6 @@ from typing import (
     Optional as T_Optional,
     Collection,
     Type,
-    Literal,
     overload,
     TYPE_CHECKING,
     Protocol,
