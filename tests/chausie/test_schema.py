@@ -4,7 +4,7 @@ import attr
 import pytest
 
 from cleancat.chausie.consts import omitted
-from cleancat.chausie.schema import Schema, clean, serialize
+from cleancat.chausie.schema import Schema
 from cleancat.chausie.field import (
     field,
     Error,
@@ -18,16 +18,16 @@ class TestAutodef:
         class MySchema(Schema):
             myint: int
 
-        result = clean(MySchema, {'myint': 100})
+        result = MySchema.clean({"myint": 100})
         assert isinstance(result, MySchema)
         assert result.myint == 100
-        assert serialize(result) == {'myint': 100}
+        assert result.serialize() == {"myint": 100}
 
     def test_optional_omitted(self):
         class MySchema(Schema):
             myint: Optional[int]
 
-        result = clean(MySchema, {})
+        result = MySchema.clean({})
         assert isinstance(result, MySchema)
         assert result.myint is omitted
 
@@ -35,7 +35,7 @@ class TestAutodef:
         class MySchema(Schema):
             myint: Optional[int]
 
-        result = clean(MySchema, {'myint': None})
+        result = MySchema.clean({"myint": None})
         assert isinstance(result, MySchema)
         assert result.myint is None
 
@@ -43,9 +43,9 @@ class TestAutodef:
         class MySchema(Schema):
             mystrs: List[str]
 
-        result = clean(MySchema, {'mystrs': ['a', 'b', 'c']})
+        result = MySchema.clean({"mystrs": ["a", "b", "c"]})
         assert isinstance(result, MySchema)
-        assert result.mystrs == ['a', 'b', 'c']
+        assert result.mystrs == ["a", "b", "c"]
 
 
 def test_field_dependencies():
@@ -60,10 +60,10 @@ def test_field_dependencies():
         def b(a: str) -> B:
             return B(val=a)
 
-    result = clean(schema=UpdateObject, data={'a': 'A'})
+    result = UpdateObject.clean(data={"a": "A"})
     assert isinstance(result, UpdateObject)
-    assert result.a == 'A'
-    assert result.b == B(val='A')
+    assert result.a == "A"
+    assert result.b == B(val="A")
 
 
 def test_field_dependencies_error():
@@ -74,15 +74,15 @@ def test_field_dependencies_error():
     class UpdateObject(Schema):
         @field()
         def a(value: str) -> Union[str, Error]:
-            return Error(msg='nope')
+            return Error(msg="nope")
 
         @field()
         def b(a: str) -> B:
             return B(val=a)
 
-    result = clean(schema=UpdateObject, data={'a': 'A'})
+    result = UpdateObject.clean(data={"a": "A"})
     assert isinstance(result, ValidationError)
-    assert result.errors == [Error(msg='nope', field=('a',))]
+    assert result.errors == [Error(msg="nope", field=("a",))]
 
 
 def test_context():
@@ -91,8 +91,8 @@ def test_context():
         pk: str
         name: str
 
-    org_a = Organization(pk='orga_a', name='Organization A')
-    org_b = Organization(pk='orga_b', name='Organization B')
+    org_a = Organization(pk="orga_a", name="Organization A")
+    org_b = Organization(pk="orga_b", name="Organization B")
 
     class OrganizationRepo:
         ORGANIZATIONS_BY_PK = {o.pk: o for o in [org_a, org_b]}
@@ -108,38 +108,29 @@ def test_context():
         name: str
 
         @field(parents=(strfield,))
-        def organization(
-            value: str, context: Context
-        ) -> Union[Organization, Error]:
+        def organization(value: str, context: Context) -> Union[Organization, Error]:
             org = context.org_repo.get_by_pk(value)
             if org:
                 return org
 
-            return Error(msg='Organization not found.')
+            return Error(msg="Organization not found.")
 
     context = Context(org_repo=OrganizationRepo())
-    result = clean(
-        schema=UserSchema,
-        data={'name': 'John', 'organization': 'orga_a'},
-        context=context,
+    result = UserSchema.clean(
+        data={"name": "John", "organization": "orga_a"}, context=context
     )
     assert isinstance(result, UserSchema)
-    assert result.name == 'John'
+    assert result.name == "John"
     assert result.organization == org_a
 
-    result = clean(
-        schema=UserSchema,
-        data={'name': 'John', 'organization': 'orga_c'},
-        context=context,
+    result = UserSchema.clean(
+        data={"name": "John", "organization": "orga_c"}, context=context
     )
     assert isinstance(result, ValidationError)
     assert result.errors == [
-        Error(msg='Organization not found.', field=('organization',))
+        Error(msg="Organization not found.", field=("organization",))
     ]
 
     with pytest.raises(ValueError):
         # no context given, ths schema needs a context
-        clean(
-            schema=UserSchema,
-            data={'name': 'John', 'organization': 'orga_a'},
-        )
+        UserSchema.clean(data={"name": "John", "organization": "orga_a"})

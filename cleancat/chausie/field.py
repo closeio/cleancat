@@ -398,9 +398,7 @@ class _NestedField:
         self.inner_schema = schema
 
     def __call__(self, value: Any, context: Any = empty) -> Union["Schema", Errors]:
-        from cleancat.chausie.schema import clean
-
-        result = clean(self.inner_schema, value, context=context)
+        result = self.inner_schema.clean(value, context=context)
         if isinstance(result, ValidationError):
             return Errors(errors=result.errors)
         elif isinstance(result, self.inner_schema):
