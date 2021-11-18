@@ -28,7 +28,7 @@ from typing import List
 from cleancat.chausie.field import (
   field, emailfield, listfield, urlfield, ValidationError,
 )
-from cleancat.chausie.schema import Schema, clean
+from cleancat.chausie.schema import Schema
 from flask import app, request, jsonify
 
 class JobApplication(Schema):
@@ -39,7 +39,7 @@ class JobApplication(Schema):
 
 @app.route('/job_application', methods=['POST'])
 def test_view():
-    result = clean(JobApplication, request.json)
+    result = JobApplication.clean(request.json)
     if isinstance(result, ValidationError):
         return jsonify({'errors': [{'msg': e.msg, 'field': e.field} for e in result.errors] }), 400
 
@@ -109,7 +109,7 @@ class ReusableFieldsExampleSchema(Schema):
 ```python
 import attrs
 from cleancat.chausie.field import field, strfield
-from cleancat.chausie.schema import Schema, clean
+from cleancat.chausie.schema import Schema
 
 class MyModel:  # some ORM model
     id: str
@@ -131,8 +131,7 @@ class ContextExampleSchema(Schema):
         )
 
 with atomic() as session:
-    result = clean(
-        schema=ContextExampleSchema,
+    result = ContextExampleSchema.clean(
         data={'id': 'mymodel_primarykey'},
         context=Context(authenticated_user=EXAMPLE_USER, session=session)
     )
@@ -145,7 +144,7 @@ assert isinstance(result.obj, MyModel)
 
 ```python
 from cleancat.chausie.field import field
-from cleancat.chausie.schema import Schema, clean
+from cleancat.chausie.schema import Schema
 
 class DependencyExampleSchema(Schema):
     a: str
@@ -156,8 +155,7 @@ class DependencyExampleSchema(Schema):
         return f'{a}::{b}'
 
 
-result = clean(
-  schema=DependencyExampleSchema,
+result = DependencyExampleSchema.clean(
   data={'a': 'a', 'b': 'b'},
 )
 assert isinstance(result, DependencyExampleSchema)
