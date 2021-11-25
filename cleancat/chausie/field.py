@@ -21,6 +21,7 @@ from typing import (
     overload,
     TYPE_CHECKING,
 )
+
 try:
     from typing import Protocol
 except ImportError:
