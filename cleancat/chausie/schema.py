@@ -3,6 +3,8 @@ from typing import Dict, TypeVar, Type, Any, Union
 
 from cleancat.chausie.consts import empty
 from cleancat.chausie.field import (
+    Nullability,
+    Required,
     field,
     Field,
     FIELD_TYPE_MAP,
@@ -15,6 +17,7 @@ from cleancat.chausie.schema_definition import (
     clean,
     serialize,
 )
+from cleancat.base import Field as OldCleanCatField
 
 
 def _field_def_from_annotation(annotation) -> typing.Optional[Field]:
@@ -50,6 +53,16 @@ def _field_def_from_annotation(annotation) -> typing.Optional[Field]:
         return None
 
     raise TypeError("Unrecognized type annotation.")
+
+
+def _field_def_from_old_field(f: OldCleanCatField) -> Field:
+    nullability: Nullability
+    if f.required:
+        nullability = Required()
+    else:
+        nullability = CCOptional(omitted_value=f.blank_value)
+
+    return field(f.clean, serialize_func=f.serialize, nullability=nullability)
 
 
 def _check_for_dependency_loops(fields: Dict[str, Field]) -> None:
@@ -89,6 +102,15 @@ class SchemaMetaclass(type):
                 fields.update(base_schema_def.fields)
         fields.update(
             {f_name: f for f_name, f in attribs.items() if isinstance(f, Field)}
+        )
+
+        # look for fields from the old cleancat schema
+        fields.update(
+            {
+                f_name: _field_def_from_old_field(f)
+                for f_name, f in attribs.items()
+                if f_name not in fields and isinstance(f, OldCleanCatField)
+            }
         )
 
         if autodef:

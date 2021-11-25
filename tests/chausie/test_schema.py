@@ -2,6 +2,7 @@ from typing import Optional, Union, List
 
 import attr
 import pytest
+from cleancat.base import Bool, Integer, String, List as OldCCList
 
 from cleancat.chausie.consts import omitted
 from cleancat.chausie.schema import Schema
@@ -134,3 +135,40 @@ def test_context():
     with pytest.raises(ValueError):
         # no context given, ths schema needs a context
         UserSchema.clean(data={"name": "John", "organization": "orga_a"})
+
+
+def test_def_using_old_fields():
+    class MySchema(Schema):
+        # base fields
+        mystring: str = String()
+        mybool: bool = Bool()
+        myint: int = Integer()
+        mylist: List[str] = OldCCList(String())
+
+        # nullable fields
+        nullstring: Optional[str] = String(required=False)
+        omittedstring: Optional[str] = String(required=False)
+
+
+        # old fields can be inter-mixed with new-style fields
+        other_string: str
+
+    result = MySchema.clean(
+        data={
+            "mystring": "asdf",
+            "mybool": True,
+            "myint": 10,
+            "mylist": ["asdf"],
+            "nullstring": None,
+            # omittedstring isn't present
+            "other_string": "the other string",
+        }
+    )
+    assert isinstance(result, MySchema)
+    assert result.mystring == "asdf"
+    assert result.mybool == True
+    assert result.myint == 10
+    assert result.mylist == ["asdf"]
+    assert result.nullstring is None
+    assert result.omittedstring == ""
+    assert result.other_string == "the other string"
