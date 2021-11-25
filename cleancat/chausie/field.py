@@ -7,6 +7,7 @@ from enum import Enum
 
 import attr
 from typing import (
+    Generic,
     TypeVar,
     Union,
     Dict,
@@ -21,9 +22,9 @@ from typing import (
     TYPE_CHECKING,
 )
 try:
-    from typing import Protocol, Generic
+    from typing import Protocol
 except ImportError:
-    from typing_extensions import Protocol, Generic
+    from typing_extensions import Protocol
 
 from dateutil import parser
 
@@ -58,7 +59,7 @@ class Errors:
 T = TypeVar("T")
 
 
-@attr.frozen
+@attr.frozen(these={'value': attr.attrib()}, slots=True)
 class Value(Generic[T]):
     value: T
 
