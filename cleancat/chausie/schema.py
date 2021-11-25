@@ -1,5 +1,10 @@
-import typing
-from typing import Dict, TypeVar, Type, Any, Union
+from typing import ClassVar, Optional, Dict, TypeVar, Type, Any, Union, Generic
+
+try:
+    from typing import get_args, get_origin
+except ImportError:
+    # python 3.7
+    from typing_extensions import get_args, get_origin
 
 from cleancat.chausie.consts import empty
 from cleancat.chausie.field import (
@@ -20,37 +25,35 @@ from cleancat.chausie.schema_definition import (
 from cleancat.base import Field as OldCleanCatField
 
 
-def _field_def_from_annotation(annotation) -> typing.Optional[Field]:
+def _field_def_from_annotation(annotation) -> Optional[Field]:
     """Turn an annotation into an equivalent field.
 
     Explicitly ignores `ClassVar` annotations, returning None.
     """
     if annotation in FIELD_TYPE_MAP:
         return field(FIELD_TYPE_MAP[annotation])
-    elif typing.get_origin(annotation) is Union:
+    elif get_origin(annotation) is Union:
         # basic support for `Optional`
-        union_of = typing.get_args(annotation)
+        union_of = get_args(annotation)
         if not (len(union_of) == 2 and type(None) in union_of):
             raise TypeError("Unrecognized type annotation.")
 
         # yes, we actually do want to check against type(xx)
         NoneType = type(None)
-        inner = next(
-            t for t in typing.get_args(annotation) if t is not NoneType
-        )
+        inner = next(t for t in get_args(annotation) if t is not NoneType)
         if inner in FIELD_TYPE_MAP:
             return field(
                 FIELD_TYPE_MAP[inner],
                 nullability=CCOptional(),
             )
-    elif typing.get_origin(annotation) is list:
-        list_of = typing.get_args(annotation)
+    elif get_origin(annotation) is list:
+        list_of = get_args(annotation)
         if len(list_of) != 1:
             raise TypeError("Only one inner List type is currently supported.")
         inner_field_def = _field_def_from_annotation(list_of[0])
         assert inner_field_def
         return field(listfield(inner_field_def))
-    elif typing.get_origin(annotation) is typing.ClassVar:
+    elif get_origin(annotation) is ClassVar:
         # just ignore these, these don't have to become fields
         return None
 
@@ -139,8 +142,8 @@ T = TypeVar("T", bound="Schema")
 SchemaVar = TypeVar("SchemaVar", bound="Schema")
 
 
-class Schema(typing.Generic[T], metaclass=SchemaMetaclass):
-    _schema_definition: typing.ClassVar[SchemaDefinition]
+class Schema(Generic[T], metaclass=SchemaMetaclass):
+    _schema_definition: ClassVar[SchemaDefinition]
 
     def __init__(self, **kwargs):
         defined_fields = self._schema_definition.fields
