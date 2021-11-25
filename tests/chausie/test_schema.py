@@ -167,7 +167,7 @@ def test_def_using_old_fields():
     )
     assert isinstance(result, MySchema)
     assert result.mystring == "asdf"
-    assert result.mybool == True
+    assert result.mybool is True
     assert result.myint == 10
     assert result.mylist == ["asdf"]
     assert result.nullstring is None
