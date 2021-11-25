@@ -59,7 +59,7 @@ class Errors:
 T = TypeVar("T")
 
 
-@attr.frozen(these={'value': attr.attrib()}, slots=True)
+@attr.frozen
 class Value(Generic[T]):
     value: T
 
