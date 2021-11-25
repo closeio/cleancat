@@ -35,7 +35,9 @@ def _field_def_from_annotation(annotation) -> typing.Optional[Field]:
 
         # yes, we actually do want to check against type(xx)
         NoneType = type(None)
-        inner = next(t for t in typing.get_args(annotation) if t is not NoneType)
+        inner = next(
+            t for t in typing.get_args(annotation) if t is not NoneType
+        )
         if inner in FIELD_TYPE_MAP:
             return field(
                 FIELD_TYPE_MAP[inner],
@@ -101,7 +103,11 @@ class SchemaMetaclass(type):
             if isinstance(base_schema_def, SchemaDefinition):
                 fields.update(base_schema_def.fields)
         fields.update(
-            {f_name: f for f_name, f in attribs.items() if isinstance(f, Field)}
+            {
+                f_name: f
+                for f_name, f in attribs.items()
+                if isinstance(f, Field)
+            }
         )
 
         # look for fields from the old cleancat schema
@@ -156,5 +162,8 @@ class Schema(typing.Generic[T], metaclass=SchemaMetaclass):
     def serialize(self) -> Dict:
         return serialize(
             self._schema_definition,
-            {n: getattr(self, n) for n in self._schema_definition.fields.keys()},
+            {
+                n: getattr(self, n)
+                for n in self._schema_definition.fields.keys()
+            },
         )

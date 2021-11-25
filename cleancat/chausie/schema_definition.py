@@ -17,7 +17,9 @@ def clean(
     schema_definition: SchemaDefinition, data: Any, context: Any = empty
 ) -> Union[Dict[str, Any], ValidationError]:
     """Entrypoint for cleaning some set of data for a given schema definition."""
-    field_defs = [(name, f_def) for name, f_def in schema_definition.fields.items()]
+    field_defs = [
+        (name, f_def) for name, f_def in schema_definition.fields.items()
+    ]
 
     # fake an initial 'self' result so function-defined fields can
     # optionally include an unused "self" parameter
@@ -67,7 +69,11 @@ def clean(
 
     errors = list(
         itertools.chain(
-            *[v.flatten() for v in results.values() if not isinstance(v, Value)]
+            *[
+                v.flatten()
+                for v in results.values()
+                if not isinstance(v, Value)
+            ]
         )
     )
     if errors:
@@ -76,13 +82,17 @@ def clean(
     # we already checked for errors above, but this extra explicit check
     # helps mypy figure out what's going on.
     validated_values = {
-        k: v.value for k, v in results.items() if isinstance(v, Value) and k != "self"
+        k: v.value
+        for k, v in results.items()
+        if isinstance(v, Value) and k != "self"
     }
     assert set(validated_values.keys()) == {f_name for f_name, _ in field_defs}
     return validated_values
 
 
-def serialize(schema_definition: SchemaDefinition, data: Dict[str, Any]) -> Dict:
+def serialize(
+    schema_definition: SchemaDefinition, data: Dict[str, Any]
+) -> Dict:
     """Serialize a schema to a dictionary, respecting serialization settings."""
     return {
         (field_def.serialize_to or field_name): field_def.serialize_func(

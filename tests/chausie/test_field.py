@@ -51,7 +51,9 @@ def test_basic_validation_error(example_schema):
     test_data = {"myint": 100, "mylowint": 10}
     result = example_schema.clean(test_data)
     assert isinstance(result, ValidationError)
-    assert result.errors == [Error(msg="Needs to be less than 5", field=("mylowint",))]
+    assert result.errors == [
+        Error(msg="Needs to be less than 5", field=("mylowint",))
+    ]
 
 
 def test_accepts(example_schema):
@@ -135,7 +137,9 @@ class TestListField:
 
     def test_listfield_inner_optional(self):
         class UserSchema(Schema):
-            aliases = field(listfield(field(strfield, nullability=CCOptional())))
+            aliases = field(
+                listfield(field(strfield, nullability=CCOptional()))
+            )
 
         result = UserSchema.clean({"aliases": ["John", None]})
         assert isinstance(result, UserSchema)
@@ -166,7 +170,9 @@ class TestListField:
             return value
 
         class UserSchema(Schema):
-            suffixes = field(listfield(field(validate_suffix, parents=(strfield,))))
+            suffixes = field(
+                listfield(field(validate_suffix, parents=(strfield,)))
+            )
 
         context_ = Context(valid_suffixes={"Sr", "Jr", "2nd"})
         result = UserSchema.clean({"suffixes": ["Sr", "Jr"]}, context=context_)
@@ -180,7 +186,9 @@ class TestListField:
 
         class UserSchema(Schema):
             @field(parents=(listfield(field(strfield)),))
-            def suffixes(value: List[str], context: Context) -> Union[List[str], Error]:
+            def suffixes(
+                value: List[str], context: Context
+            ) -> Union[List[str], Error]:
                 for suffix in value:
                     if suffix not in context.valid_suffixes:
                         return Error(msg="Suffix is invalid")
@@ -207,7 +215,9 @@ class TestRegexField:
 
         result = UserSchema.clean({"initials": "A"})
         assert isinstance(result, ValidationError)
-        assert result.errors == [Error(msg="Invalid input.", field=("initials",))]
+        assert result.errors == [
+            Error(msg="Invalid input.", field=("initials",))
+        ]
 
 
 class TestDatetimeField:
@@ -239,7 +249,9 @@ class TestNullability:
 
         result = MySchema.clean({})
         assert isinstance(result, ValidationError)
-        assert result.errors == [Error(msg="Value is required.", field=("myint",))]
+        assert result.errors == [
+            Error(msg="Value is required.", field=("myint",))
+        ]
 
     def test_required_none(self):
         class MySchema(Schema):
@@ -332,7 +344,9 @@ class TestEnumField:
 
         result = MySchema.clean({"color": bad_value})
         assert isinstance(result, ValidationError)
-        assert result.errors == [Error(msg="Invalid value for enum.", field=("color",))]
+        assert result.errors == [
+            Error(msg="Invalid value for enum.", field=("color",))
+        ]
 
 
 def test_field_self():
@@ -432,7 +446,9 @@ class TestURLField:
             assert result.url == expected
         else:
             assert isinstance(result, ValidationError)
-            assert result.errors == [Error(msg="Invalid input.", field=("url",))]
+            assert result.errors == [
+                Error(msg="Invalid input.", field=("url",))
+            ]
 
     @pytest.mark.parametrize(
         "value, expected",
@@ -445,7 +461,9 @@ class TestURLField:
     def test_it_enforces_allowed_schemes(self, value, expected):
         class MyUrlSchema(Schema):
             url = field(
-                urlfield(default_scheme="https://", allowed_schemes=["https://"])
+                urlfield(
+                    default_scheme="https://", allowed_schemes=["https://"]
+                )
             )
 
         result = MyUrlSchema.clean({"url": value})
@@ -458,7 +476,9 @@ class TestURLField:
                 "use https://."
             )
             assert isinstance(result, ValidationError)
-            assert result.errors == [Error(msg=expected_err_msg, field=("url",))]
+            assert result.errors == [
+                Error(msg=expected_err_msg, field=("url",))
+            ]
 
     @pytest.mark.parametrize(
         "value, expected",
@@ -502,7 +522,9 @@ class TestURLField:
     def test_it_supports_simpler_allowed_scheme_values(self, value, expected):
         class MyUrlSchema(Schema):
             url = field(
-                urlfield(default_scheme="https", allowed_schemes=["https", "ftps"])
+                urlfield(
+                    default_scheme="https", allowed_schemes=["https", "ftps"]
+                )
             )
 
         result = MyUrlSchema.clean({"url": value})
@@ -513,7 +535,9 @@ class TestURLField:
     def test_it_enforces_valid_data_type(self, value):
         class MyUrlSchema(Schema):
             url = field(
-                urlfield(default_scheme="https", allowed_schemes=["https", "ftps"])
+                urlfield(
+                    default_scheme="https", allowed_schemes=["https", "ftps"]
+                )
             )
 
         result = MyUrlSchema.clean({"url": value})

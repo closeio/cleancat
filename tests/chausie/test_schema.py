@@ -109,7 +109,9 @@ def test_context():
         name: str
 
         @field(parents=(strfield,))
-        def organization(value: str, context: Context) -> Union[Organization, Error]:
+        def organization(
+            value: str, context: Context
+        ) -> Union[Organization, Error]:
             org = context.org_repo.get_by_pk(value)
             if org:
                 return org
@@ -148,7 +150,6 @@ def test_def_using_old_fields():
         # nullable fields
         nullstring: Optional[str] = String(required=False)
         omittedstring: Optional[str] = String(required=False)
-
 
         # old fields can be inter-mixed with new-style fields
         other_string: str
