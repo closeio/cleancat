@@ -7,7 +7,6 @@ from enum import Enum
 
 import attr
 from typing import (
-    Generic,
     TypeVar,
     Union,
     Dict,
@@ -22,9 +21,9 @@ from typing import (
     TYPE_CHECKING,
 )
 try:
-    from typing import Protocol
+    from typing import Protocol, Generic
 except ImportError:
-    from typing_extensions import Protocol
+    from typing_extensions import Protocol, Generic
 
 from dateutil import parser
 
