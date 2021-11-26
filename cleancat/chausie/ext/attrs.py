@@ -61,24 +61,21 @@ def schema_def_from_attrs_class(attrs_class: Type) -> SchemaDefinition:
     )
 
 
+@attr.frozen
 class AttrsSchema:
-    _attrs_class: Type
-    _schema_definition: SchemaDefinition
+    attrs_class: Type
+    schema_definition: SchemaDefinition
 
-    @classmethod
-    def clean(cls, data, context=empty):
-        result = clean_schema(cls._schema_definition, data, context)
+    def clean(self, data, context=empty):
+        result = clean_schema(self.schema_definition, data, context)
         if isinstance(result, ValidationError):
             return result
         else:
-            return cls._attrs_class(**result)
+            return self.attrs_class(**result)
 
 
 def schema_for_attrs_class(attrs_class: Type) -> Schema:
     schema_definition = schema_def_from_attrs_class(attrs_class=attrs_class)
-
-    return type(
-        f'{attrs_class.__name__}Schema',
-        (AttrsSchema,),
-        {'_schema_definition': schema_definition, '_attrs_class': attrs_class},
+    return AttrsSchema(
+        attrs_class=attrs_class, schema_definition=schema_definition
     )
