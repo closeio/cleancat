@@ -4,7 +4,6 @@ from cleancat.chausie.consts import empty
 from cleancat.chausie.field import (
     Error,
     Field,
-    Nullability,
     Optional,
     Required,
     ValidationError,
@@ -78,6 +77,9 @@ def schema_for_attrs_class(attrs_klass: Type) -> Schema:
 
     return type(
         f'{attrs_klass.__name__}Schema',
-        (AttrsSchema, Schema,),
+        (
+            AttrsSchema,
+            Schema,
+        ),
         {},
     )
