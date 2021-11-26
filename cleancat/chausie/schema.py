@@ -25,7 +25,7 @@ from cleancat.chausie.schema_definition import (
 from cleancat.base import Field as OldCleanCatField
 
 
-def _field_def_from_annotation(annotation) -> Optional[Field]:
+def field_def_from_annotation(annotation) -> Optional[Field]:
     """Turn an annotation into an equivalent field.
 
     Explicitly ignores `ClassVar` annotations, returning None.
@@ -50,7 +50,7 @@ def _field_def_from_annotation(annotation) -> Optional[Field]:
         list_of = get_args(annotation)
         if len(list_of) != 1:
             raise TypeError("Only one inner List type is currently supported.")
-        inner_field_def = _field_def_from_annotation(list_of[0])
+        inner_field_def = field_def_from_annotation(list_of[0])
         assert inner_field_def
         return field(listfield(inner_field_def))
     elif get_origin(annotation) is ClassVar:
@@ -125,7 +125,7 @@ class SchemaMetaclass(type):
         if autodef:
             for f_name, f_type in attribs.get("__annotations__", {}).items():
                 if f_name not in fields:
-                    field_def = _field_def_from_annotation(f_type)
+                    field_def = field_def_from_annotation(f_type)
                     if field_def:
                         fields[f_name] = field_def
 
