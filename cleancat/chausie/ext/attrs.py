@@ -1,4 +1,4 @@
-from typing import Type
+from typing import Any, Dict, Generic, Type, TypeVar, Union
 import attr
 from cleancat.chausie.consts import empty
 from cleancat.chausie.field import (
@@ -20,8 +20,9 @@ def convert_attrib_to_field(attrib: attr.Attribute) -> Field:
     """Convert attr Attribute to cleanchausie Field."""
     if attrib.type:
         field = field_def_from_annotation(attrib.type)
+        assert field
     else:
-        return Field(
+        field = Field(
             validators=(),
             accepts=(),
             nullability=Required(),
@@ -61,12 +62,17 @@ def schema_def_from_attrs_class(attrs_class: Type) -> SchemaDefinition:
     )
 
 
+T = TypeVar('T')
+
+
 @attr.frozen
-class AttrsSchema:
-    attrs_class: Type
+class AttrsSchema(Generic[T]):
+    attrs_class: Type[T]
     schema_definition: SchemaDefinition
 
-    def clean(self, data, context=empty):
+    def clean(
+        self, data: Dict, context: Any = empty
+    ) -> Union[T, ValidationError]:
         result = clean_schema(self.schema_definition, data, context)
         if isinstance(result, ValidationError):
             return result
@@ -74,7 +80,7 @@ class AttrsSchema:
             return self.attrs_class(**result)
 
 
-def schema_for_attrs_class(attrs_class: Type) -> Schema:
+def schema_for_attrs_class(attrs_class: Type[T]) -> AttrsSchema[T]:
     schema_definition = schema_def_from_attrs_class(attrs_class=attrs_class)
     return AttrsSchema(
         attrs_class=attrs_class, schema_definition=schema_definition
