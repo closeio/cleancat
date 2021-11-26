@@ -1,6 +1,6 @@
 import attr
 
-from cleancat.chausie.ext.attrs import schema_def_from_attrs_class
+from cleancat.chausie.ext.attrs import schema_def_from_attrs_class, schema_for_attrs_class
 from cleancat.chausie.field import Error, Errors, ValidationError
 from cleancat.chausie.schema import Schema
 from cleancat.chausie.schema_definition import SchemaDefinition, clean
@@ -46,7 +46,10 @@ def test_implicit_validators():
         annotated_value_schema_def, data={'value': 'ten', 'unit': 'inches'}
     )
     assert isinstance(result, ValidationError)
-    assert result.errors == [Error(field=('value',), msg='Unable to parse int from given string.')]
+    assert result.errors == [
+        Error(field=('value',), msg='Unable to parse int from given string.')
+    ]
+
 
 def test_attr_validators():
     @attr.frozen()
@@ -71,4 +74,20 @@ def test_attr_validators():
         annotated_value_schema_def, data={'value': 'ten', 'unit': 'inches'}
     )
     assert isinstance(result, ValidationError)
-    assert result.errors == [Error(field=('value',), msg='Unable to parse int from given string.')]
+    assert result.errors == [
+        Error(field=('value',), msg='Unable to parse int from given string.')
+    ]
+
+
+def test_schema_from_attrs_class():
+    @attr.frozen()
+    class AnnotatedValue:
+        value: int
+        unit: str
+    
+    AnnotatedValueSchema = schema_for_attrs_class(AnnotatedValue)
+    result = AnnotatedValueSchema.clean(data={'value': '10', 'unit': 'inches'})
+    assert isinstance(result, AnnotatedValue)
+    assert result.value == 10
+    assert result.unit == 'inches'
+

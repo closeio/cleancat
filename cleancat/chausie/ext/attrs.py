@@ -1,15 +1,20 @@
 from typing import Type
 import attr
+from cleancat.chausie.consts import empty
 from cleancat.chausie.field import (
     Error,
     Field,
     Nullability,
     Optional,
     Required,
+    ValidationError,
 )
-from cleancat.chausie.schema import field_def_from_annotation
+from cleancat.chausie.schema import Schema, field_def_from_annotation
 
-from cleancat.chausie.schema_definition import SchemaDefinition
+from cleancat.chausie.schema_definition import (
+    SchemaDefinition,
+    clean as clean_schema,
+)
 
 
 def convert_attrib_to_field(attrib: attr.Attribute) -> Field:
@@ -54,4 +59,25 @@ def schema_def_from_attrs_class(attrs_klass: Type) -> SchemaDefinition:
             attr_field.name: convert_attrib_to_field(attr_field)
             for attr_field in attr.fields(attrs_klass)
         }
+    )
+
+
+def schema_for_attrs_class(attrs_klass: Type) -> Schema:
+    schema_definition = schema_def_from_attrs_class(attrs_klass=attrs_klass)
+
+    class AttrsSchema:
+        _schema_definition = schema_definition
+
+        @classmethod
+        def clean(cls, data, context=empty):
+            result = clean_schema(schema_definition, data, context)
+            if isinstance(result, ValidationError):
+                return result
+            else:
+                return attrs_klass(**result)
+
+    return type(
+        f'{attrs_klass.__name__}Schema',
+        (AttrsSchema, Schema,),
+        {},
     )
