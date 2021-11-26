@@ -52,34 +52,33 @@ def convert_attrib_to_field(attrib: attr.Attribute) -> Field:
     return field
 
 
-def schema_def_from_attrs_class(attrs_klass: Type) -> SchemaDefinition:
+def schema_def_from_attrs_class(attrs_class: Type) -> SchemaDefinition:
     return SchemaDefinition(
         fields={
             attr_field.name: convert_attrib_to_field(attr_field)
-            for attr_field in attr.fields(attrs_klass)
+            for attr_field in attr.fields(attrs_class)
         }
     )
 
 
-def schema_for_attrs_class(attrs_klass: Type) -> Schema:
-    schema_definition = schema_def_from_attrs_class(attrs_klass=attrs_klass)
+class AttrsSchema:
+    _attrs_class: Type
+    _schema_definition: SchemaDefinition
 
-    class AttrsSchema:
-        _schema_definition = schema_definition
+    @classmethod
+    def clean(cls, data, context=empty):
+        result = clean_schema(cls._schema_definition, data, context)
+        if isinstance(result, ValidationError):
+            return result
+        else:
+            return cls._attrs_class(**result)
 
-        @classmethod
-        def clean(cls, data, context=empty):
-            result = clean_schema(schema_definition, data, context)
-            if isinstance(result, ValidationError):
-                return result
-            else:
-                return attrs_klass(**result)
+
+def schema_for_attrs_class(attrs_class: Type) -> Schema:
+    schema_definition = schema_def_from_attrs_class(attrs_class=attrs_class)
 
     return type(
-        f'{attrs_klass.__name__}Schema',
-        (
-            AttrsSchema,
-            Schema,
-        ),
-        {},
+        f'{attrs_class.__name__}Schema',
+        (AttrsSchema,),
+        {'_schema_definition': schema_definition, '_attrs_class': attrs_class},
     )
