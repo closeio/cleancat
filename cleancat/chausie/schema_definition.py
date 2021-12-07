@@ -94,12 +94,13 @@ def serialize(
     schema_definition: SchemaDefinition, data: Dict[str, Any]
 ) -> Dict:
     """Serialize a schema to a dictionary, respecting serialization settings."""
-    return {
+    result = {
         (field_def.serialize_to or field_name): field_def.serialize_func(
             data[field_name]
         )
         for field_name, field_def in schema_definition.fields.items()
     }
+    return {k:v for k, v in result.items() if v is not omitted}
 
 
 def getter(dict_or_obj, field_name, default):

@@ -39,6 +39,15 @@ if TYPE_CHECKING:
 class ValidationError:
     errors: List["Error"]
 
+    def serialize(self) -> Dict:
+        """Serialize field-level errors dict.
+
+        This is useful for rest responses and test assertions.
+        """
+        return {
+            'errors': [{'msg': e.msg, 'field': e.field} for e in self.errors]
+        }
+
 
 @attr.frozen
 class Error:
@@ -158,13 +167,14 @@ class Field(Generic[FType]):
                 if self.nullability.allow_none:
                     return Value(value)
                 else:
+                    if isinstance(self.nullability, Required):
+                        msg = "Value is required, and must not be None."
+                    else:
+                        msg = "Value must not be None."
+
                     return Errors(
                         field=field,
-                        errors=[
-                            Error(
-                                msg="Value is required, and must not be None."
-                            )
-                        ],
+                        errors=[Error(msg=msg)],
                     )
 
             if isinstance(self.nullability, Required):
