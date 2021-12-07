@@ -8,7 +8,7 @@ from cleancat.chausie.field import (
     Required,
     ValidationError,
 )
-from cleancat.chausie.schema import Schema, field_def_from_annotation
+from cleancat.chausie.schema import field_def_from_annotation
 
 from cleancat.chausie.schema_definition import (
     SchemaDefinition,

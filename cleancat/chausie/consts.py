@@ -20,4 +20,5 @@ class EMPTY:
     def __str__(self) -> str:
         return "empty"
 
+
 empty = EMPTY()

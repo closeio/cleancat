@@ -100,7 +100,7 @@ def serialize(
         )
         for field_name, field_def in schema_definition.fields.items()
     }
-    return {k:v for k, v in result.items() if v is not omitted}
+    return {k: v for k, v in result.items() if v is not omitted}
 
 
 def getter(dict_or_obj, field_name, default):
