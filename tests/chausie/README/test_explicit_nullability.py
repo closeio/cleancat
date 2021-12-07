@@ -1,5 +1,5 @@
 from typing import Optional, Union
-from cleancat.chausie.consts import OMITTED, omitted
+from cleancat.chausie.consts import OMITTED
 from cleancat.chausie.field import (
     field,
     strfield,
