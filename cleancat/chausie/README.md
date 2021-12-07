@@ -13,11 +13,11 @@ Key features:
 * Explicit nullability/omission parameters
 * Errors returned for multiple fields at a time, with field attribution
 
-## Examples
+## CleanChausie By Example
 
 ### Basic example in Flask
 
-This is a direct port of the example from the cleancat README.
+This is a direct port of the example from the OG cleancat README.
 
 This shows:
 * Annotation-based declarations for simple fields.
@@ -34,7 +34,7 @@ from flask import app, request, jsonify
 class JobApplication(Schema):
     first_name: str
     last_name: str
-    email: str = field(emailfield)
+    email: str = field(emailfield())
     urls: List[str] = field(listfield(urlfield(default_scheme='http://')))
 
 @app.route('/job_application', methods=['POST'])
