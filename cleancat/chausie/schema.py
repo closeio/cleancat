@@ -87,7 +87,10 @@ def _check_for_dependency_loops(fields: Dict[str, Field]) -> None:
 
         if len(seen) == prog:
             # no progress was made
-            raise ValueError("Field dependencies could not be resolved.")
+            raise ValueError(
+                "Field dependencies could not be resolved. "
+                f"Seen fields: {seen}; Remaining Deps: {deps}"
+            )
 
 
 class SchemaMetaclass(type):

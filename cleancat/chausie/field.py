@@ -223,10 +223,13 @@ class Field(Generic[FType]):
                     )
                     for idx, inner_value in enumerate(result.value)
                 ]
-                errors = Errors(
-                    field=field,
-                    errors=[r for r in inner_results if isinstance(r, Error)],
-                )
+                flattened_errors = []
+                for r in inner_results:
+                    if isinstance(r, Error):
+                        flattened_errors.append(r)
+                    elif isinstance(r, Errors):
+                        flattened_errors.extend(r.flatten())
+                errors = Errors(field=field, errors=flattened_errors)
                 if errors.errors:
                     return errors
                 else:
@@ -376,9 +379,11 @@ class WrapperField:
     def __init__(self, inner_field: Field):
         self.inner_field = inner_field
 
-    def __call__(self, value: Any) -> Union[UnvalidatedWrappedValue, Error]:
+    def __call__(
+        self, value: Any
+    ) -> Union[UnvalidatedWrappedValue, Error, Errors]:
         result = self.impl(value)
-        if not isinstance(result, Error):
+        if not isinstance(result, (Error, Errors)):
             return UnvalidatedWrappedValue(
                 inner_field=self.inner_field,
                 construct=self.construct,
@@ -550,6 +555,33 @@ def urlfield(
         return value
 
     return _urlfield
+
+
+def emailfield(max_length=254) -> Field:
+    email_regex = (
+        r'^(?:[^\.@\s]|[^\.@\s]\.(?!\.))*[^.@\s]@'
+        r'[^.@\s](?:[^\.@\s]|\.(?!\.))*\.[a-z]{2,63}$'
+    )
+    regex_flags = re.IGNORECASE
+
+    def _email_field(value: str) -> str:
+        # trim any leading/trailing whitespace before validating the email
+        ret = value.strip()
+
+        # only allow up to max_length
+        if len(ret) > max_length:
+            return Error(f"Email exceeds max length of {max_length}")
+
+        return ret
+
+    return field(
+        noop,
+        parents=(
+            strfield,
+            _email_field,
+            regexfield(regex=email_regex, flags=regex_flags),
+        ),
+    )
 
 
 FIELD_TYPE_MAP = {
