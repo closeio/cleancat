@@ -1,6 +1,7 @@
 import datetime
 import inspect
 import re
+from operator import attrgetter
 from uuid import UUID as PythonUUID
 
 import pytz
@@ -670,6 +671,8 @@ class SortedSet(List):
 
     def __init__(self, field_instance, max_length=None, key=None, **kwargs):
         super(SortedSet, self).__init__(field_instance, max_length, **kwargs)
+        if isinstance(field_instance, Enum) and key is None:
+            key = attrgetter('value')
         self.key = key
 
     def clean(self, value):

@@ -504,6 +504,17 @@ class TestSortedSetField:
         )
         assert sorted_set == [ClassWithID(1), ClassWithID(2)]
 
+    def test_it_sorts_enums(self):
+        class MyChoices(enum.Enum):
+            A = 'a'
+            B = 'b'
+            C = 'c'
+
+        sorted_set = SortedSet(Enum(MyChoices)).clean(
+            [MyChoices.C.value, MyChoices.B.value, MyChoices.A.value]
+        )
+        assert sorted_set == [MyChoices.A, MyChoices.B, MyChoices.C]
+
     def test_it_enforces_required_flag(self):
         expected_err_msg = 'This field is required.'
         with pytest.raises(ValidationError, match=expected_err_msg):
