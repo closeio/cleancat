@@ -2,7 +2,12 @@ import io
 import re
 from setuptools import setup
 
-install_requirements = ['python-dateutil', 'pytz']
+install_requirements = [
+    'python-dateutil',
+    'pytz',
+    'attrs',
+    "typing_extensions; python_version < '3.8'",
+]
 test_requirements = install_requirements + [
     'pytest',
     'coverage',

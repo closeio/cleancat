@@ -20,6 +20,7 @@ from cleancat.base import (
     URL,
     ValidationError,
 )
+from . import chausie
 
 __all__ = [
     'Bool',
@@ -42,6 +43,7 @@ __all__ = [
     'TrimmedString',
     'URL',
     'ValidationError',
+    'chausie',
 ]
 
-__version__ = '1.0.0'
+__version__ = '1.1.0'
