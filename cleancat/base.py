@@ -190,9 +190,17 @@ class DateTime(Regex):
     regex = "^([\\+-]?\\d{4}(?!\\d{2}\\b))((-?)((0[1-9]|1[0-2])(\\3([12]\\d|0[1-9]|3[01]))?|W([0-4]\\d|5[0-2])(-?[1-7])?|(00[1-9]|0[1-9]\\d|[12]\\d{2}|3([0-5]\\d|6[1-6])))([T\\s]((([01]\\d|2[0-3])((:?)[0-5]\\d)?|24\\:?00)([\\.,]\\d+(?!:))?)?(\\17[0-5]\\d([\\.,]\\d+)?)?([zZ]|([\\+-])([01]\\d|2[0-3]):?([0-5]\\d)?)?)?)?$"
     regex_message = 'Invalid ISO 8601 datetime.'
     blank_value = None
+    no_time_as_date: bool
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, no_time_as_date: bool = False, **kwargs):
+        """
+        param no_time_as_date: bool 
+        set no_time_as_date = True if you want to return as date type when there is no time
+        this is added to switch to be compatible with the older behaviour after the fix
+        "DateTime should always return a datetime.datetime #45" applied
+        """
         self.min_date = kwargs.pop('min_date', None)
+        self.no_time_as_date = no_time_as_date
         super(DateTime, self).__init__(*args, **kwargs)
 
     def clean(self, value):
@@ -216,6 +224,10 @@ class DateTime(Regex):
                     self.min_date.strftime('%Y-%m-%d')
                 )
                 raise ValidationError(err_msg)
+
+        # added to resolve issue #45 DateTime should always return a datetime.datetime
+        if not self.no_time_as_date:
+            return dt
 
         time_group = match.groups()[11]
         if time_group and len(time_group) > 1:
