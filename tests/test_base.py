@@ -263,6 +263,16 @@ class TestDateTimeField:
     def test_it_accepts_date_string(self):
         assert DateTime().clean('2012-10-09') == datetime.date(2012, 10, 9)
 
+    def test_it_forces_datetime_resolution(self):
+        ret_dt = DateTime(force_datetime=True).clean("2012-10-09")
+        assert isinstance(ret_dt, datetime.datetime)
+        assert ret_dt == datetime.datetime(2012, 10, 9)
+
+        ret_date = DateTime(force_datetime=False).clean("2012-10-09")
+        assert isinstance(ret_date, datetime.date)
+        assert not isinstance(ret_date, datetime.datetime)
+        assert ret_date == datetime.date(2012, 10, 9)
+
     def test_it_accepts_datetime_string(self):
         expected = datetime.datetime(2012, 10, 9, 13, 10, 4)
         assert DateTime().clean('2012-10-09 13:10:04') == expected
