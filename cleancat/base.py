@@ -380,19 +380,19 @@ class List(Field):
     base_type = list
     blank_value = []
 
-    def __init__(self, field_instance, max_length=None, **kwargs):
+    def __init__(
+        self, field_instance, max_length=None, allow_empty=False, **kwargs
+    ):
         self.max_length = max_length
+        self.allow_empty = allow_empty
         super(List, self).__init__(**kwargs)
         self.field_instance = field_instance
-
-    def has_value(self, value):
-        return bool(value)
 
     def clean(self, value):
         value = super(List, self).clean(value)
 
         item_cnt = len(value)
-        if self.required and not item_cnt:
+        if not self.allow_empty and not item_cnt:
             raise ValidationError('List must not be empty.')
 
         if self.max_length and item_cnt > self.max_length:
