@@ -1,6 +1,5 @@
-flake8
-mongoengine
-python-dateutil
-pytest
 pytz
-sqlalchemy
+dnsq    # required by flanker
+redis   # required by flanker
+flanker
+python-dateutil

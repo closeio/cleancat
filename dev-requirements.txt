@@ -1,0 +1,6 @@
+flake8
+coverage
+mongoengine
+sqlalchemy
+pytest
+pytest-sugar
