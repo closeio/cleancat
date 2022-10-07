@@ -6,6 +6,7 @@ from uuid import UUID as PythonUUID
 
 import pytz
 from dateutil import parser
+from flanker.addresslib import address
 
 
 # Sentinel value which means "pick the default value" when encountered.
@@ -237,20 +238,26 @@ class DateTime(Regex):
             return value.isoformat()
 
 
-class Email(Regex):
-    regex = (
-        r'^(?:[^\.@\s]|[^\.@\s]\.(?!\.))*[^.@\s]@'
-        r'[^.@\s](?:[^\.@\s]|\.(?!\.))*\.[a-z]{2,63}$'
-    )
-    regex_flags = re.IGNORECASE
-    regex_message = 'Invalid email address.'
+class Email(String):
+    blank_value = ''
     max_length = 254
 
     def clean(self, value):
-        # trim any leading/trailing whitespace before validating the email
-        if isinstance(value, str):
-            value = value.strip()
-        return super(Email, self).clean(value)
+        emsg = None
+        if self.required:
+            if value is None:
+                emsg = 'This field is required.'
+            if self.has_value(value) and not isinstance(value, str):
+                emsg = 'Value must be of str type.'
+            value = super(Email, self).clean(value)
+
+        if not emsg:
+            addr = address.validate_address(value)
+            emsg = 'Invalid email address.' if not addr else emsg
+            if addr:
+                return addr
+
+        raise ValidationError(emsg)
 
 
 class URL(Regex):
