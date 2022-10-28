@@ -261,7 +261,9 @@ class TestRegexField:
 
 class TestDateTimeField:
     def test_it_accepts_date_string(self):
-        assert DateTime().clean('2012-10-09') == datetime.date(2012, 10, 9)
+        # added to resolve issue #45 DateTime should always return a datetime.datetime
+        assert DateTime(no_time_as_date=True).clean('2012-10-09') == datetime.date(2012, 10, 9)
+        assert DateTime().clean('2012-10-09') == datetime.datetime(2012, 10, 9)
 
     def test_it_forces_datetime_resolution(self):
         ret_dt = DateTime(force_datetime=True).clean("2012-10-09")
