@@ -40,7 +40,7 @@ jobs:
     - checkout
     - run:
         name: Install dependencies
-        command: sudo -E pip install black
+        command: sudo -E pip install black==23.3.0
     - run:
         name: Test
         command: black --check .
