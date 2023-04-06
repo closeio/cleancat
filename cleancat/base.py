@@ -21,7 +21,6 @@ class StopValidation(Exception):
 
 
 class Field(object):
-
     # If specified, the field ensures that the supplied value is an instance
     # of this type. Can be either a single specific type (e.g. int) or a tuple
     # of multiple types.
@@ -841,7 +840,6 @@ class Schema(object):
                         and self.orig_data
                         and field_name in self.orig_data
                     ):
-
                         old_value = self.orig_data[field_name]
 
                         # compare datetimes properly, regardless of whether they're offset-naive or offset-aware

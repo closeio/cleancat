@@ -787,7 +787,6 @@ class TestSchemaExternalClean:
 
     @pytest.fixture
     def message_schema_cls(self):
-
         # Generic message schema that may be used in composition with more
         # specific schemas
         class MessageSchema(Schema):
@@ -810,7 +809,6 @@ class TestSchemaExternalClean:
 
     @pytest.fixture
     def email_schema_cls(self, message_schema_cls):
-
         # Specific email schema that also calls the generic message schema
         # via external_clean
         class EmailSchema(Schema):
