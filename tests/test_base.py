@@ -312,7 +312,12 @@ class TestDateTimeField:
 
 class TestEmailField:
     @pytest.mark.parametrize(
-        'value', ['t@e.com', 'test@example.com', 'test.test@example.com']
+        'value',
+        [
+            'foo.bar@close.io',
+            'support@close.com',
+            'xyz.adcdef@gmail.com'
+        ]
     )
     def test_it_accepts_valid_email_addresses(self, value):
         assert Email().clean(value) == value
@@ -337,42 +342,48 @@ class TestEmailField:
         with pytest.raises(ValidationError, match=expected_err_msg):
             Email().clean(value)
 
-    def test_it_autotrims_input(self):
-        assert Email().clean('   test@example.com   ') == 'test@example.com'
+    @pytest.mark.parametrize(
+        'value',
+        [
+            'support@close.com       ',
+            '       support@close.com',
+            '    support@close.com    ',
+        ]
+    )
+    def test_it_autotrims_input(self, value):
+        assert Email().clean(value) == str(value).strip()
 
     @pytest.mark.parametrize(
         'value, valid',
         [
-            ('{u}@{d}.{d}.{d}.example'.format(u='u' * 54, d='d' * 63), True),
+            ('{u}.{d}.{u}.{d}@close.com'.format(u='u' * 50, d='d' * 60), True),
             # Emails must not be longer than 254 characters.
             ('{u}@{d}.{d}.{d}.example'.format(u='u' * 55, d='d' * 63), False),
         ],
     )
     def test_it_enforces_max_email_address_length(self, value, valid):
         field = Email()
-        if valid:
-            assert field.clean(value) == value
-        else:
-            err_msg = 'The value must be no longer than 254 characters.'
-            with pytest.raises(ValidationError, match=err_msg):
-                field.clean(value)
+        emsg = 'Invalid email address.' if valid else\
+               'The value must be no longer than 254 characters'
+        with pytest.raises(ValidationError, match=emsg):
+            field.clean(value)
+
+    @pytest.mark.parametrize(
+        'value', [22, 3.14, True, False, (), ('foobar',), ['foo', 'bar']]
+    )
+    def test_it_enforces_valid_data_type(self, value):
+        with pytest.raises(ValidationError, match='Value must be of str type.'):
+            Email().clean(value)
 
     @pytest.mark.parametrize('value', ['', None])
     def test_it_enforces_required_flag(self, value):
-        expected_err_msg = 'This field is required.'
-        with pytest.raises(ValidationError, match=expected_err_msg):
+        with pytest.raises(ValidationError, match='This field is required.'):
             Email().clean(value)
 
     @pytest.mark.parametrize('value', ['', None])
     def test_it_can_be_optional(self, value):
-        with pytest.raises(StopValidation) as e:
+        with pytest.raises(ValidationError, match='Invalid email address.'):
             Email(required=False).clean(value)
-        assert e.value.args[0] == ''
-
-    def test_it_enforces_valid_data_type(self):
-        expected_err_msg = 'Value must be of str type.'
-        with pytest.raises(ValidationError, match=expected_err_msg):
-            Email().clean(True)
 
 
 class TestIntegerField:
@@ -760,7 +771,7 @@ class TestEmbeddedField:
         return UserSchema
 
     def test_it_accepts_valid_input(self, schema_cls):
-        value = {'email': 'valid@example.com'}
+        value = {'email': 'support@close.com'}
         assert Embedded(schema_cls).clean(value) == value
 
     def test_it_performs_validation_of_embedded_schema(self, schema_cls):
