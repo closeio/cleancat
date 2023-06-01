@@ -28,4 +28,5 @@ select = [
     "PT",
     "PLE",
     "I",
+    "INP",
 ]
