@@ -317,25 +317,23 @@ class URL(Regex):
         if not self.scheme_regex.match(value):
             value = self.default_scheme + value
 
-        if self.allowed_schemes:
-            if not any(
-                allowed_regex.match(value)
-                for allowed_regex in self.allowed_schemes_regexes
-            ):
-                allowed_schemes_text = " or ".join(self.allowed_schemes)
-                err_msg = (
-                    "This URL uses a scheme that's not allowed. You can only "
-                    "use %s." % allowed_schemes_text
-                )
-                raise ValidationError(err_msg)
+        if self.allowed_schemes and not any(
+            allowed_regex.match(value)
+            for allowed_regex in self.allowed_schemes_regexes
+        ):
+            allowed_schemes_text = " or ".join(self.allowed_schemes)
+            err_msg = (
+                "This URL uses a scheme that's not allowed. You can only "
+                "use %s." % allowed_schemes_text
+            )
+            raise ValidationError(err_msg)
 
-        if self.disallowed_schemes:
-            if any(
-                disallowed_regex.match(value)
-                for disallowed_regex in self.disallowed_schemes_regexes
-            ):
-                err_msg = "This URL uses a scheme that's not allowed."
-                raise ValidationError(err_msg)
+        if self.disallowed_schemes and any(
+            disallowed_regex.match(value)
+            for disallowed_regex in self.disallowed_schemes_regexes
+        ):
+            err_msg = "This URL uses a scheme that's not allowed."
+            raise ValidationError(err_msg)
 
         return value
 
