@@ -10,13 +10,13 @@ from cleancat.mongo import (
 )
 
 
-@pytest.fixture
-def mongodb():
+@pytest.fixture()
+def _mongodb():
     connect(db="cleancat_test")
 
 
-@pytest.fixture
-def person_cls(mongodb):
+@pytest.fixture()
+def person_cls(_mongodb):
     class Person(Document):
         name = StringField()
 
@@ -25,14 +25,14 @@ def person_cls(mongodb):
 
 
 class TestMongoEmbedded:
-    @pytest.fixture
+    @pytest.fixture()
     def doc_cls(self):
         class EmbeddedPerson(EmbeddedDocument):
             name = StringField()
 
         return EmbeddedPerson
 
-    @pytest.fixture
+    @pytest.fixture()
     def schema_cls(self):
         class EmbeddedPersonSchema(Schema):
             name = String(min_length=2)
@@ -84,7 +84,7 @@ class TestMongoReferenceField:
 
 
 class TestSchemaWithMongoEmbeddedReferenceField:
-    @pytest.fixture
+    @pytest.fixture()
     def schema_cls(self, person_cls):
         class PersonSchema(Schema):
             name = String()

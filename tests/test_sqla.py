@@ -17,7 +17,7 @@ class Person(Base):
     age = sa.Column(sa.Integer)
 
 
-@pytest.fixture
+@pytest.fixture()
 def sqla_session():
     """Set up an SQLA connection, create all tables, and return a session."""
     engine = sa.create_engine("sqlite:///:memory:")
@@ -57,7 +57,7 @@ class TestSQLAReferenceField:
 
 @pytest.mark.usefixtures("sqla_session")
 class TestSchemaWithSQLAEmbeddedReference:
-    @pytest.fixture
+    @pytest.fixture()
     def book_schema_cls(self):
         class PersonSchema(Schema):
             name = String()
