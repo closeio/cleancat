@@ -398,6 +398,8 @@ class List(Field):
                 cleaned_data = self.field_instance.clean(item)
             except ValidationError as e:
                 errors[n] = e.args and e.args[0]
+            except StopValidation as e:
+                data.append(e.args and e.args[0])
             else:
                 data.append(cleaned_data)
 
@@ -992,11 +994,11 @@ class CleanDict(Dict):
                 errors[key] = e.args and e.args[0]
             else:
                 try:
-                    cleaned_value = self.value_schema.clean(item_value)
+                    data[cleaned_key] = self.value_schema.clean(item_value)
                 except ValidationError as e:
                     errors[key] = e.args and e.args[0]
-                else:
-                    data[cleaned_key] = cleaned_value
+                except StopValidation as e:
+                    data[cleaned_key] = e.args and e.args[0]
 
         if errors:
             raise ValidationError({"errors": errors})
