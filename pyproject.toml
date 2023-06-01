@@ -7,3 +7,10 @@ exclude = '''
   | \.venv
 )/
 '''
+
+[tool.ruff]
+target-version = "py38"
+line-length = 79
+ignore = [
+    "E501",
+]
