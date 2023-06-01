@@ -1,4 +1,3 @@
-import io
 import re
 from setuptools import setup
 
@@ -11,7 +10,7 @@ test_requirements = install_requirements + [
 ]
 
 VERSION_FILE = "cleancat/__init__.py"
-with io.open(VERSION_FILE, "rt", encoding="utf8") as f:
+with open(VERSION_FILE, encoding="utf8") as f:
     version = re.search(r'__version__ = ([\'"])(.*?)\1', f.read()).group(2)
 
 setup(

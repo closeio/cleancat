@@ -20,7 +20,7 @@ class StopValidation(Exception):
     pass
 
 
-class Field(object):
+class Field:
     # If specified, the field ensures that the supplied value is an instance
     # of this type. Can be either a single specific type (e.g. int) or a tuple
     # of multiple types.
@@ -106,7 +106,7 @@ class String(Field):
             self.min_length = min_length
         if max_length is not None:
             self.max_length = max_length
-        super(String, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
     def _check_length(self, value):
         if self.max_length is not None and len(value) > self.max_length:
@@ -122,7 +122,7 @@ class String(Field):
             raise ValidationError(err_msg)
 
     def clean(self, value):
-        value = super(String, self).clean(value)
+        value = super().clean(value)
         self._check_length(value)
         return value
 
@@ -161,7 +161,7 @@ class Regex(String):
     def __init__(
         self, regex=None, regex_flags=None, regex_message=None, **kwargs
     ):
-        super(Regex, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         if regex is not None:
             self.regex = regex
         if regex_flags is not None:
@@ -175,7 +175,7 @@ class Regex(String):
         return self._compiled_regex
 
     def clean(self, value):
-        value = super(Regex, self).clean(value)
+        value = super().clean(value)
 
         if not self.get_regex().match(value):
             raise ValidationError(self.regex_message)
@@ -199,7 +199,7 @@ class DateTime(Regex):
         """
         self.min_date = kwargs.pop("min_date", None)
         self._force_datetime = force_datetime
-        super(DateTime, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def clean(self, value):
         # XXX we're skipping a level of inheritance so that we can reuse
@@ -249,7 +249,7 @@ class Email(Regex):
         # trim any leading/trailing whitespace before validating the email
         if isinstance(value, str):
             value = value.strip()
-        return super(Email, self).clean(value)
+        return super().clean(value)
 
 
 class URL(Regex):
@@ -261,7 +261,7 @@ class URL(Regex):
         default_scheme=None,
         allowed_schemes=None,
         disallowed_schemes=None,
-        **kwargs
+        **kwargs,
     ):
         def normalize_scheme(sch):
             if sch.endswith("://") or sch.endswith(":"):
@@ -285,15 +285,12 @@ class URL(Regex):
         self.scheme_regex = re.compile("^" + scheme_part, re.IGNORECASE)
         if default_scheme:
             scheme_part = "(%s)?" % scheme_part
-        regex = (
-            r"^%s([-%s@:%%_+.~#?&/\\=]{1,256}%s|([0-9]{1,3}\.){3}[0-9]{1,3})(:[0-9]+)?([/?].*)?$"
-            % (scheme_part, alpha_numeric_and_symbols_ranges, tld_part)
-        )
-        super(URL, self).__init__(
+        regex = rf"^{scheme_part}([-{alpha_numeric_and_symbols_ranges}@:%_+.~#?&/\\=]{{1,256}}{tld_part}|([0-9]{{1,3}}\.){{3}}[0-9]{{1,3}})(:[0-9]+)?([/?].*)?$"
+        super().__init__(
             regex=regex,
             regex_flags=re.IGNORECASE | re.UNICODE,
             regex_message="Invalid URL.",
-            **kwargs
+            **kwargs,
         )
 
         def compile_schemes_to_regexes(schemes):
@@ -313,7 +310,7 @@ class URL(Regex):
         )
 
     def clean(self, value):
-        value = super(URL, self).clean(value)
+        value = super().clean(value)
         if not self.scheme_regex.match(value):
             value = self.default_scheme + value
 
@@ -346,7 +343,7 @@ class RelaxedURL(URL):
     def clean(self, value):
         if not self.required and value == self.default_scheme:
             return None
-        value = super(RelaxedURL, self).clean(value)
+        value = super().clean(value)
         return value
 
 
@@ -356,7 +353,7 @@ class Integer(Field):
     def __init__(self, min_value=None, max_value=None, **kwargs):
         self.max_value = max_value
         self.min_value = min_value
-        super(Integer, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
     def _check_value(self, value):
         if self.max_value is not None and value > self.max_value:
@@ -368,7 +365,7 @@ class Integer(Field):
             raise ValidationError(err_msg)
 
     def clean(self, value):
-        value = super(Integer, self).clean(value)
+        value = super().clean(value)
         self._check_value(value)
         return value
 
@@ -379,14 +376,14 @@ class List(Field):
 
     def __init__(self, field_instance, max_length=None, **kwargs):
         self.max_length = max_length
-        super(List, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.field_instance = field_instance
 
     def has_value(self, value):
         return bool(value)
 
     def clean(self, value):
-        value = super(List, self).clean(value)
+        value = super().clean(value)
 
         item_cnt = len(value)
         if self.required and not item_cnt:
@@ -430,11 +427,11 @@ class Dict(Field):
 
 class Embedded(Dict):
     def __init__(self, schema_class, **kwargs):
-        super(Embedded, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.schema_class = schema_class
 
     def clean(self, value):
-        value = super(Embedded, self).clean(value)
+        value = super().clean(value)
         try:
             cleaned_value = self.schema_class(value).full_clean()
         except ValidationError as e:
@@ -472,11 +469,11 @@ class EmbeddedReference(Dict):
         self.object_class = object_class
         self.schema_class = schema_class
         self.pk_field = pk_field
-        super(EmbeddedReference, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
     def clean(self, value):
         # Clean the dict first.
-        value = super(EmbeddedReference, self).clean(value)
+        value = super().clean(value)
 
         # Then, depending on whether `pk_field` is in the dict of submitted
         # values or not, update an existing object or create a new one.
@@ -564,10 +561,10 @@ class Reference(Field):
 
     def __init__(self, object_class, **kwargs):
         self.object_class = object_class
-        super(Reference, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
     def clean(self, value):
-        obj_id = super(Reference, self).clean(value)
+        obj_id = super().clean(value)
         try:
             return self.fetch_object(obj_id)
         except ReferenceNotFoundError as e:
@@ -598,9 +595,9 @@ class Choices(Field):
         choices,
         case_insensitive=False,
         error_invalid_choice=None,
-        **kwargs
+        **kwargs,
     ):
-        super(Choices, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.choices = choices
         self.case_insensitive = case_insensitive
         self.error_invalid_choice = (
@@ -616,7 +613,7 @@ class Choices(Field):
         )
 
     def clean(self, value):
-        value = super(Choices, self).clean(value)
+        value = super().clean(value)
 
         choices = self.get_choices()
 
@@ -659,13 +656,13 @@ class Enum(Choices):
         else:
             assert choices, "You need to provide at least one enum choice."
             self.enum_cls = choices[0].__class__
-        return super(Enum, self).__init__(choices, **kwargs)
+        return super().__init__(choices, **kwargs)
 
     def get_choices(self):
         return [choice.value for choice in self.choices]
 
     def clean(self, value):
-        value = super(Enum, self).clean(value)
+        value = super().clean(value)
         return self.enum_cls(value)
 
     def serialize(self, choice):
@@ -677,16 +674,16 @@ class SortedSet(List):
     """Sorted, unique set of values represented as a list."""
 
     def __init__(self, field_instance, max_length=None, key=None, **kwargs):
-        super(SortedSet, self).__init__(field_instance, max_length, **kwargs)
+        super().__init__(field_instance, max_length, **kwargs)
         if isinstance(field_instance, Enum) and key is None:
             key = attrgetter("value")
         self.key = key
 
     def clean(self, value):
-        return sorted(set(super(SortedSet, self).clean(value)), key=self.key)
+        return sorted(set(super().clean(value)), key=self.key)
 
 
-class Schema(object):
+class Schema:
     """
     Base Schema class. Provides core behavior like fields declaration
     and construction, validation, and data and error proxying.
@@ -927,15 +924,15 @@ class PolymorphicField(Dict):
         type_field=DEFAULT_TYPE_FIELD,
         keep_type_field=False,
         *args,
-        **kwargs
+        **kwargs,
     ):
-        super(PolymorphicField, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.type_map = type_map or {}
         self.type_field = type_field
         self.keep_type_field = keep_type_field
 
     def clean(self, value):
-        clean = super(PolymorphicField, self).clean(value)
+        clean = super().clean(value)
         field_type = clean.get(self.type_field)
         if field_type not in self.type_map:
             raise ValidationError(
@@ -963,7 +960,7 @@ class UUID(String):
     blank_value = None
 
     def clean(self, value):
-        value = super(UUID, self).clean(value)
+        value = super().clean(value)
         try:
             return PythonUUID(value)
         except ValueError as e:
@@ -977,13 +974,13 @@ class CleanDict(Dict):
     """A dictionary in which both keys and values are validated with separate schema fields."""
 
     def __init__(self, key_schema, value_schema, max_length=None, **kwargs):
-        super(CleanDict, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.key_schema = key_schema
         self.value_schema = value_schema
         self.max_length = max_length
 
     def clean(self, value):
-        value = super(CleanDict, self).clean(value)
+        value = super().clean(value)
 
         if self.max_length and len(value) > self.max_length:
             raise ValidationError("Dict is too long.")
@@ -1028,13 +1025,13 @@ class EmbeddedFactory(Embedded):
 
     def __init__(self, factory, *args, **kwargs):
         self.factory = factory
-        super(EmbeddedFactory, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def clean(self, value):
         """Clean the provided dict of values and then return an
         an object created using a factory.
         """
-        value = super(EmbeddedFactory, self).clean(value)
+        value = super().clean(value)
         return self.factory(**value)
 
 

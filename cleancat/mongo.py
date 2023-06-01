@@ -23,13 +23,13 @@ class MongoEmbedded(Embedded):
 
     def __init__(self, document_class=None, *args, **kwargs):
         self.document_class = document_class
-        super(MongoEmbedded, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def clean(self, value):
         """Clean the provided dict of values and then return an
         EmbeddedDocument instantiated with them.
         """
-        value = super(MongoEmbedded, self).clean(value)
+        value = super().clean(value)
         return self.document_class(**value)
 
 

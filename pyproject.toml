@@ -22,4 +22,5 @@ select = [
     "SIM",
     "TID",
     "W",
+    "UP",
 ]

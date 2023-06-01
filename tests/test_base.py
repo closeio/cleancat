@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import datetime
 import enum
 import re
@@ -483,7 +482,7 @@ class TestListField:
         assert e.value.args[0] == []
 
 
-class ClassWithID(object):
+class ClassWithID:
     id = None
 
     def __init__(self, id_):
@@ -815,7 +814,7 @@ class TestSchemaExternalClean:
             subject = String()
 
             def full_clean(self):
-                super(EmailSchema, self).full_clean()
+                super().full_clean()
                 self.external_clean(message_schema_cls)
 
         return EmailSchema
@@ -1046,7 +1045,7 @@ class TestSchema:
 def test_polymorphic_field(keep_type_field):
     class Option1(Dict):
         def clean(self, value):
-            value = super(Option1, self).clean(value)
+            value = super().clean(value)
             assert ("type" in value) == keep_type_field
             if "option-1" not in value:
                 raise ValidationError("option-1 not in data")
@@ -1054,7 +1053,7 @@ def test_polymorphic_field(keep_type_field):
 
     class Option2(Dict):
         def clean(self, value):
-            value = super(Option2, self).clean(value)
+            value = super().clean(value)
             assert ("type" in value) == keep_type_field
             if "option-2" not in value:
                 raise ValidationError("option-2 not in data")
@@ -1078,7 +1077,7 @@ def test_polymorphic_field(keep_type_field):
 def test_polymorphic_field_2():
     class Option(Dict):
         def clean(self, value):
-            value = super(Option, self).clean(value)
+            value = super().clean(value)
             if "option" not in value:
                 raise ValidationError("option not in data")
             return value["option"]
@@ -1105,7 +1104,7 @@ def test_lazy_field():
     class SideEffectingInteger(Integer):
         def __init__(self, *args, **kwargs):
             side_effects.append(1)
-            super(SideEffectingInteger, self).__init__(*args, **kwargs)
+            super().__init__(*args, **kwargs)
 
     class TestSchema(Schema):
         lazy_side_effect = LazyField(SideEffectingInteger, required=True)
