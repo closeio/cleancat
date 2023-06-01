@@ -50,7 +50,7 @@ class SQLAReference(Reference):
 
     def __init__(self, object_class, pk_field="id", **kwargs):
         self.pk_field = pk_field
-        super(SQLAReference, self).__init__(object_class, **kwargs)
+        super().__init__(object_class, **kwargs)
 
     def fetch_object(self, model_id):
         """Fetch the model by its ID."""

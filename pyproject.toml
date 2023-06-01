@@ -13,3 +13,20 @@ line-length = 79
 ignore = [
     "E501",
 ]
+
+select = [
+    "B",
+    "E",
+    "F",
+    "C",
+    "SIM",
+    "TID",
+    "W",
+    "UP",
+    "ISC",
+    "PIE",
+    "PT",
+    "PLE",
+    "I",
+    "INP",
+]

@@ -6,7 +6,6 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 from cleancat import Integer, Schema, StopValidation, String, ValidationError
 from cleancat.sqla import SQLAEmbeddedReference, SQLAReference, object_as_dict
 
-
 Base = declarative_base()
 
 
@@ -17,7 +16,7 @@ class Person(Base):
     age = sa.Column(sa.Integer)
 
 
-@pytest.fixture
+@pytest.fixture()
 def sqla_session():
     """Set up an SQLA connection, create all tables, and return a session."""
     engine = sa.create_engine("sqlite:///:memory:")
@@ -57,7 +56,7 @@ class TestSQLAReferenceField:
 
 @pytest.mark.usefixtures("sqla_session")
 class TestSchemaWithSQLAEmbeddedReference:
-    @pytest.fixture
+    @pytest.fixture()
     def book_schema_cls(self):
         class PersonSchema(Schema):
             name = String()

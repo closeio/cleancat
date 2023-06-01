@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import datetime
 import enum
 import re
@@ -83,7 +82,7 @@ class TestStringField:
             String().clean(True)
 
     @pytest.mark.parametrize(
-        "value,valid", [("long enough", True), ("short", False)]
+        ("value", "valid"), [("long enough", True), ("short", False)]
     )
     def test_it_enforces_min_length(self, value, valid):
         field = String(min_length=10)
@@ -95,7 +94,7 @@ class TestStringField:
                 field.clean(value)
 
     @pytest.mark.parametrize(
-        "value,valid",
+        ("value", "valid"),
         [("short is ok", True), ("this is way too long enough", False)],
     )
     def test_it_enforces_max_length(self, value, valid):
@@ -108,7 +107,7 @@ class TestStringField:
                 field.clean(value)
 
     @pytest.mark.parametrize(
-        "value,valid",
+        ("value", "valid"),
         [
             ("right in the middle", True),
             ("too short", False),
@@ -134,7 +133,7 @@ class TestTrimmedStringField:
         assert TrimmedString().clean(value) == value
 
     @pytest.mark.parametrize(
-        "value,expected",
+        ("value", "expected"),
         [
             ("   hello world    ", "hello world"),
             ("   hello   world", "hello   world"),
@@ -162,7 +161,7 @@ class TestTrimmedStringField:
             TrimmedString().clean(True)
 
     @pytest.mark.parametrize(
-        "value,expected",
+        ("value", "expected"),
         [
             ("      valid      ", "valid"),
             ("        x        ", None),
@@ -341,7 +340,7 @@ class TestEmailField:
         assert Email().clean("   test@example.com   ") == "test@example.com"
 
     @pytest.mark.parametrize(
-        "value, valid",
+        ("value", "valid"),
         [
             ("{u}@{d}.{d}.{d}.example".format(u="u" * 54, d="d" * 63), True),
             # Emails must not be longer than 254 characters.
@@ -381,7 +380,7 @@ class TestIntegerField:
         assert Integer().clean(value) == value
 
     @pytest.mark.parametrize(
-        "value, valid", [(10, True), (0, True), (-1, False)]
+        ("value", "valid"), [(10, True), (0, True), (-1, False)]
     )
     def test_it_enforces_min_value(self, value, valid):
         field = Integer(min_value=0)
@@ -393,7 +392,7 @@ class TestIntegerField:
                 field.clean(value)
 
     @pytest.mark.parametrize(
-        "value, valid", [(-1, True), (0, True), (100, True), (101, False)]
+        ("value", "valid"), [(-1, True), (0, True), (100, True), (101, False)]
     )
     def test_it_enforces_max_value(self, value, valid):
         field = Integer(max_value=100)
@@ -405,7 +404,7 @@ class TestIntegerField:
                 field.clean(value)
 
     @pytest.mark.parametrize(
-        "value, valid",
+        ("value", "valid"),
         [(-1, False), (0, True), (50, True), (100, True), (101, False)],
     )
     def test_it_enforces_min_and_max_value(self, value, valid):
@@ -454,7 +453,7 @@ class TestListField:
         )
 
     @pytest.mark.parametrize(
-        "value, valid",
+        ("value", "valid"),
         [
             (["a", "b"], True),
             (["a", "b", "c"], True),
@@ -483,7 +482,7 @@ class TestListField:
         assert e.value.args[0] == []
 
 
-class ClassWithID(object):
+class ClassWithID:
     id = None
 
     def __init__(self, id_):
@@ -543,7 +542,7 @@ class TestSortedSetField:
 
 
 class TestEnumField:
-    @pytest.fixture
+    @pytest.fixture()
     def enum_cls(self):
         class MyChoices(enum.Enum):
             A = "a"
@@ -623,7 +622,7 @@ class TestURLField:
             URL().clean(value)
 
     @pytest.mark.parametrize(
-        "value, expected",
+        ("value", "expected"),
         [
             ("http://example.com/a?b=c", "http://example.com/a?b=c"),
             ("ftp://ftp.example.com", "ftp://ftp.example.com"),
@@ -640,7 +639,7 @@ class TestURLField:
             pytest.raises(ValidationError, field.clean, value)
 
     @pytest.mark.parametrize(
-        "value, expected",
+        ("value", "expected"),
         [
             ("https://example.com/", "https://example.com/"),
             ("example.com/", "https://example.com/"),
@@ -660,7 +659,7 @@ class TestURLField:
                 field.clean(value)
 
     @pytest.mark.parametrize(
-        "value, expected",
+        ("value", "expected"),
         [
             ("https://example.com/", "https://example.com/"),
             ("ftp://ftp.example.com", "ftp://ftp.example.com"),
@@ -680,7 +679,7 @@ class TestURLField:
                 field.clean(value)
 
     @pytest.mark.parametrize(
-        "value, expected",
+        ("value", "expected"),
         [
             ("https://example.com/", "https://example.com/"),
             ("example.com/", "https://example.com/"),
@@ -720,10 +719,10 @@ class TestRelaxedURLField:
         ],
     )
     def test_it_accepts_valid_urls(self, value):
-        RelaxedURL().clean(value) == value
+        assert RelaxedURL().clean(value) == value
 
     @pytest.mark.parametrize(
-        "value, is_required, valid",
+        ("value", "is_required", "valid"),
         [
             ("http://", True, False),
             ("http://", False, True),
@@ -752,7 +751,7 @@ class TestRelaxedURLField:
 
 
 class TestEmbeddedField:
-    @pytest.fixture
+    @pytest.fixture()
     def schema_cls(self):
         class UserSchema(Schema):
             email = Email()
@@ -785,7 +784,7 @@ class TestSchemaExternalClean:
     expected.
     """
 
-    @pytest.fixture
+    @pytest.fixture()
     def message_schema_cls(self):
         # Generic message schema that may be used in composition with more
         # specific schemas
@@ -807,7 +806,7 @@ class TestSchemaExternalClean:
 
         return MessageSchema
 
-    @pytest.fixture
+    @pytest.fixture()
     def email_schema_cls(self, message_schema_cls):
         # Specific email schema that also calls the generic message schema
         # via external_clean
@@ -815,7 +814,7 @@ class TestSchemaExternalClean:
             subject = String()
 
             def full_clean(self):
-                super(EmailSchema, self).full_clean()
+                super().full_clean()
                 self.external_clean(message_schema_cls)
 
         return EmailSchema
@@ -881,7 +880,7 @@ class TestSchema:
         assert data == orig_data
 
     @pytest.mark.parametrize(
-        "old_data, new_data, is_valid",
+        ("old_data", "new_data", "is_valid"),
         [
             (None, {"text": "hello"}, True),
             ({}, {"text": "hello"}, True),
@@ -1046,7 +1045,7 @@ class TestSchema:
 def test_polymorphic_field(keep_type_field):
     class Option1(Dict):
         def clean(self, value):
-            value = super(Option1, self).clean(value)
+            value = super().clean(value)
             assert ("type" in value) == keep_type_field
             if "option-1" not in value:
                 raise ValidationError("option-1 not in data")
@@ -1054,7 +1053,7 @@ def test_polymorphic_field(keep_type_field):
 
     class Option2(Dict):
         def clean(self, value):
-            value = super(Option2, self).clean(value)
+            value = super().clean(value)
             assert ("type" in value) == keep_type_field
             if "option-2" not in value:
                 raise ValidationError("option-2 not in data")
@@ -1078,7 +1077,7 @@ def test_polymorphic_field(keep_type_field):
 def test_polymorphic_field_2():
     class Option(Dict):
         def clean(self, value):
-            value = super(Option, self).clean(value)
+            value = super().clean(value)
             if "option" not in value:
                 raise ValidationError("option not in data")
             return value["option"]
@@ -1105,7 +1104,7 @@ def test_lazy_field():
     class SideEffectingInteger(Integer):
         def __init__(self, *args, **kwargs):
             side_effects.append(1)
-            super(SideEffectingInteger, self).__init__(*args, **kwargs)
+            super().__init__(*args, **kwargs)
 
     class TestSchema(Schema):
         lazy_side_effect = LazyField(SideEffectingInteger, required=True)

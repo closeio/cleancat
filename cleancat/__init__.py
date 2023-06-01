@@ -1,4 +1,5 @@
 from cleancat.base import (
+    URL,
     Bool,
     Choices,
     DateTime,
@@ -17,7 +18,6 @@ from cleancat.base import (
     StopValidation,
     String,
     TrimmedString,
-    URL,
     ValidationError,
 )
 
