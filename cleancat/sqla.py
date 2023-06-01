@@ -48,7 +48,7 @@ class SQLAReference(Reference):
     first).
     """
 
-    def __init__(self, object_class, pk_field='id', **kwargs):
+    def __init__(self, object_class, pk_field="id", **kwargs):
         self.pk_field = pk_field
         super(SQLAReference, self).__init__(object_class, **kwargs)
 

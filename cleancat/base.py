@@ -68,10 +68,10 @@ class Field(object):
         ):
             if isinstance(self.base_type, tuple):
                 allowed_types = [typ.__name__ for typ in self.base_type]
-                allowed_types_text = ' or '.join(allowed_types)
+                allowed_types_text = " or ".join(allowed_types)
             else:
                 allowed_types_text = self.base_type.__name__
-            err_msg = 'Value must be of %s type.' % allowed_types_text
+            err_msg = "Value must be of %s type." % allowed_types_text
             raise ValidationError(err_msg)
 
         if not self.has_value(value):
@@ -79,7 +79,7 @@ class Field(object):
                 raise StopValidation(self.default)
 
             if self.required:
-                raise ValidationError('This field is required.')
+                raise ValidationError("This field is required.")
             else:
                 raise StopValidation(self.blank_value)
 
@@ -97,7 +97,7 @@ class Field(object):
 
 class String(Field):
     base_type = str
-    blank_value = ''
+    blank_value = ""
     min_length = None
     max_length = None
 
@@ -110,13 +110,13 @@ class String(Field):
 
     def _check_length(self, value):
         if self.max_length is not None and len(value) > self.max_length:
-            err_msg = 'The value must be no longer than %s characters.' % (
+            err_msg = "The value must be no longer than %s characters." % (
                 self.max_length
             )
             raise ValidationError(err_msg)
 
         if self.min_length is not None and len(value) < self.min_length:
-            err_msg = 'The value must be at least %s characters long.' % (
+            err_msg = "The value must be at least %s characters long." % (
                 self.min_length
             )
             raise ValidationError(err_msg)
@@ -132,7 +132,7 @@ class String(Field):
 
 class TrimmedString(String):
     base_type = str
-    blank_value = ''
+    blank_value = ""
 
     def clean(self, value):
         # XXX we skip a level of inheritance so that we can perform length
@@ -156,7 +156,7 @@ class Bool(Field):
 class Regex(String):
     regex = None
     regex_flags = 0
-    regex_message = 'Invalid input.'
+    regex_message = "Invalid input."
 
     def __init__(
         self, regex=None, regex_flags=None, regex_message=None, **kwargs
@@ -170,7 +170,7 @@ class Regex(String):
             self.regex_message = regex_message
 
     def get_regex(self):
-        if not getattr(self, '_compiled_regex', None):
+        if not getattr(self, "_compiled_regex", None):
             self._compiled_regex = re.compile(self.regex, self.regex_flags)
         return self._compiled_regex
 
@@ -187,7 +187,7 @@ class DateTime(Regex):
     """ISO 8601 from http://www.pelagodesign.com/blog/2009/05/20/iso-8601-date-validation-that-doesnt-suck/"""
 
     regex = "^([\\+-]?\\d{4}(?!\\d{2}\\b))((-?)((0[1-9]|1[0-2])(\\3([12]\\d|0[1-9]|3[01]))?|W([0-4]\\d|5[0-2])(-?[1-7])?|(00[1-9]|0[1-9]\\d|[12]\\d{2}|3([0-5]\\d|6[1-6])))([T\\s]((([01]\\d|2[0-3])((:?)[0-5]\\d)?|24\\:?00)([\\.,]\\d+(?!:))?)?(\\17[0-5]\\d([\\.,]\\d+)?)?([zZ]|([\\+-])([01]\\d|2[0-3]):?([0-5]\\d)?)?)?)?$"
-    regex_message = 'Invalid ISO 8601 datetime.'
+    regex_message = "Invalid ISO 8601 datetime."
     blank_value = None
     _force_datetime: bool
 
@@ -197,7 +197,7 @@ class DateTime(Regex):
             force_datetime: If True, always return a datetime object, even if
                 the input does not specify a time.
         """
-        self.min_date = kwargs.pop('min_date', None)
+        self.min_date = kwargs.pop("min_date", None)
         self._force_datetime = force_datetime
         super(DateTime, self).__init__(*args, **kwargs)
 
@@ -211,15 +211,15 @@ class DateTime(Regex):
         try:
             dt = parser.parse(value)
         except ValueError:
-            raise ValidationError('Could not parse datetime')
+            raise ValidationError("Could not parse datetime")
         if self.min_date:
             if dt.tzinfo is not None and self.min_date.tzinfo is None:
                 min_date = self.min_date.replace(tzinfo=pytz.utc)
             else:
                 min_date = self.min_date
             if dt < min_date:
-                err_msg = 'Date cannot be earlier than %s.' % (
-                    self.min_date.strftime('%Y-%m-%d')
+                err_msg = "Date cannot be earlier than %s." % (
+                    self.min_date.strftime("%Y-%m-%d")
                 )
                 raise ValidationError(err_msg)
 
@@ -238,11 +238,11 @@ class DateTime(Regex):
 
 class Email(Regex):
     regex = (
-        r'^(?:[^\.@\s]|[^\.@\s]\.(?!\.))*[^.@\s]@'
-        r'[^.@\s](?:[^\.@\s]|\.(?!\.))*\.[a-z]{2,63}$'
+        r"^(?:[^\.@\s]|[^\.@\s]\.(?!\.))*[^.@\s]@"
+        r"[^.@\s](?:[^\.@\s]|\.(?!\.))*\.[a-z]{2,63}$"
     )
     regex_flags = re.IGNORECASE
-    regex_message = 'Invalid email address.'
+    regex_message = "Invalid email address."
     max_length = 254
 
     def clean(self, value):
@@ -264,41 +264,41 @@ class URL(Regex):
         **kwargs
     ):
         def normalize_scheme(sch):
-            if sch.endswith('://') or sch.endswith(':'):
+            if sch.endswith("://") or sch.endswith(":"):
                 return sch
-            return sch + '://'
+            return sch + "://"
 
         # FQDN validation similar to https://github.com/chriso/validator.js/blob/master/src/lib/isFQDN.js
 
         # ff01-ff5f -> full-width chars, not allowed
-        alpha_numeric_and_symbols_ranges = u'0-9a-z\u00a1-\uff00\uff5f-\uffff'
+        alpha_numeric_and_symbols_ranges = "0-9a-z\u00a1-\uff00\uff5f-\uffff"
 
         tld_part = (
             require_tld
-            and r'\.[%s-]{2,63}' % alpha_numeric_and_symbols_ranges
-            or ''
+            and r"\.[%s-]{2,63}" % alpha_numeric_and_symbols_ranges
+            or ""
         )
-        scheme_part = '[a-z]+://'
+        scheme_part = "[a-z]+://"
         self.default_scheme = default_scheme
         if self.default_scheme:
             self.default_scheme = normalize_scheme(self.default_scheme)
-        self.scheme_regex = re.compile('^' + scheme_part, re.IGNORECASE)
+        self.scheme_regex = re.compile("^" + scheme_part, re.IGNORECASE)
         if default_scheme:
-            scheme_part = '(%s)?' % scheme_part
+            scheme_part = "(%s)?" % scheme_part
         regex = (
-            r'^%s([-%s@:%%_+.~#?&/\\=]{1,256}%s|([0-9]{1,3}\.){3}[0-9]{1,3})(:[0-9]+)?([/?].*)?$'
+            r"^%s([-%s@:%%_+.~#?&/\\=]{1,256}%s|([0-9]{1,3}\.){3}[0-9]{1,3})(:[0-9]+)?([/?].*)?$"
             % (scheme_part, alpha_numeric_and_symbols_ranges, tld_part)
         )
         super(URL, self).__init__(
             regex=regex,
             regex_flags=re.IGNORECASE | re.UNICODE,
-            regex_message='Invalid URL.',
+            regex_message="Invalid URL.",
             **kwargs
         )
 
         def compile_schemes_to_regexes(schemes):
             return [
-                re.compile('^' + normalize_scheme(sch) + '.*', re.IGNORECASE)
+                re.compile("^" + normalize_scheme(sch) + ".*", re.IGNORECASE)
                 for sch in schemes
             ]
 
@@ -322,7 +322,7 @@ class URL(Regex):
                 allowed_regex.match(value)
                 for allowed_regex in self.allowed_schemes_regexes
             ):
-                allowed_schemes_text = ' or '.join(self.allowed_schemes)
+                allowed_schemes_text = " or ".join(self.allowed_schemes)
                 err_msg = (
                     "This URL uses a scheme that's not allowed. You can only "
                     "use %s." % allowed_schemes_text
@@ -362,11 +362,11 @@ class Integer(Field):
 
     def _check_value(self, value):
         if self.max_value is not None and value > self.max_value:
-            err_msg = 'The value must not be larger than %d.' % self.max_value
+            err_msg = "The value must not be larger than %d." % self.max_value
             raise ValidationError(err_msg)
 
         if self.min_value is not None and value < self.min_value:
-            err_msg = 'The value must be at least %d.' % self.min_value
+            err_msg = "The value must be at least %d." % self.min_value
             raise ValidationError(err_msg)
 
     def clean(self, value):
@@ -392,10 +392,10 @@ class List(Field):
 
         item_cnt = len(value)
         if self.required and not item_cnt:
-            raise ValidationError('List must not be empty.')
+            raise ValidationError("List must not be empty.")
 
         if self.max_length and item_cnt > self.max_length:
-            raise ValidationError('List is too long.')
+            raise ValidationError("List is too long.")
 
         errors = {}
         data = []
@@ -408,7 +408,7 @@ class List(Field):
                 data.append(cleaned_data)
 
         if errors:
-            raise ValidationError({'errors': errors})
+            raise ValidationError({"errors": errors})
 
         return data
 
@@ -470,7 +470,7 @@ class EmbeddedReference(Dict):
     in the submitted dict.
     """
 
-    def __init__(self, object_class, schema_class, pk_field='id', **kwargs):
+    def __init__(self, object_class, schema_class, pk_field="id", **kwargs):
         self.object_class = object_class
         self.schema_class = schema_class
         self.pk_field = pk_field
@@ -508,7 +508,7 @@ class EmbeddedReference(Dict):
         try:
             obj = self.fetch_existing(existing_pk)
         except ReferenceNotFoundError:
-            raise ValidationError('Object does not exist.')
+            raise ValidationError("Object does not exist.")
         orig_data = self.get_orig_data_from_existing(obj)
 
         # Clean the data (passing the new data dict and the original data to
@@ -573,7 +573,7 @@ class Reference(Field):
         try:
             return self.fetch_object(obj_id)
         except ReferenceNotFoundError:
-            raise ValidationError('Object does not exist.')
+            raise ValidationError("Object does not exist.")
 
     def fetch_object(self, ref_id):
         """Fetch an existing object that corresponds to a given ID.
@@ -606,7 +606,7 @@ class Choices(Field):
         self.choices = choices
         self.case_insensitive = case_insensitive
         self.error_invalid_choice = (
-            error_invalid_choice or 'Not a valid choice.'
+            error_invalid_choice or "Not a valid choice."
         )
 
     def get_choices(self):
@@ -614,7 +614,7 @@ class Choices(Field):
 
     def format_invalid_choice_msg(self, value):
         return self.error_invalid_choice.format(
-            value=value, valid_choices=', '.join(self.get_choices())
+            value=value, valid_choices=", ".join(self.get_choices())
         )
 
     def clean(self, value):
@@ -626,7 +626,7 @@ class Choices(Field):
             choices = {choice.lower(): choice for choice in choices}
 
             if not isinstance(value, str):
-                raise ValidationError(u'Value needs to be a string.')
+                raise ValidationError("Value needs to be a string.")
 
             if value.lower() not in choices:
                 err_msg = self.format_invalid_choice_msg(value)
@@ -659,7 +659,7 @@ class Enum(Choices):
         if is_cls:
             self.enum_cls = choices
         else:
-            assert choices, 'You need to provide at least one enum choice.'
+            assert choices, "You need to provide at least one enum choice."
             self.enum_cls = choices[0].__class__
         return super(Enum, self).__init__(choices, **kwargs)
 
@@ -681,7 +681,7 @@ class SortedSet(List):
     def __init__(self, field_instance, max_length=None, key=None, **kwargs):
         super(SortedSet, self).__init__(field_instance, max_length, **kwargs)
         if isinstance(field_instance, Enum) and key is None:
-            key = attrgetter('value')
+            key = attrgetter("value")
         self.key = key
 
     def clean(self, value):
@@ -784,18 +784,18 @@ class Schema(object):
     def __init__(self, raw_data=None, data=None):
         conflicting_fields = set(
             [
-                'raw_data',
-                'orig_data',
-                'data',
-                'errors',
-                'field_errors',
-                'fields',
+                "raw_data",
+                "orig_data",
+                "data",
+                "errors",
+                "field_errors",
+                "fields",
             ]
         ).intersection(dir(self))
         if conflicting_fields:
             raise Exception(
-                'The following field names are reserved and need to be renamed: %s. '
-                'Please use the field_name keyword to use them.'
+                "The following field names are reserved and need to be renamed: %s. "
+                "Please use the field_name keyword to use them."
                 % list(conflicting_fields)
             )
 
@@ -821,7 +821,7 @@ class Schema(object):
     def full_clean(self):
         if not isinstance(self.raw_data, dict):
             raise ValidationError(
-                {'errors': ['Invalid request: JSON dictionary expected.']}
+                {"errors": ["Invalid request: JSON dictionary expected."]}
             )
 
         for field_name, field in self.fields.items():
@@ -856,7 +856,7 @@ class Schema(object):
                             )
 
                         if value != old_value:
-                            raise ValidationError('Value cannot be changed.')
+                            raise ValidationError("Value cannot be changed.")
 
                     self.data[field_name] = value
 
@@ -876,7 +876,7 @@ class Schema(object):
     def raise_on_errors(self):
         if self.field_errors or self.errors:
             raise ValidationError(
-                {'field-errors': self.field_errors, 'errors': self.errors}
+                {"field-errors": self.field_errors, "errors": self.errors}
             )
 
     def external_clean(self, cls, raise_on_errors=True):
@@ -890,8 +890,8 @@ class Schema(object):
             # Validate the schema and update self.data with its results.
             self.data.update(external_schema.full_clean())
         except ValidationError as e:
-            self.field_errors.update(e.args[0]['field-errors'])
-            self.errors += e.args[0]['errors']
+            self.field_errors.update(e.args[0]["field-errors"])
+            self.errors += e.args[0]["errors"]
             if raise_on_errors:
                 self.raise_on_errors()
 
@@ -904,7 +904,7 @@ class Schema(object):
         return data
 
 
-DEFAULT_TYPE_FIELD = 'type'
+DEFAULT_TYPE_FIELD = "type"
 
 
 class PolymorphicField(Dict):
@@ -945,8 +945,8 @@ class PolymorphicField(Dict):
         field_type = clean.get(self.type_field)
         if field_type not in self.type_map:
             raise ValidationError(
-                '{} must be one of {}'.format(
-                    self.type_field, ','.join(self.type_map.keys())
+                "{} must be one of {}".format(
+                    self.type_field, ",".join(self.type_map.keys())
                 )
             )
 
@@ -973,7 +973,7 @@ class UUID(String):
         try:
             return PythonUUID(value)
         except ValueError:
-            raise ValidationError('Not a UUID.')
+            raise ValidationError("Not a UUID.")
 
     def serialize(self, value):
         return str(value)
@@ -992,7 +992,7 @@ class CleanDict(Dict):
         value = super(CleanDict, self).clean(value)
 
         if self.max_length and len(value) > self.max_length:
-            raise ValidationError('Dict is too long.')
+            raise ValidationError("Dict is too long.")
 
         errors = {}
         data = {}
@@ -1010,7 +1010,7 @@ class CleanDict(Dict):
                     data[cleaned_key] = cleaned_value
 
         if errors:
-            raise ValidationError({'errors': errors})
+            raise ValidationError({"errors": errors})
 
         return data
 

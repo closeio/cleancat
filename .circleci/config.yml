@@ -11,7 +11,8 @@ workflows:
                 - "3.8"
                 - "3.9"
                 - "3.10"
-      - black
+                - "3.11"
+      - lint
 
 jobs:
   test:
@@ -20,27 +21,27 @@ jobs:
         type: string
     working_directory: ~/code
     docker:
-    - image: circleci/python:<< parameters.python >>
+    - image: cimg/python:<< parameters.python >>
     - image: mongo:3
     steps:
       - checkout
       - run:
           name: Install dependencies
-          command: sudo pip install -r requirements.txt
-      - run:
-          name: Lint
-          command: flake8
+          command: pip install -r requirements.txt
       - run:
           name: Test
-          command: sudo python setup.py test
-  black:
+          command: python setup.py test
+  lint:
     docker:
-    - image: circleci/python:3.8
+    - image: cimg/python:3.8
     steps:
     - checkout
     - run:
         name: Install dependencies
-        command: sudo -E pip install black==23.3.0
+        command: pip install -r requirements-lint.txt
     - run:
-        name: Test
+        name: Black
         command: black --check .
+    - run:
+        name: Ruff
+        command: ruff cleancat tests

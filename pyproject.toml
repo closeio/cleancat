@@ -1,9 +1,15 @@
 [tool.black]
-skip-string-normalization = true
 line-length = 79
 exclude = '''
 /(
     \.git
-  | \.venv
+  | \.?venv
 )/
 '''
+
+[tool.ruff]
+target-version = "py38"
+line-length = 79
+ignore = [
+    "E501",
+]
