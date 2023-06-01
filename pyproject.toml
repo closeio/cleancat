@@ -24,4 +24,5 @@ select = [
     "W",
     "UP",
     "ISC",
+    "PIE",
 ]

@@ -264,7 +264,7 @@ class URL(Regex):
         **kwargs,
     ):
         def normalize_scheme(sch):
-            if sch.endswith("://") or sch.endswith(":"):
+            if sch.endswith(("://", ":")):
                 return sch
             return sch + "://"
 
@@ -807,7 +807,6 @@ class Schema:
         Keys that failed validation won't be set. Use conditional dictionary
         access or return early `if self.errors or self.field_errors`.
         """
-        pass
 
     def full_clean(self):  # noqa: C901
         if not isinstance(self.raw_data, dict):
