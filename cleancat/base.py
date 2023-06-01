@@ -685,9 +685,7 @@ class SortedSet(List):
         self.key = key
 
     def clean(self, value):
-        return list(
-            sorted(set(super(SortedSet, self).clean(value)), key=self.key)
-        )
+        return sorted(set(super(SortedSet, self).clean(value)), key=self.key)
 
 
 class Schema(object):
@@ -782,16 +780,14 @@ class Schema(object):
         return data
 
     def __init__(self, raw_data=None, data=None):
-        conflicting_fields = set(
-            [
-                "raw_data",
-                "orig_data",
-                "data",
-                "errors",
-                "field_errors",
-                "fields",
-            ]
-        ).intersection(dir(self))
+        conflicting_fields = {
+            "raw_data",
+            "orig_data",
+            "data",
+            "errors",
+            "field_errors",
+            "fields",
+        }.intersection(dir(self))
         if conflicting_fields:
             raise Exception(
                 "The following field names are reserved and need to be renamed: %s. "
@@ -818,7 +814,7 @@ class Schema(object):
         """
         pass
 
-    def full_clean(self):
+    def full_clean(self):  # noqa: C901
         if not isinstance(self.raw_data, dict):
             raise ValidationError(
                 {"errors": ["Invalid request: JSON dictionary expected."]}
