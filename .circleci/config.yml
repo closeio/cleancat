@@ -21,24 +21,24 @@ jobs:
         type: string
     working_directory: ~/code
     docker:
-    - image: circleci/python:<< parameters.python >>
+    - image: cimg/python:<< parameters.python >>
     - image: mongo:3
     steps:
       - checkout
       - run:
           name: Install dependencies
-          command: sudo pip install -r requirements.txt
+          command: pip install -r requirements.txt
       - run:
           name: Test
-          command: sudo python setup.py test
+          command: python setup.py test
   lint:
     docker:
-    - image: circleci/python:3.8
+    - image: cimg/python:3.8
     steps:
     - checkout
     - run:
         name: Install dependencies
-        command: sudo -E pip install -r requirements-lint.txt
+        command: pip install -r requirements-lint.txt
     - run:
         name: Black
         command: black --check .
