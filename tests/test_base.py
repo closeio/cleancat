@@ -1171,3 +1171,8 @@ def test_optional_clean_dict():
 
     with pytest.raises(ValidationError):
         assert TestSchema({"f_opt": {"k": 1.1}}).full_clean()
+
+
+def test_clean_default():
+    f = CleanDict(key_schema=String(), value_schema=String(default="xyz"))
+    assert f.clean({"k": "v", "k1": None}) == {"k": "v", "k1": "xyz"}
