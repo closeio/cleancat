@@ -656,7 +656,7 @@ class Enum(Choices):
         else:
             assert choices, "You need to provide at least one enum choice."
             self.enum_cls = choices[0].__class__
-        return super().__init__(choices, **kwargs)
+        super().__init__(choices, **kwargs)
 
     def get_choices(self):
         return [choice.value for choice in self.choices]
