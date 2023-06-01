@@ -6,7 +6,6 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 from cleancat import Integer, Schema, StopValidation, String, ValidationError
 from cleancat.sqla import SQLAEmbeddedReference, SQLAReference, object_as_dict
 
-
 Base = declarative_base()
 
 

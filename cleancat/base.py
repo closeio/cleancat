@@ -7,7 +7,6 @@ from uuid import UUID as PythonUUID
 import pytz
 from dateutil import parser
 
-
 # Sentinel value which means "pick the default value" when encountered.
 default_sentinel = object()
 

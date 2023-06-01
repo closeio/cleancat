@@ -27,4 +27,5 @@ select = [
     "PIE",
     "PT",
     "PLE",
+    "I",
 ]
