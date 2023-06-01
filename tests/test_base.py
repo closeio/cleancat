@@ -481,6 +481,10 @@ class TestListField:
             List(String(), required=False).clean(value)
         assert e.value.args[0] == []
 
+    def test_it_handles_defaults(self):
+        field = List(String(default="xyz"))
+        assert field.clean(["abc", None]) == ["abc", "xyz"]
+
 
 class ClassWithID:
     id = None

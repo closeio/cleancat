@@ -398,6 +398,8 @@ class List(Field):
                 cleaned_data = self.field_instance.clean(item)
             except ValidationError as e:
                 errors[n] = e.args and e.args[0]
+            except StopValidation as e:
+                data.append(e.args and e.args[0])
             else:
                 data.append(cleaned_data)
 
