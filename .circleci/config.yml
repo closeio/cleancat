@@ -12,7 +12,7 @@ workflows:
                 - "3.9"
                 - "3.10"
                 - "3.11"
-      - black
+      - lint
 
 jobs:
   test:
@@ -34,14 +34,14 @@ jobs:
       - run:
           name: Test
           command: sudo python setup.py test
-  black:
+  lint:
     docker:
     - image: circleci/python:3.8
     steps:
     - checkout
     - run:
         name: Install dependencies
-        command: sudo -E pip install black==23.3.0
+        command: sudo -E pip install -r requirements-lint.txt
     - run:
-        name: Test
+        name: Black
         command: black --check .
