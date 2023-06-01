@@ -23,4 +23,5 @@ select = [
     "TID",
     "W",
     "UP",
+    "ISC",
 ]
