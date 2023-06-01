@@ -13,3 +13,9 @@ line-length = 79
 ignore = [
     "E501",
 ]
+
+select = [
+    "B",
+    "E",
+    "F",
+]

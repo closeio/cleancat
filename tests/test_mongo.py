@@ -41,7 +41,7 @@ class TestMongoEmbedded:
 
     def test_it_accepts_valid_input(self, doc_cls, schema_cls):
         value = {"name": "Jon"}
-        MongoEmbedded(doc_cls, schema_cls).clean(value) == value
+        assert MongoEmbedded(doc_cls, schema_cls).clean(value) == value
 
     def test_it_enforces_validation_of_embedded_schema(
         self, doc_cls, schema_cls

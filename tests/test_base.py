@@ -720,7 +720,7 @@ class TestRelaxedURLField:
         ],
     )
     def test_it_accepts_valid_urls(self, value):
-        RelaxedURL().clean(value) == value
+        assert RelaxedURL().clean(value) == value
 
     @pytest.mark.parametrize(
         "value, is_required, valid",

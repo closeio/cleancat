@@ -48,10 +48,10 @@ class MongoEmbeddedReference(EmbeddedReference):
         doc_cls = self.object_class
         try:
             return doc_cls.objects.get(pk=pk)
-        except doc_cls.DoesNotExist:
-            raise ReferenceNotFoundError
+        except doc_cls.DoesNotExist as e:
+            raise ReferenceNotFoundError from e
         except MongoValidationError as e:
-            raise ValidationError(str(e))
+            raise ValidationError(str(e)) from e
 
     def get_orig_data_from_existing(self, obj):
         # Get a dict of existing document's field names and values.
@@ -74,8 +74,8 @@ class MongoReference(Reference):
         """Fetch the document by its PK."""
         try:
             return self.object_class.objects.get(pk=doc_id)
-        except self.object_class.DoesNotExist:
-            raise ReferenceNotFoundError
+        except self.object_class.DoesNotExist as e:
+            raise ReferenceNotFoundError from e
 
     def serialize(self, doc):
         if doc:

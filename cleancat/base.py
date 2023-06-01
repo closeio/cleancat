@@ -210,8 +210,8 @@ class DateTime(Regex):
             raise ValidationError(self.regex_message)
         try:
             dt = parser.parse(value)
-        except ValueError:
-            raise ValidationError("Could not parse datetime")
+        except ValueError as e:
+            raise ValidationError("Could not parse datetime") from e
         if self.min_date:
             if dt.tzinfo is not None and self.min_date.tzinfo is None:
                 min_date = self.min_date.replace(tzinfo=pytz.utc)
@@ -507,8 +507,8 @@ class EmbeddedReference(Dict):
         existing_pk = value[self.pk_field]
         try:
             obj = self.fetch_existing(existing_pk)
-        except ReferenceNotFoundError:
-            raise ValidationError("Object does not exist.")
+        except ReferenceNotFoundError as e:
+            raise ValidationError("Object does not exist.") from e
         orig_data = self.get_orig_data_from_existing(obj)
 
         # Clean the data (passing the new data dict and the original data to
@@ -572,8 +572,8 @@ class Reference(Field):
         obj_id = super(Reference, self).clean(value)
         try:
             return self.fetch_object(obj_id)
-        except ReferenceNotFoundError:
-            raise ValidationError("Object does not exist.")
+        except ReferenceNotFoundError as e:
+            raise ValidationError("Object does not exist.") from e
 
     def fetch_object(self, ref_id):
         """Fetch an existing object that corresponds to a given ID.
@@ -929,14 +929,14 @@ class PolymorphicField(Dict):
 
     def __init__(
         self,
-        type_map={},
+        type_map=None,
         type_field=DEFAULT_TYPE_FIELD,
         keep_type_field=False,
         *args,
         **kwargs
     ):
         super(PolymorphicField, self).__init__(*args, **kwargs)
-        self.type_map = type_map
+        self.type_map = type_map or {}
         self.type_field = type_field
         self.keep_type_field = keep_type_field
 
@@ -972,8 +972,8 @@ class UUID(String):
         value = super(UUID, self).clean(value)
         try:
             return PythonUUID(value)
-        except ValueError:
-            raise ValidationError("Not a UUID.")
+        except ValueError as e:
+            raise ValidationError("Not a UUID.") from e
 
     def serialize(self, value):
         return str(value)
@@ -996,14 +996,14 @@ class CleanDict(Dict):
 
         errors = {}
         data = {}
-        for key, value in value.items():
+        for key, item_value in value.items():
             try:
                 cleaned_key = self.key_schema.clean(key)
             except ValidationError as e:
                 errors[key] = e.args and e.args[0]
             else:
                 try:
-                    cleaned_value = self.value_schema.clean(value)
+                    cleaned_value = self.value_schema.clean(item_value)
                 except ValidationError as e:
                     errors[key] = e.args and e.args[0]
                 else:
