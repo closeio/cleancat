@@ -30,9 +30,9 @@ jobs:
         python-version: ["3.8", "3.9", "3.10", "3.11"]
     services:
       mongo:
-        image: mongo:3.6.23
+        image: mongo:6.0.18
         options: >-
-          --health-cmd "echo 'db.runCommand(\"ping\").ok' | mongo --quiet"
+          --health-cmd "echo 'db.runCommand(\"ping\").ok' | mongosh --quiet"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5

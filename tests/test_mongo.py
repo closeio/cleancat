@@ -14,7 +14,9 @@ from cleancat.mongo import (
 
 @pytest.fixture()
 def _mongodb():
-    connect(db="cleancat_test", host=os.environ.get("MONGODB_HOST", "localhost"))
+    connect(
+        db="cleancat_test", host=os.environ.get("MONGODB_HOST", "localhost")
+    )
 
 
 @pytest.fixture()
