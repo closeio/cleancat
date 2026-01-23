@@ -1,3 +1,5 @@
+import os
+
 import pytest
 from bson import ObjectId
 from mongoengine import Document, EmbeddedDocument, StringField, connect
@@ -12,7 +14,7 @@ from cleancat.mongo import (
 
 @pytest.fixture()
 def _mongodb():
-    connect(db="cleancat_test")
+    connect(db="cleancat_test", host=os.environ.get("MONGODB_HOST", "localhost"))
 
 
 @pytest.fixture()

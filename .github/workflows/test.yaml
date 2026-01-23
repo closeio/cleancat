@@ -40,6 +40,8 @@ jobs:
           - 27017:27017
     container:
       image: python:${{ matrix.python-version }}
+    env:
+      MONGODB_HOST: mongo
     steps:
       - uses: actions/checkout@v4
       - name: Install dependencies
