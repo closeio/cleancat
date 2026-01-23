@@ -27,7 +27,7 @@ jobs:
         python-version: ["3.8", "3.9", "3.10", "3.11"]
     services:
       mongo:
-        image: mongo:3
+        image: mongo:3.6.23
         options: >-
           --health-cmd "echo 'db.runCommand(\"ping\").ok' | mongo --quiet"
           --health-interval 10s
@@ -44,4 +44,4 @@ jobs:
           pip install -r requirements.txt
       - name: Test
         run: |
-          python setup.py test
+          pytest
