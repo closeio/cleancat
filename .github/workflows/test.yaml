@@ -1,0 +1,52 @@
+name: test-workflow
+
+on: [push]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    container:
+      image: python:3.10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          pip install -r requirements-lint.txt
+      - name: Black
+        run: |
+          black --check .
+      - name: Ruff
+        run: |
+          ruff cleancat tests
+
+  test:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+    services:
+      mongo:
+        image: mongo:6.0.18
+        options: >-
+          --health-cmd "echo 'db.runCommand(\"ping\").ok' | mongosh --quiet"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 27017:27017
+    container:
+      image: python:${{ matrix.python-version }}
+    env:
+      MONGODB_HOST: mongo
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+      - name: Test
+        run: |
+          pytest
