@@ -11,7 +11,7 @@ jobs:
     container:
       image: python:3.10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Install dependencies
         run: |
           pip install -r requirements-lint.txt
@@ -43,7 +43,7 @@ jobs:
     env:
       MONGODB_HOST: mongo
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
